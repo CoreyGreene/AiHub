@@ -8,8 +8,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import generation, pictures
-from .themes import THEMES
+from . import jobs, pictures, settings, themes
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 # Changes on every server start. The page asks for app.css and app.js with
@@ -36,14 +35,32 @@ class GenerateRequest(BaseModel):
 
 @app.get("/api/themes")
 def list_themes() -> list[dict]:
-    return THEMES
+    return themes.public_list()
 
 
 @app.post("/api/generate")
 def generate(req: GenerateRequest) -> dict:
-    made = generation.generate(theme=req.theme, prompt=req.prompt)
-    pic_id = pictures.keep_new(made, theme=req.theme, prompt=req.prompt)
-    return {"status": "done", "id": pic_id, "image": f"api/pictures/{pic_id}"}
+    """Adds a picture to the queue; the page then asks /api/jobs/{job} for progress."""
+    theme = themes.get(req.theme)
+    if theme is None:
+        raise HTTPException(400, "That theme isn't there any more. Reload the page.")
+    prompt = " ".join(req.prompt.split())
+    if not prompt:
+        raise HTTPException(400, "Type a prompt first.")
+    return {"job": jobs.submit(req.theme, theme, prompt)}
+
+
+@app.get("/api/jobs/{job_id}")
+def job(job_id: str) -> dict:
+    found = jobs.status(job_id)
+    if found is None:
+        raise HTTPException(404, "That picture job isn't known (the server may have restarted).")
+    return found
+
+
+@app.get("/api/characters")
+def characters() -> list[dict]:
+    return pictures.list_characters()
 
 
 @app.get("/api/pictures/{pic_id}")
@@ -54,7 +71,7 @@ def picture(pic_id: str, download: bool = False) -> FileResponse:
     # download=1 makes the browser save the file instead of showing it.
     name = None
     if download:
-        who = path.parent.name if path.parent.parent == pictures.CHARACTERS else "imageai"
+        who = path.parent.name if pictures.is_saved(path) else "imageai"
         name = f"{who}-{pic_id[:8]}.png"
     return FileResponse(path, media_type="image/png", filename=name)
 
@@ -75,10 +92,33 @@ def save_picture(pic_id: str, req: SaveRequest) -> dict:
     return {"status": "saved", "character": character}
 
 
+class SettingsRequest(BaseModel):
+    use_3060_settings: bool
+
+
+DEVICE_NAMES = {"cuda": "NVIDIA graphics card (CUDA)", "mps": "Apple graphics (MPS)", "cpu": "the processor (slow)"}
+
+
+@app.get("/api/settings")
+def get_settings() -> dict:
+    device = settings.device()
+    return {
+        "use_3060_settings": settings.get()["use_3060_settings"],
+        "device": device,
+        "device_name": DEVICE_NAMES.get(device, device),
+    }
+
+
+@app.post("/api/settings")
+def change_settings(req: SettingsRequest) -> dict:
+    settings.set_local("use_3060_settings", req.use_3060_settings)
+    return get_settings()
+
+
 @app.get("/", response_class=HTMLResponse)
 def index() -> str:
     html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
-    for name in ("app.css", "app.js"):
+    for name in ("app.css", "js/main.js"):
         html = html.replace(f'"{name}"', f'"{name}?v={STARTED}"')
     return html
 

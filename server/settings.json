@@ -1,0 +1,26 @@
+{
+  "_about": "Where things live and how pictures are checked. Paths are relative to the project folder. To change something on one machine only (for example the Mac), put just those keys in server/settings.local.json; it is never committed.",
+
+  "models_dir": "server/aIModels",
+  "loras_dir": "server/lora",
+  "themes_dir": "server/theme",
+  "outputs_dir": "outputs",
+
+  "_device": "auto = cuda (NVIDIA), then mps (Mac), then cpu. Or name one.",
+  "device": "auto",
+
+  "_use_3060_settings": "For a 12 GB graphics card like the RTX 3060: a lighter VAE (the step that turns the result into pixels) that works in half precision, used in tiles. Not needed on the Mac. Switched on the Settings page, which saves it in settings.local.json.",
+  "use_3060_settings": false,
+  "fp16_vae": "sdxl-vae-fp16-fix",
+
+  "safety": {
+    "_about": "Every picture is checked by both checkers and is not shown if either one scores it at or above the threshold. Up to 'tries' pictures are made before giving up. 'negative' is added to every theme's negative prompt.",
+    "checkers": [
+      "safety/falconsai-nsfw-image-detection",
+      "safety/adamcodd-vit-base-nsfw-detector"
+    ],
+    "threshold": 0.7,
+    "tries": 3,
+    "negative": "nsfw, nude, nudity, naked, topless, nipples, genitals, explicit, sexual"
+  }
+}

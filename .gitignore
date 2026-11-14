@@ -6,6 +6,8 @@ __pycache__/
 *.pyc
 
 # AI models: checkpoints, LoRAs, embeddings, VAEs, MLX and Core ML models
+server/aIModels/
+server/lora/
 models/
 loras/
 checkpoints/
@@ -37,9 +39,8 @@ datasets/
 *.tiff
 *.heic
 *.psd
-# ...except the page's own icons (web/) and the built-in demo picture
+# ...except the page's own icons, which live in web/
 !web/**/*.png
-!server/assets/*.png
 
 # Private settings, keys and logs
 .env

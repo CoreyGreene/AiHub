@@ -65,9 +65,8 @@ later. So:
 - **Server:** FastAPI + uvicorn (`server/`). Page routes are static files;
   everything else is JSON under `/api/`.
 - **Page:** plain HTML, CSS and JavaScript (`web/`). No framework, no npm,
-  no build step: edit a file, reload the page. When `app.js` grows past a
-  few hundred lines, split it into ES modules under `web/js/`
-  (`<script type="module">`). Revisit a framework only if the page gets
+  no build step: edit a file, reload the page. The script is ES modules
+  under `web/js/` (`main.js` loads the rest). Revisit a framework only if the page gets
   truly complex (many screens with shared state); if so, prefer one that
   needs no build step (e.g. Preact + htm loaded as a vendored file).
 - **Generation** plugs in at `server/generation.py` and nowhere else in the
@@ -75,17 +74,70 @@ later. So:
   running a model (diffusers/PyTorch, MLX, Core ML) is its own small
   "backend" with the same shape, so a theme can name its backend and the
   website never cares which one ran.
-- Long jobs never block a request: the server queues them and the page asks
-  for progress.
+- Long jobs never block a request: the server queues them (`jobs.py`, one
+  picture at a time) and the page asks for progress.
+- **Nothing hard-coded.** Folders, device, safety and the 3060 switch live in
+  `server/settings.json` (shared) and `server/settings.local.json` (this
+  machine only, git-ignored, written by the Settings page). Model, LoRAs,
+  prompt wording, size and steps live in the theme files.
+- **Safe for work, always.** Every picture goes through `server/safety.py`
+  (two nudity checkers, either one can block) before anyone sees it, and
+  the safety negative words are added to every prompt. There is no switch
+  to turn this off. Don't add NSFW LoRAs or themes.
+
+## Models and files (git-ignored)
+
+```
+server/aIModels/   checkpoints, plus:
+  sdxl-config/       SDXL config + tokenizer files (no weights), so SDXL
+                     single-file models load offline
+  sdxl-vae-fp16-fix/ VAE used by the "3060 settings"
+  safety/            the two nudity checkers (Falconsai, AdamCodd)
+server/lora/       LoRAs
+server/theme/      theme JSON files (these ARE committed)
+outputs/           pictures: new/ (unsaved) and characters/<name>/
+```
+
+These came from the old project (`/home/game-pc/image-generator`, read
+only: never edit it). Current theme: `cel-shade.json` = WAI Illustrious
+v17 (SDXL) + `chibi-style-xl` LoRA at 0.7. That checkpoint *can* draw adult
+content like any anime SDXL model, so the safety check is what keeps it SFW.
+On the 3060: about 25 s a picture (832×1216, 28 steps), ~5 s to load.
+
+## Moving to the Mac (notes for phase 6)
+
+- **Copy the folders above** (`server/aIModels/`, `server/lora/`) to the
+  Mac; they are not in git. `start.py` installs the same packages; PyPI's
+  torch on macOS uses the GPU through MPS (no CUDA packages).
+- **Turn "Use 3060 settings" off** on the Settings page. The Mac has the
+  memory, so the stock VAE in full precision and no tiling are fine. (If
+  the stock SDXL VAE gives black or noisy pictures on MPS in half
+  precision, either keep the fp16-fix VAE without tiling, or run the VAE in
+  float32: test, don't guess.)
+- `settings.local.json` is per machine: the Mac starts with the defaults
+  from `settings.json` (3060 settings off, device auto → mps).
+- **Time it on the Mac** (same prompt, seed and steps) and write the number
+  here. Then try the MLX / Core ML versions of the same model in phase 7 as
+  new backends in `server/backends/` (same `Backend(device).make(req,
+  on_step)` shape), named by the theme's `"backend"` key.
+- PyTorch's `expandable_segments` setting in `server/__main__.py` is for
+  NVIDIA only and is ignored on the Mac.
+- The safety checkers run on the CPU everywhere; that's fine on the Mac.
 
 ## Layout
 
 ```
-start.py            sets up .venv, then runs the server
-server/app.py       routes
-server/themes.py    theme list (moves to themes/*.json in phase 1)
-server/generation.py  where image making plugs in
-web/                index.html, app.css, app.js
+start.py              sets up .venv, then runs the server
+server/app.py         routes
+server/settings.py    reads settings.json (+ settings.local.json)
+server/themes.py      reads the theme folder
+server/jobs.py        the picture queue (progress for the page)
+server/generation.py  theme + prompt -> checked picture
+server/backends/      one file per way of running a model (diffusers_sdxl.py)
+server/safety.py      the nudity check
+server/pictures.py    outputs/ on disk, saving to characters, the library list
+web/                  index.html, app.css, js/ (main, theme-picker, create,
+                      library, settings)
 ```
 
 ## Plan
@@ -95,23 +147,25 @@ commit, then move on.
 
 - [x] **Phase 0 — Shell.** Page with theme picker, prompt, Generate button,
   empty result. Generate says "Not connected yet".
-- [ ] **Phase 1 — Themes as files.** Each theme is a JSON file in `themes/`
+- [x] **Phase 1 — Themes as files.** Each theme is a JSON file in `server/theme/`
   (name, hint, later: model, LoRAs, prompt wording, size). Server reads the
-  folder; adding a theme needs no code change. Remember the last theme and
-  prompt on the phone (localStorage).
-- [ ] **Phase 2 — Jobs with a fake generator.** Generate creates a job; the
+  folder; adding a theme needs no code change. (Not done yet: remember the
+  last theme and prompt on the phone.)
+- [x] **Phase 2 — Jobs with a fake generator.** Generate creates a job; the
   server makes a placeholder picture with Pillow (prompt text on a coloured
   card) after a short delay. Page shows "waiting / working / done", then the
   picture. Pictures saved to `outputs/` with their settings beside them.
   This builds the whole flow before any AI is involved.
-- [ ] **Phase 3 — First real model.** One model via `diffusers` (likely an
+- [x] **Phase 3 — First real model.** One model via `diffusers` (likely an
   SDXL / Illustrious checkpoint for character art: small enough to also
   test on the 3060). Device picked automatically (CUDA here, MPS on the
   Mac). Model path in settings, not in code. Model stays loaded between
   pictures. Real progress steps.
-- [ ] **Phase 4 — Themes drive the model.** A theme picks its backend,
+- [x] **Phase 4 — Themes drive the model.** A theme picks its backend,
   model, LoRAs, extra prompt words, negative prompt and picture size.
-- [ ] **Phase 5 — Library.** Browse past pictures, see their prompt and
+- [ ] **Phase 5 — Library.** Started: pictures are saved per character
+  (name field + Save) and the Library lists characters with their first
+  picture. Still to do: open a character, see each picture's prompt and
   theme, make again, delete (with an in-page "are you sure").
 - [ ] **Phase 6 — Mac Studio + Tailscale.** Move to the Mac, reach it from
   the phone over Tailscale. Time the phase 3 model on MPS. Consider a simple

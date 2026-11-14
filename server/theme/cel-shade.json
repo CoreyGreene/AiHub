@@ -1,0 +1,22 @@
+{
+  "_notes": "Cartoon cel-shade look: the WAI Illustrious anime model with flat cel shading, plus the chibi-style-xl LoRA for big heads and small bodies. {prompt} is where your words go.",
+
+  "name": "Cel Shade",
+  "hint": "Anime cel shading, bold outlines, chibi",
+
+  "backend": "diffusers-sdxl",
+  "model": "waiIllustriousSDXL_v170.safetensors",
+  "model_config": "sdxl-config",
+  "loras": [
+    {"file": "chibi-style-xl.safetensors", "weight": 0.7}
+  ],
+
+  "prompt": "masterpiece, best quality, anime coloring, cel shading, flat color, hard shadows, clean lineart, bold black outlines, vibrant colors, simple shading, chibi, big head, small body, cute, game character, {prompt}, solo, full body, standing, white background, simple background",
+  "negative": "lowres, worst quality, bad quality, monochrome, greyscale, uncolored, lineart only, realistic, painterly, painting, brush strokes, soft shading, gradient, airbrush, texture, grain, noise, sketch, blurry, 3d, bad anatomy, bad hands, extra limbs, multiple characters, text, watermark, signature, letters, logo",
+
+  "width": 832,
+  "height": 1216,
+  "steps": 28,
+  "guidance": 6.0,
+  "scheduler": "euler_a"
+}

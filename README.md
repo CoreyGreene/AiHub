@@ -2,9 +2,14 @@
 
 A website for making pictures: pick a theme, type a prompt, press Generate.
 
-**No AI yet.** Pressing Generate waits about a second, then shows a
-built-in demo picture (a stick figure) that you can download. No models,
-no downloads needed.
+Pick a theme, type a prompt, press Generate. The picture is made on this
+computer's graphics card and checked for nudity before it's shown (the
+site is safe for work). Give it a character name and Save to keep it in
+the Library.
+
+**Models aren't in git.** Put them in `server/aIModels/` and LoRAs in
+`server/lora/` (see CLAUDE.md for what goes where). Themes are JSON files
+in `server/theme/`: add a file to add a theme, no code change.
 
 ## Start it
 
@@ -42,14 +47,19 @@ requirements.txt      Python packages
 server/               the Python side
   __main__.py         starts the web server, prints the addresses
   app.py              web routes: serves web/ and the /api calls
-  themes.py           the list of themes (placeholders for now)
-  generation.py       where image making plugs in (fake for now)
+  settings.json       folders, device, safety (settings.local.json: this machine)
+  themes.py           reads the theme files in theme/
+  jobs.py             the picture queue
+  generation.py       theme + prompt -> a checked picture
+  backends/           ways of running a model (diffusers SDXL for now)
+  safety.py           the nudity check
   pictures.py         keeps pictures in outputs/ (new ones, and saved per character)
-  assets/demo.png     the demo picture
+  theme/              theme files (JSON)
+  aIModels/, lora/    models and LoRAs (not in git)
 web/                  the page your browser loads
   index.html
   app.css             mobile first; wider screens get a two-column layout
-  app.js              shows things and talks to the server, nothing more
+  js/                 main.js loads the rest: theme picker, create, library, settings
 ```
 
 Ground rules carried over from the last project:
@@ -65,6 +75,9 @@ Ground rules carried over from the last project:
 | Call | What it does |
 | --- | --- |
 | `GET /api/themes` | List of themes |
-| `POST /api/generate` `{theme, prompt}` | Waits ~1 s, keeps a copy of the demo picture, answers `{"status": "done", "id", "image"}` |
+| `POST /api/generate` `{theme, prompt}` | Queues a picture, answers `{"job"}` |
+| `GET /api/jobs/{job}` | Progress: `status` waiting / working (with `stage`, `step`, `steps`) / done (with `picture`, `image`) / blocked / failed |
+| `GET /api/characters` | Saved characters, each with its first picture |
+| `GET`/`POST /api/settings` | The "Use 3060 settings" switch (this machine only) |
 | `GET /api/pictures/{id}` | A picture (`?download=1` to save it as a file) |
 | `POST /api/pictures/{id}/save` `{character}` | Saves the picture to that character |

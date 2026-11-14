@@ -4,7 +4,15 @@ Normally started through start.py, which sets up .venv first.
 """
 
 import argparse
+import os
 import socket
+
+# Let PyTorch reuse graphics memory more flexibly (fewer out-of-memory errors
+# on NVIDIA cards; ignored elsewhere), and keep library chatter out of the log.
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
+os.environ.setdefault("DIFFUSERS_VERBOSITY", "error")
+os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
 
 import uvicorn
 
