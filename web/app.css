@@ -49,7 +49,7 @@ h2 { margin: 0 0 12px; font-size: 1rem; color: var(--muted); font-weight: 600; }
 /* Create / Library tabs. */
 .tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   margin-bottom: 16px;
   border-bottom: 1px solid var(--line);
 }
@@ -141,10 +141,13 @@ main[hidden] { display: none; }
 
 .field { display: block; margin-bottom: 16px; }
 .label { display: block; font-weight: 600; margin-bottom: 8px; }
+.text-input { min-height: 48px; }
+.optional { font-weight: 400; color: var(--muted); }
 .error-line { display: block; margin-top: 6px; font-size: 0.9rem; color: #ff9b9b; }
 .error-line[hidden] { display: none; }
 
-textarea {
+textarea,
+.text-input {
   width: 100%;
   resize: vertical;
   font: inherit;
@@ -155,7 +158,8 @@ textarea {
   border-radius: 10px;
   padding: 10px 12px;
 }
-textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
+textarea:focus,
+.text-input:focus { outline: 2px solid var(--accent); border-color: transparent; }
 
 button.primary {
   width: 100%;
@@ -187,14 +191,6 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
   margin: 0;
 }
 .note strong { display: block; margin-bottom: 4px; }
-
-/* Wider screens: centre the page, put the form and result side by side. */
-@media (min-width: 800px) {
-  body { max-width: 1040px; margin: 0 auto; padding: 0 24px 32px; }
-  .tabs { grid-template-columns: repeat(2, 160px); }
-  .view-create { grid-template-columns: 1fr 1fr; align-items: start; }
-  .result-box { min-height: 360px; }
-}
 
 /* Waiting for a picture: a spinning ring. */
 .working { display: grid; justify-items: center; gap: 14px; color: var(--muted); }
@@ -229,3 +225,21 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
   border-radius: 10px;
 }
 .button:hover { border-color: var(--accent); }
+
+/* Wider screens: use the whole width. Tabs stretch across, the form sits
+   on the left and the result gets the bigger share and most of the height. */
+@media (min-width: 800px) {
+  body { padding: 0 32px 32px; }
+  .view-create {
+    grid-template-columns: minmax(340px, 2fr) 3fr;
+    align-items: stretch;
+    gap: 24px;
+  }
+  .view-create textarea { min-height: 200px; }
+  .result { display: flex; flex-direction: column; }
+  .result-box { flex: 1; min-height: calc(100vh - 232px); }
+  /* The picture fills the space but always fits on screen with its buttons. */
+  .done { justify-items: center; }
+  .picture { width: 100%; height: calc(100vh - 380px); min-height: 300px; object-fit: contain; }
+  .done .primary, .actions { width: min(100%, 520px); }
+}

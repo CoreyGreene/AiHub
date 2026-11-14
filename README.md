@@ -44,6 +44,7 @@ server/               the Python side
   app.py              web routes: serves web/ and the /api calls
   themes.py           the list of themes (placeholders for now)
   generation.py       where image making plugs in (fake for now)
+  pictures.py         keeps pictures in outputs/ (new ones, and saved per character)
   assets/demo.png     the demo picture
 web/                  the page your browser loads
   index.html
@@ -64,5 +65,6 @@ Ground rules carried over from the last project:
 | Call | What it does |
 | --- | --- |
 | `GET /api/themes` | List of themes |
-| `POST /api/generate` `{theme, prompt}` | Waits ~1 s, then answers `{"status": "done", "image": "api/demo-image", ...}` |
-| `GET /api/demo-image` | The demo picture (`?download=1` to save it as a file) |
+| `POST /api/generate` `{theme, prompt}` | Waits ~1 s, keeps a copy of the demo picture, answers `{"status": "done", "id", "image"}` |
+| `GET /api/pictures/{id}` | A picture (`?download=1` to save it as a file) |
+| `POST /api/pictures/{id}/save` `{character}` | Saves the picture to that character |

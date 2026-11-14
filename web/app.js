@@ -3,12 +3,14 @@
 
 const els = {
   form: document.getElementById("make"),
-  theme: document.getElementById("theme"),
+  theme: document.getElementById("theme-name"),
   themeToggle: document.getElementById("theme-toggle"),
   themeOptions: document.getElementById("theme-options"),
   themeHint: document.getElementById("theme-hint"),
   prompt: document.getElementById("prompt"),
   promptError: document.getElementById("prompt-error"),
+  character: document.getElementById("character"),
+  characterError: document.getElementById("character-error"),
   button: document.getElementById("generate"),
   result: document.getElementById("result"),
 };
@@ -175,7 +177,7 @@ async function onGenerate(event) {
     });
     const data = await res.json();
     if (data.status === "done") {
-      showImage(data.image);
+      showImage(data.id, data.image);
     } else {
       showNote("Something unexpected came back", JSON.stringify(data));
     }
@@ -194,17 +196,31 @@ function showSpinner() {
   els.result.replaceChildren(box);
 }
 
-function showImage(url) {
+let pictureId = null; // the picture on screen now
+let saveButton = null;
+let savedTo = null; // character it was last saved to
+let saving = false;
+
+function showImage(id, url) {
+  pictureId = id;
+
   const img = document.createElement("img");
   img.className = "picture";
   img.alt = "Your picture";
   img.src = url;
 
-  const save = document.createElement("a");
-  save.className = "button";
-  save.href = `${url}?download=1`;
-  save.download = "";
-  save.textContent = "Download";
+  saveButton = document.createElement("button");
+  saveButton.type = "button";
+  saveButton.className = "primary";
+  saveButton.addEventListener("click", onSave);
+  savedTo = null;
+  updateSave();
+
+  const download = document.createElement("a");
+  download.className = "button";
+  download.href = `${url}?download=1`;
+  download.download = "";
+  download.textContent = "Download";
 
   const reset = document.createElement("button");
   reset.type = "button";
@@ -214,19 +230,66 @@ function showImage(url) {
 
   const actions = document.createElement("div");
   actions.className = "actions";
-  actions.append(save, reset);
+  actions.append(download, reset);
 
   const box = document.createElement("div");
   box.className = "done";
-  box.append(img, actions);
+  box.append(img, saveButton, actions);
   els.result.replaceChildren(box);
 }
+
+// Saving needs a character name; downloading doesn't. So Save stays
+// greyed out until a name is typed.
+function updateSave() {
+  if (!saveButton) return;
+  const name = els.character.value.trim();
+  if (saving) {
+    saveButton.textContent = "Saving…";
+  } else if (!name) {
+    saveButton.textContent = "Type a name to save";
+  } else if (name === savedTo) {
+    saveButton.textContent = `Saved to ${savedTo} ✓`;
+  } else {
+    saveButton.textContent = "Save";
+  }
+  saveButton.disabled = saving || !name || name === savedTo;
+}
+
+async function onSave() {
+  const character = els.character.value.trim();
+  saving = true;
+  updateSave();
+  try {
+    const res = await fetch(`api/pictures/${pictureId}/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ character }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    savedTo = character;
+  } catch (err) {
+    els.characterError.textContent = err.message || "Couldn't save. Is the server running?";
+    els.characterError.hidden = false;
+  } finally {
+    saving = false;
+    updateSave();
+  }
+}
+
+els.character.addEventListener("input", () => {
+  els.characterError.hidden = true;
+  updateSave();
+});
 
 // Back to a clean page: first theme, empty prompt, no picture.
 function startOver() {
   if (themes.length) choose(themes[0]);
   els.prompt.value = "";
   els.promptError.hidden = true;
+  els.character.value = "";
+  els.characterError.hidden = true;
+  pictureId = saveButton = savedTo = null;
   els.result.innerHTML = emptyResult;
   window.scrollTo({ top: 0, behavior: "smooth" });
 }

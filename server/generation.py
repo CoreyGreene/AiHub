@@ -12,11 +12,7 @@ DEMO_IMAGE = Path(__file__).resolve().parent / "assets" / "demo.png"
 FAKE_SECONDS = 1
 
 
-def generate(theme: str, prompt: str) -> dict:
+def generate(theme: str, prompt: str) -> Path:
+    """Make a picture and return the file it was written to."""
     time.sleep(FAKE_SECONDS)
-    return {
-        "status": "done",
-        "image": "api/demo-image",
-        "theme": theme,
-        "prompt": prompt,
-    }
+    return DEMO_IMAGE
