@@ -47,6 +47,79 @@ def theme_details() -> list[dict]:
     return [{"id": tid, **generation.describe(t)} for tid, t in themes.load().items()]
 
 
+@app.get("/api/themes/choices")
+def theme_choices() -> dict:
+    """The model and LoRA files here, and the samplers, for changing a theme."""
+    return generation.choices()
+
+
+class LoraChoice(BaseModel):
+    file: str
+    weight: float
+
+
+class ThemeChange(BaseModel):
+    name: str
+    hint: str = ""
+    prompt_before: str = ""
+    prompt_after: str = ""
+    negative: str = ""
+    model: str
+    loras: list[LoraChoice] = []
+    width: int
+    height: int
+    steps: int
+    guidance: float
+    scheduler: str
+
+
+@app.put("/api/themes/{theme_id}")
+def change_theme(theme_id: str, req: ThemeChange) -> dict:
+    """Save changes to a theme file. The next picture uses them."""
+    if themes.get(theme_id) is None:
+        raise HTTPException(404, "That theme isn't there any more. Reload the page.")
+    found = generation.choices()
+    name = " ".join(req.name.split())
+    if not name:
+        raise HTTPException(400, "Give the theme a name.")
+    if req.model not in found["models"]:
+        raise HTTPException(400, "Pick a model that's in the models folder.")
+    if len({lora.file for lora in req.loras}) < len(req.loras):
+        raise HTTPException(400, "The same LoRA is in the list twice. Remove one.")
+    for lora in req.loras:
+        if lora.file not in found["loras"]:
+            raise HTTPException(400, f"The LoRA {lora.file} isn't in the LoRA folder.")
+        if not -2 <= lora.weight <= 2:
+            raise HTTPException(400, "LoRA strength must be between -2 and 2.")
+    for label, value in (("Width", req.width), ("Height", req.height)):
+        if not 512 <= value <= 2048 or value % 8:
+            raise HTTPException(400, f"{label} must be 512 to 2048, and divide by 8.")
+    if not 1 <= req.steps <= 100:
+        raise HTTPException(400, "Steps must be 1 to 100.")
+    if not 0 <= req.guidance <= 30:
+        raise HTTPException(400, "Guidance must be 0 to 30.")
+    if req.scheduler not in found["schedulers"]:
+        raise HTTPException(400, "Pick one of the samplers in the list.")
+
+    # Your prompt goes between the words before and after it.
+    tidy = lambda words: " ".join(words.split()).strip(" ,")
+    prompt = ", ".join(w for w in (tidy(req.prompt_before), "{prompt}", tidy(req.prompt_after)) if w)
+    themes.save(theme_id, {
+        "name": name,
+        "hint": " ".join(req.hint.split()),
+        "prompt": prompt,
+        "negative": tidy(req.negative),
+        "model": req.model,
+        "loras": [{"file": l.file, "weight": l.weight} for l in req.loras],
+        "width": req.width,
+        "height": req.height,
+        "steps": req.steps,
+        "guidance": req.guidance,
+        "scheduler": req.scheduler,
+    })
+    return {"id": theme_id, **generation.describe(themes.get(theme_id))}
+
+
 @app.post("/api/generate")
 def generate(req: GenerateRequest) -> dict:
     """Adds a picture to the queue; the page then asks /api/jobs/{job} for progress."""

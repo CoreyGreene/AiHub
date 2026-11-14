@@ -129,7 +129,8 @@ export async function loadThemes() {
     input.disabled = false;
     if (themes.length) {
       input.placeholder = "Pick or type a theme";
-      choose(themes[0]);
+      // Keep the theme already picked (with its new name, if it changed).
+      choose(themes.find((t) => t.id === chosen?.id) || themes[0]);
     } else {
       input.placeholder = "No themes yet";
       hint.textContent = "Add a theme file to the theme folder.";

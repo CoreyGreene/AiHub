@@ -443,6 +443,27 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
 /* Theme tab: what a theme does, read only. */
 .theme-info { display: grid; gap: 16px; }
 .theme-title { margin: 0 0 4px; font-size: 1.2rem; color: var(--text); }
+.theme-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.theme-head .button { padding: 0 16px; flex: none; }
+
+/* Changing a theme. */
+.theme-card select.text-input { appearance: auto; }
+.field-help { display: block; margin-top: 4px; }
+.two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.lora-rows { display: grid; gap: 8px; margin-bottom: 8px; }
+.lora-row {
+  display: grid;
+  grid-template-columns: auto 84px 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.lora-row select { grid-column: 1 / -1; min-width: 0; }
+.lora-row .button { justify-self: end; }
+.lora-row .button { padding: 0 12px; }
+.theme-card .error-line[hidden] { display: none; }
 .notes { margin: 8px 0 0; }
 .theme-body { display: grid; gap: 4px; }
 .theme-part { margin-top: 16px; }
@@ -624,3 +645,4 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
   .viewer-bar #viewer-next { grid-area: next; }
   .viewer-bar #viewer-close { grid-area: close; }
 }
+.theme-card .actions { grid-template-columns: 1fr; margin-top: 8px; }

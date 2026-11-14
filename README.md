@@ -77,6 +77,9 @@ Ground rules carried over from the last project:
 | Call | What it does |
 | --- | --- |
 | `GET /api/themes` | List of themes |
+| `GET /api/themes/details` | Every theme in full, for the Theme tab |
+| `GET /api/themes/choices` | Model and LoRA files here, and the samplers |
+| `PUT /api/themes/{id}` | Save changes to a theme (Theme tab → Change) |
 | `POST /api/generate` `{theme, prompt, count}` | Queues `count` pictures (default 1, up to `max_pictures` in settings), answers `{"job"}` |
 | `GET /api/jobs/{job}` | Progress: `status` waiting / working (with `number` of `count`, `stage`, `step`, `steps`) / done (with `pictures`, and `blocked` = how many failed the safety check) / blocked / failed |
 | `GET /api/queue` | Picture jobs being made or waiting, in order |

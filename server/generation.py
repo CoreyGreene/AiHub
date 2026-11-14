@@ -35,6 +35,7 @@ def describe(theme: dict) -> dict:
         "name": theme["name"],
         "hint": theme.get("hint", ""),
         "notes": theme.get("_notes", ""),
+        "prompt": theme["prompt"],
         "prompt_before": before.strip(" ,"),
         "prompt_after": after.strip(" ,"),
         "negative": theme.get("negative", ""),
@@ -47,6 +48,25 @@ def describe(theme: dict) -> dict:
         ],
         "settings": {key: _setting(theme, key) for key in DEFAULTS},
         "use_3060_settings": settings.get()["use_3060_settings"],
+    }
+
+
+# Samplers a theme can pick (the diffusers backend knows these names).
+SCHEDULERS = ("euler_a", "euler", "dpm++")
+MODEL_TYPES = (".safetensors", ".ckpt")
+
+
+def choices() -> dict:
+    """What a theme can choose from when it is changed on the Theme page:
+    the model and LoRA files that are here, and the samplers."""
+    def files(folder):
+        if not folder.is_dir():
+            return []
+        return sorted(p.name for p in folder.iterdir() if p.is_file() and p.suffix in MODEL_TYPES)
+    return {
+        "models": files(settings.folder("models_dir")),
+        "loras": files(settings.folder("loras_dir")),
+        "schedulers": list(SCHEDULERS),
     }
 
 

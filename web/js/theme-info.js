@@ -1,6 +1,9 @@
 // The Theme tab: what each theme does behind the scenes. The words it adds
 // around your prompt, what it tells the model to avoid, the model and LoRAs
-// it uses, and its settings. Read only; themes are changed in their files.
+// it uses, and its settings. "Change" opens a form to edit the theme.
+
+import { editTheme } from "./theme-edit.js";
+import { loadThemes } from "./theme-picker.js";
 
 const box = document.getElementById("theme-info");
 
@@ -51,7 +54,24 @@ function fileLine(file, found, extra) {
 
 function card(theme) {
   const root = el("article", "card theme-card");
-  root.append(el("h2", "theme-title", theme.name));
+  fill(root, theme);
+  return root;
+}
+
+function fill(root, theme) {
+  root.replaceChildren();
+  const head = el("div", "theme-head");
+  const change = el("button", "button small-button", "Change");
+  change.type = "button";
+  change.addEventListener("click", () =>
+    editTheme(root, theme, (saved) => {
+      fill(root, saved || theme);
+      if (saved) loadThemes(); // the picker on Create shows the new name
+      root.scrollIntoView({ block: "start" });
+    })
+  );
+  head.append(el("h2", "theme-title", theme.name), change);
+  root.append(head);
   if (theme.hint) root.append(el("p", "muted", theme.hint));
   if (theme.notes) root.append(el("p", "small notes", theme.notes));
 
@@ -91,5 +111,4 @@ function card(theme) {
   const body = el("div", "theme-body");
   body.append(words, facts);
   root.append(body);
-  return root;
 }
