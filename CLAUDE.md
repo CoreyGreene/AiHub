@@ -94,15 +94,20 @@ server/aIModels/   checkpoints, plus:
   sdxl-vae-fp16-fix/ VAE used by the "3060 settings"
   safety/            the two nudity checkers (Falconsai, AdamCodd)
 server/lora/       LoRAs
-server/theme/      theme JSON files (these ARE committed)
+server/theme/      your theme JSON files (NOT in git); how to write one:
+                   server/theme/README.md (read it before adding a theme);
+                   examples/ holds generic starting points (in git)
 outputs/           pictures: new/ (unsaved) and characters/<name>/
 ```
 
 These came from the old project (`/home/game-pc/image-generator`, read
-only: never edit it). Current theme: `cel-shade.json` = WAI Illustrious
-v17 (SDXL) + `chibi-style-xl` LoRA at 0.7. That checkpoint *can* draw adult
-content like any anime SDXL model, so the safety check is what keeps it SFW.
-On the 3060: about 25 s a picture (832×1216, 28 steps), ~5 s to load.
+only: never edit it). **Theme files are personal and git-ignored**
+(`server/theme/*.json`): never commit one, and don't write a theme's model,
+LoRA or prompt words into committed files (docs, code, commit messages).
+Only generic examples with made-up names go in `server/theme/examples/`.
+Any anime SDXL checkpoint *can* draw adult content, so the safety check is
+what keeps it SFW. On the 3060 an SDXL picture (832×1216, 28 steps) takes
+about 25 s, plus ~5 s to load the model.
 
 ## Moving to the Mac (notes for phase 6)
 

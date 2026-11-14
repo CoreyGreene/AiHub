@@ -5,10 +5,11 @@ import { loadThemes } from "./theme-picker.js";
 import "./create.js";
 import { loadLibrary } from "./library.js";
 import { loadSettings } from "./settings.js";
+import { loadThemeInfo } from "./theme-info.js";
 
 // Tabs: Create, Library, Theme, and the Settings gear. The address ends in
 // #create, #library and so on, so the phone's Back button works too.
-const onShow = { library: loadLibrary, settings: loadSettings };
+const onShow = { library: loadLibrary, theme: loadThemeInfo, settings: loadSettings };
 
 function showView() {
   const name = location.hash.slice(1) || "create";

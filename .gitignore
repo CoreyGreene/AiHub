@@ -26,6 +26,10 @@ vae/
 *.mlmodelc/
 .cache/
 
+# Themes are your own settings (model, LoRAs, prompt words): they stay on
+# this machine. Only the guide and the generic examples are shared.
+server/theme/*.json
+
 # Pictures: generated ones, training sets, anything else
 outputs/
 datasets/

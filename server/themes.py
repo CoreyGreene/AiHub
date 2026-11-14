@@ -2,7 +2,8 @@
 
 Each file is one theme; its id is the file name without .json. Adding a
 theme needs no code change and no restart: the folder is read each time.
-See server/theme/cel-shade.json for the keys.
+See server/theme/README.md for the keys. (Files in subfolders, like
+examples/, are not themes.)
 """
 
 import json

@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import jobs, pictures, settings, themes
+from . import generation, jobs, pictures, settings, themes
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 # Changes on every server start. The page asks for app.css and app.js with
@@ -36,6 +36,12 @@ class GenerateRequest(BaseModel):
 @app.get("/api/themes")
 def list_themes() -> list[dict]:
     return themes.public_list()
+
+
+@app.get("/api/themes/details")
+def theme_details() -> list[dict]:
+    """Every theme in full: what it adds to the prompt, model, LoRAs, settings."""
+    return [{"id": tid, **generation.describe(t)} for tid, t in themes.load().items()]
 
 
 @app.post("/api/generate")

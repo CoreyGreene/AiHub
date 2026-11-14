@@ -1,0 +1,22 @@
+{
+  "_notes": "A starting point for an SDXL theme. Copy this file up one folder (into server/theme/), rename it, and change the file names and words. Say here where the model and LoRA can be downloaded and what their licences allow.",
+
+  "name": "My Theme",
+  "hint": "One short line about the look",
+
+  "backend": "diffusers-sdxl",
+  "model": "my-sdxl-model.safetensors",
+  "model_config": "sdxl-config",
+  "loras": [
+    {"file": "my-style-lora.safetensors", "weight": 0.7}
+  ],
+
+  "prompt": "best quality, game character, {prompt}, solo, full body, white background",
+  "negative": "lowres, worst quality, blurry, bad anatomy, bad hands, extra limbs, multiple characters, text, watermark",
+
+  "width": 832,
+  "height": 1216,
+  "steps": 28,
+  "guidance": 6.0,
+  "scheduler": "euler_a"
+}

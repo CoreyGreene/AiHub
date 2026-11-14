@@ -8,8 +8,9 @@ site is safe for work). Give it a character name and Save to keep it in
 the Library.
 
 **Models aren't in git.** Put them in `server/aIModels/` and LoRAs in
-`server/lora/` (see CLAUDE.md for what goes where). Themes are JSON files
-in `server/theme/`: add a file to add a theme, no code change.
+`server/lora/`. Themes are JSON files in `server/theme/` (also not in git:
+they're your own settings): add a file to add a theme, no code change. **How to set up a theme, and where models and
+LoRAs go:** [server/theme/README.md](server/theme/README.md).
 
 ## Start it
 
@@ -54,7 +55,7 @@ server/               the Python side
   backends/           ways of running a model (diffusers SDXL for now)
   safety.py           the nudity check
   pictures.py         keeps pictures in outputs/ (new ones, and saved per character)
-  theme/              theme files (JSON)
+  theme/              your theme files (JSON, not in git), the guide, examples/
   aIModels/, lora/    models and LoRAs (not in git)
 web/                  the page your browser loads
   index.html

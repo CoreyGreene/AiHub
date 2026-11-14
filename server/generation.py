@@ -14,6 +14,39 @@ class Blocked(Exception):
     """Every try was stopped by the nudity check."""
 
 
+# Used when a theme file leaves a setting out.
+DEFAULTS = {"width": 1024, "height": 1024, "steps": 28, "guidance": 6.0, "scheduler": "euler_a"}
+
+
+def _setting(theme: dict, key: str):
+    return theme.get(key, DEFAULTS[key])
+
+
+def describe(theme: dict) -> dict:
+    """Everything a theme does, for the Theme page: the words it adds, the
+    model and LoRAs (and whether their files are here), and its settings."""
+    models = settings.folder("models_dir")
+    loras = settings.folder("loras_dir")
+    before, _, after = theme["prompt"].partition("{prompt}")
+    return {
+        "name": theme["name"],
+        "hint": theme.get("hint", ""),
+        "notes": theme.get("_notes", ""),
+        "prompt_before": before.strip(" ,"),
+        "prompt_after": after.strip(" ,"),
+        "negative": theme.get("negative", ""),
+        "safety_negative": settings.get()["safety"]["negative"],
+        "backend": theme["backend"],
+        "model": {"file": theme["model"], "found": (models / theme["model"]).is_file()},
+        "loras": [
+            {"file": lora["file"], "weight": lora.get("weight", 1.0), "found": (loras / lora["file"]).is_file()}
+            for lora in theme.get("loras", [])
+        ],
+        "settings": {key: _setting(theme, key) for key in DEFAULTS},
+        "use_3060_settings": settings.get()["use_3060_settings"],
+    }
+
+
 def _request(theme: dict, prompt: str, seed: int) -> dict:
     models = settings.folder("models_dir")
     loras = settings.folder("loras_dir")
@@ -24,11 +57,7 @@ def _request(theme: dict, prompt: str, seed: int) -> dict:
         "loras": [{"path": loras / lora["file"], "weight": lora.get("weight", 1.0)} for lora in theme.get("loras", [])],
         "prompt": theme["prompt"].replace("{prompt}", prompt),
         "negative": negative,
-        "width": theme.get("width", 1024),
-        "height": theme.get("height", 1024),
-        "steps": theme.get("steps", 28),
-        "guidance": theme.get("guidance", 6.0),
-        "scheduler": theme.get("scheduler", "euler_a"),
+        **{key: _setting(theme, key) for key in DEFAULTS},
         "seed": seed,
         "low_memory": settings.get()["use_3060_settings"],
         "fp16_vae": models / settings.get()["fp16_vae"],
