@@ -35,7 +35,15 @@ for where they go and how to write a theme.
 - **Settings:** `server/settings.json` (shared) and
   `server/settings.local.json` (this machine, git-ignored).
 - **Themes:** one JSON file each in `server/theme/` (git-ignored, personal).
-  Generic examples are in `server/theme/examples/`.
+  Generic examples are in `server/theme/examples/`. The Theme tab can
+  change them (Edit) and make new ones (New).
+- **Code lock:** `server/lock.py` + `web/lock.html`. A server option, off by
+  default and not on the website: `"lock": true` and `"lock_code"` in
+  `server/settings.local.json`, then restart. With it on, every route needs
+  a cookie got by typing the six-digit code.
+- **Adding models and LoRAs from the page:** `server/uploads.py` streams the
+  file to disk (never all in memory), checks it, then names it. Only
+  `.safetensors`.
 
 ## Rules
 

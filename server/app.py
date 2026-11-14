@@ -1,16 +1,17 @@
 """The web server: serves the page in web/ and a small JSON API under /api."""
 
+import asyncio
 import io
 import time
 import zipfile
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import generation, gpu, jobs, pictures, settings, themes
+from . import generation, gpu, jobs, lock, pictures, settings, themes, uploads
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 # Changes on every server start. The page asks for app.css and app.js with
@@ -18,6 +19,41 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 STARTED = str(int(time.time()))
 
 app = FastAPI(title="ImageAi")
+
+
+@app.middleware("http")
+async def code_lock(request, call_next):
+    # With the lock on, a browser without the code's cookie sees only the
+    # lock page; everything else (pictures too) is turned away.
+    path = request.url.path
+    if lock.is_open(request.cookies.get(lock.COOKIE)) or path == "/api/unlock":
+        return await call_next(request)
+    if path.startswith("/api/"):
+        return JSONResponse({"detail": "locked"}, status_code=401)
+    if path in ("/", "/index.html"):
+        return FileResponse(WEB_DIR / "lock.html")
+    return Response("Locked", status_code=401)
+
+
+class UnlockRequest(BaseModel):
+    code: str
+
+
+@app.post("/api/unlock")
+async def unlock(req: UnlockRequest, response: Response) -> dict:
+    """The lock page sends the code here. A wrong code is an everyday
+    answer ("open": false), not an error."""
+    if not lock.is_on():
+        return {"open": True}
+    try:
+        right = lock.check(req.code.strip())
+    except lock.Wait:
+        return {"open": False, "message": "Too many wrong codes. Wait a minute, then try again."}
+    if not right:
+        await asyncio.sleep(1)  # slows down guessing
+        return {"open": False, "message": "That's not the code. Try again."}
+    response.set_cookie(lock.COOKIE, lock.token(), max_age=lock.LOCK_DAYS * 86400, httponly=True, samesite="lax")
+    return {"open": True}
 
 
 @app.middleware("http")
@@ -136,18 +172,14 @@ class ThemeChange(BaseModel):
     scheduler: str
 
 
-@app.put("/api/themes/{theme_id}")
-def change_theme(theme_id: str, req: ThemeChange) -> dict:
-    """Save changes to a theme file. The next picture uses them."""
-    if themes.get(theme_id) is None:
-        raise HTTPException(404, "That theme isn't there any more. Reload the page.")
+def _theme_keys(req: ThemeChange) -> dict:
+    """The theme file's keys from the Theme tab's form, once checked."""
     name = " ".join(req.name.split())
     if not name:
         raise HTTPException(400, "Give the theme a name.")
     found = _check_model_and_loras(req.model, req.loras)
     _check_picture_settings(req, found)
-
-    themes.save(theme_id, {
+    return {
         "name": name,
         "hint": " ".join(req.hint.split()),
         "prompt": _prompt_template(req.prompt_before, req.prompt_after),
@@ -159,8 +191,56 @@ def change_theme(theme_id: str, req: ThemeChange) -> dict:
         "steps": req.steps,
         "guidance": req.guidance,
         "scheduler": req.scheduler,
+    }
+
+
+@app.put("/api/themes/{theme_id}")
+def change_theme(theme_id: str, req: ThemeChange) -> dict:
+    """Save changes to a theme file. The next picture uses them."""
+    if themes.get(theme_id) is None:
+        raise HTTPException(404, "That theme isn't there any more. Reload the page.")
+    themes.save(theme_id, _theme_keys(req))
+    return {"id": theme_id, **generation.describe(themes.get(theme_id))}
+
+
+@app.post("/api/themes")
+def new_theme(req: ThemeChange) -> dict:
+    """Make a new theme file from the Theme tab's New form."""
+    keys = _theme_keys(req)
+    if keys["name"].lower() in {t["name"].lower() for t in themes.public_list()}:
+        raise HTTPException(400, "There's already a theme with that name. Pick another.")
+    start = settings.get()["custom"]
+    theme_id = themes.create({
+        "name": keys.pop("name"),
+        "hint": keys.pop("hint"),
+        "backend": start["backend"],
+        "model_config": start["model_config"],
+        **keys,
     })
     return {"id": theme_id, **generation.describe(themes.get(theme_id))}
+
+
+@app.get("/api/files/{kind}/{name}/check")
+def check_upload(kind: str, name: str, size: int) -> dict:
+    """Asked before an upload starts, so a file that would be refused
+    (bad name, already there, no room) is told at once, not after 7 GB."""
+    try:
+        uploads.target(kind, name, size)
+    except uploads.Refused as err:
+        raise HTTPException(400, str(err))
+    return {"ok": True}
+
+
+@app.put("/api/files/{kind}/{name}")
+async def upload_file(kind: str, name: str, request: Request) -> dict:
+    """Add a model or LoRA from the page: the file is the request body.
+    kind is "model" or "lora"; it goes in that folder."""
+    size = request.headers.get("content-length")
+    try:
+        path = await uploads.receive(kind, name, int(size) if size else None, request.stream())
+    except uploads.Refused as err:
+        raise HTTPException(400, str(err))
+    return {"file": path.name, **generation.choices()}
 
 
 @app.get("/api/options")

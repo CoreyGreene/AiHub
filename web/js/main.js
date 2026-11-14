@@ -42,11 +42,20 @@ function showView() {
 function showCreateMode(mode) {
   document.getElementById("view-create").dataset.mode = mode;
   if (mode === "custom") fillCustom();
-  document.querySelectorAll("[data-subview]").forEach((el) => {
+  document.querySelectorAll("#view-create [data-subview]").forEach((el) => {
     if (el.dataset.subview === mode) el.setAttribute("aria-current", "page");
     else el.removeAttribute("aria-current");
   });
 }
+
+// If the code lock comes on while the page is open (or this browser's
+// pass runs out), the server answers "locked": reload to show the lock page.
+const realFetch = window.fetch;
+window.fetch = async (...args) => {
+  const res = await realFetch(...args);
+  if (res.status === 401) location.reload();
+  return res;
+};
 
 window.addEventListener("hashchange", showView);
 showView();

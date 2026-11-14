@@ -36,6 +36,9 @@ def main() -> None:
     print(f"\nImageAi is running.\n  On this computer: http://localhost:{args.port}")
     if args.host == "0.0.0.0" and (ip := lan_address()):
         print(f"  From your phone:  http://{ip}:{args.port}")
+    from .lock import describe
+
+    print(f"  {describe()}")
     print("  Stop with Ctrl+C\n", flush=True)
 
     uvicorn.run("server.app:app", host=args.host, port=args.port, log_level="warning")

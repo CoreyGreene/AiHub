@@ -79,8 +79,12 @@ Ground rules carried over from the last project:
 | `GET /api/themes` | List of themes |
 | `GET /api/themes/details` | Every theme in full, for the Theme tab |
 | `GET /api/themes/choices` | Model and LoRA files here, and the samplers |
-| `PUT /api/themes/{id}` | Save changes to a theme (Theme tab → Change) |
+| `PUT /api/themes/{id}` | Save changes to a theme (Theme tab → Edit → Change) |
+| `POST /api/themes` | Make a new theme file (Theme tab → New) |
+| `GET /api/files/{kind}/{name}/check?size=` | Before adding a model or LoRA: is the name fine, is it new, is there room? `kind` is `model` or `lora` |
+| `PUT /api/files/{kind}/{name}` | Add a model or LoRA: the `.safetensors` file is the request body. Checked, then put in the models or LoRA folder |
 | `GET /api/options` | The Advanced tab's extra choices (from `server/options.json`) |
+| `POST /api/unlock` | The lock page sends the six-digit code (`{"code"}`); `{"open": true}` sets a 30-day cookie. While the code lock is on, every other route answers 401 `locked` without that cookie |
 | `GET /api/custom` | Where the Custom tab starts (`custom` in settings.json) |
 | `POST /api/generate` `{theme, prompt, count, options, custom}` | Queues `count` pictures (default 1, up to `max_pictures` in settings), answers `{"job"}`. `options`: the Advanced choices. `custom` (Custom tab, no theme): `{model, loras, prompt_before, prompt_after, negative, width, height, steps, guidance, scheduler}` |
 | `GET /api/jobs/{job}` | Progress: `status` waiting / working (with `number` of `count`, `stage`, `step`, `steps`) / done (with `pictures`, and `blocked` = how many failed the safety check) / blocked / failed |

@@ -1,18 +1,67 @@
 // The Theme tab: pick a theme from the list to see what it does behind the
 // scenes. The words it adds around your prompt, what it tells the model to
 // avoid, the model and LoRAs it uses, and its settings. "Change" opens a
-// form to edit the theme.
+// form to edit the theme. The New tab (#theme/new) makes a new theme.
 
 import { SAMPLERS, editTheme } from "./theme-edit.js";
 import { loadThemes } from "./theme-picker.js";
 
 const box = document.getElementById("theme-info");
+const newBox = document.getElementById("theme-new");
 
 const CHOSEN_KEY = "imageai.themeTab"; // the theme last looked at, on this phone
 
 const BACKENDS = { "diffusers-sdxl": "SDXL model, run with diffusers (PyTorch)" };
 
-export async function loadThemeInfo() {
+export function loadThemeInfo(sub) {
+  const mode = sub === "new" ? "new" : "edit";
+  document.querySelectorAll("#view-theme [data-subview]").forEach((el) => {
+    if (el.dataset.subview === mode) el.setAttribute("aria-current", "page");
+    else el.removeAttribute("aria-current");
+  });
+  box.hidden = mode === "new";
+  newBox.hidden = mode !== "new";
+  if (mode === "new") showNew();
+  else showEdit();
+}
+
+// New: the same form as Change, empty, starting from the Custom tab's
+// starting words and settings (server/settings.json).
+async function showNew(again = false) {
+  // Coming back to the tab keeps what was typed; "Start again" clears it.
+  if (newBox.childElementCount && !again) return;
+  const card = el("article", "card theme-card");
+  newBox.replaceChildren(card);
+  let start;
+  try {
+    start = await (await fetch("api/custom")).json();
+  } catch {
+    card.append(el("p", "muted", "Couldn't load. Is the server running?"));
+    return;
+  }
+  const blank = {
+    name: "",
+    hint: "",
+    prompt_before: start.prompt_before,
+    prompt_after: start.prompt_after,
+    negative: start.negative,
+    model: { file: start.model },
+    loras: [],
+    settings: { width: start.width, height: start.height, steps: start.steps, guidance: start.guidance, scheduler: start.scheduler },
+  };
+  editTheme(card, blank, (made) => {
+    if (!made) return showNew(true);
+    // Show the new theme on the Edit tab, and in the picker on Create.
+    try {
+      localStorage.setItem(CHOSEN_KEY, made.id);
+    } catch {}
+    loadThemes();
+    newBox.replaceChildren();
+    location.hash = "#theme";
+  }, { isNew: true });
+}
+
+async function showEdit() {
   try {
     const res = await fetch("api/themes/details");
     const themes = await res.json();

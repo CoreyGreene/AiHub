@@ -37,6 +37,10 @@
   "_max_queue": "Most picture jobs waiting or being made at once. More requests are turned away until some finish.",
   "max_queue": 500,
 
+  "_lock": "Ask for a six-digit code before anything on the site can be seen. A server option, not on the website: turn it on in server/settings.local.json (never here, so the code isn't committed) with \"lock\": true and \"lock_code\": \"123456\", then restart the server. A browser that typed the code isn't asked again for 30 days; a new code asks everyone again.",
+  "lock": false,
+  "lock_code": "",
+
   "safety": {
     "_about": "Every picture is checked by both checkers and is not shown if either one scores it at or above the threshold. Up to 'tries' pictures are made before giving up. 'negative' is added to every theme's negative prompt.",
     "checkers": [

@@ -144,9 +144,14 @@
   </main>
 
   <main id="view-theme" class="view" hidden>
+    <nav class="subtabs" aria-label="Theme mode">
+      <a href="#theme" class="subtab" data-subview="edit">Edit</a>
+      <a href="#theme/new" class="subtab" data-subview="new">New</a>
+    </nav>
     <div id="theme-info" class="theme-info">
       <p class="muted">Loading…</p>
     </div>
+    <div id="theme-new" class="theme-info" hidden></div>
   </main>
 
   <main id="view-settings" class="view" hidden>
@@ -162,6 +167,7 @@
       <p id="settings-note" class="hint-line" aria-live="polite"></p>
       <p class="muted small">Pictures are made on: <span id="settings-device">…</span></p>
     </section>
+
 
     <section class="card">
       <h2>Picture queue</h2>

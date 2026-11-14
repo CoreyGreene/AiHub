@@ -4,9 +4,18 @@ A **theme** is one JSON file in this folder (`server/theme/`). It says which
 AI model to use, which LoRAs to add, the words to put around the user's
 prompt, and the picture settings. The website reads this folder every time,
 so adding or editing a theme needs **no code change and no restart**.
-An existing theme can also be changed on the website: Theme tab → Change
-(name, prompt words, model, LoRAs, size, steps, guidance, sampler). Other
-keys in the file, like `_notes`, are kept as they are.
+Themes can also be made and changed on the website, on the Theme tab:
+
+- **Edit**: pick a theme, press Change (name, prompt words, model, LoRAs,
+  size, steps, guidance, sampler). Other keys in the file, like `_notes`,
+  are kept as they are.
+- **New**: the same form, empty. Making it writes a new file here, named
+  after the theme (`My Hero` → `my-hero.json`).
+- Both can **add a model or LoRA file**, on a computer (not shown on
+  phones): drop a `.safetensors` file on the box under Model or LoRAs, or
+  press Choose a file. It's put in the right
+  folder and picked. Only `.safetensors` (`.ckpt` files can carry code that
+  runs when loaded), and models must be SDXL.
 
 **Theme files stay on your machine.** They hold your own choices of model,
 LoRAs and prompt words, so `server/theme/*.json` is git-ignored. What's

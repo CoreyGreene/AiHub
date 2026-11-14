@@ -7,6 +7,7 @@ examples/, are not themes.)
 """
 
 import json
+import re
 
 from . import settings
 
@@ -38,6 +39,20 @@ def get(theme_id: str) -> dict | None:
     return load().get(theme_id)
 
 
+def create(theme: dict) -> str:
+    """Write a new theme file, named after the theme ('My Hero' ->
+    my-hero.json, or my-hero-2.json if that's taken). Returns its id."""
+    base = re.sub(r"[^a-z0-9]+", "-", theme["name"].lower()).strip("-") or "theme"
+    folder = settings.folder("themes_dir")
+    folder.mkdir(parents=True, exist_ok=True)
+    theme_id, n = base, 1
+    while (folder / f"{theme_id}.json").exists():
+        n += 1
+        theme_id = f"{base}-{n}"
+    _write(folder / f"{theme_id}.json", theme)
+    return theme_id
+
+
 def save(theme_id: str, changes: dict) -> None:
     """Write the changed keys into an existing theme file. Keys the page
     doesn't edit (backend, model_config, notes, anything else) are kept."""
@@ -46,6 +61,10 @@ def save(theme_id: str, changes: dict) -> None:
     path = settings.folder("themes_dir") / f"{theme_id}.json"
     theme = json.loads(path.read_text(encoding="utf-8"))
     theme.update(changes)
+    _write(path, theme)
+
+
+def _write(path, theme: dict) -> None:
     if not theme.get("hint"):
         theme.pop("hint", None)
     # Write to a spare file first, so a crash can't leave half a theme.
