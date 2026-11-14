@@ -8,8 +8,19 @@ runs. Start it with `python3 start.py` (see README.md).
 
 - One user, often on a phone. Mostly game character art.
 - Plain, simple language in the page, in messages and in explanations.
-- Runs on Linux now (RTX 3060, 12 GB). Moves to a Mac Studio (Apple Silicon)
-  later and is reached over Tailscale.
+- Runs on Linux now (RTX 3060, 12 GB) — only for building the website.
+- **The real home is a Mac Studio** (Apple M5, 128 GB shared memory), reached
+  from the phone over Tailscale. That machine decides which models we use:
+  - 128 GB shared between CPU and GPU means big models (e.g. Qwen-Image,
+    ~20B) fit whole, and several can stay loaded at once. The tricks the 3060
+    needed (CPU offloading, heavy quantization, swapping models in and out)
+    shouldn't be needed there.
+  - Besides PyTorch on the Mac GPU (MPS), Apple-native options are on the
+    table: MLX-based image models and Core ML models. These are often faster
+    on Apple Silicon than the PyTorch versions. Pick per model by testing on
+    the Mac, not by guessing.
+  - Speed and what fits must be measured on the Mac Studio itself; the 3060
+    is not a guide.
 
 ## Ground rules
 
@@ -39,7 +50,10 @@ runs. Start it with `python3 start.py` (see README.md).
   truly complex (many screens with shared state); if so, prefer one that
   needs no build step (e.g. Preact + htm loaded as a vendored file).
 - **Generation** plugs in at `server/generation.py` and nowhere else in the
-  web code. Routes call it; it returns plain data.
+  web code. Routes call it; it returns plain data. Behind it, each way of
+  running a model (diffusers/PyTorch, MLX, Core ML) is its own small
+  "backend" with the same shape, so a theme can name its backend and the
+  website never cares which one ran.
 - Long jobs never block a request: the server queues them and the page asks
   for progress.
 
@@ -70,20 +84,25 @@ commit, then move on.
   picture. Pictures saved to `outputs/` with their settings beside them.
   This builds the whole flow before any AI is involved.
 - [ ] **Phase 3 — First real model.** One model via `diffusers` (likely an
-  SDXL / Illustrious checkpoint for character art). Device picked
-  automatically (CUDA here, MPS on the Mac). Model path in settings, not in
-  code. Model stays loaded between pictures. Real progress steps.
-- [ ] **Phase 4 — Themes drive the model.** A theme picks its checkpoint,
-  LoRAs, extra prompt words, negative prompt and picture size.
+  SDXL / Illustrious checkpoint for character art: small enough to also
+  test on the 3060). Device picked automatically (CUDA here, MPS on the
+  Mac). Model path in settings, not in code. Model stays loaded between
+  pictures. Real progress steps.
+- [ ] **Phase 4 — Themes drive the model.** A theme picks its backend,
+  model, LoRAs, extra prompt words, negative prompt and picture size.
 - [ ] **Phase 5 — Library.** Browse past pictures, see their prompt and
   theme, make again, delete (with an in-page "are you sure").
-- [ ] **Phase 6 — Mac Studio + Tailscale.** Move to the Mac, check MPS speed,
-  reach it from the phone over Tailscale. Consider a simple password if it's
-  ever reachable from outside the tailnet.
+- [ ] **Phase 6 — Mac Studio + Tailscale.** Move to the Mac, reach it from
+  the phone over Tailscale. Time the phase 3 model on MPS. Consider a simple
+  password if it's ever reachable from outside the tailnet.
+- [ ] **Phase 7 — Big and Mac-native models.** On the Mac only: bigger models
+  that didn't fit the 3060 (e.g. Qwen-Image / Qwen-Image-Edit), and MLX or
+  Core ML versions where they're faster. Compare the same prompt across
+  backends before choosing.
 
-Later ideas (not planned yet): more models (e.g. Qwen-Image / Qwen-Image-Edit),
-edit modes (redraw / paint over), training the user's own LoRAs, game
-sprites and animation frames.
+Later ideas (not planned yet): edit modes (redraw / paint over), training
+the user's own LoRAs (the Mac's memory makes this realistic), game sprites
+and animation frames.
 
 ## Checking work
 
