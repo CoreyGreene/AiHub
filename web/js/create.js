@@ -6,7 +6,7 @@
 import { chosenTheme, resetTheme } from "./theme-picker.js";
 import { addPictures, finishGrid, gridProgress, startGrid } from "./pick-grid.js";
 import { openViewer } from "./viewer.js";
-import { chosenOptions, loadOptions, setOptions } from "./options.js";
+import { themeWords } from "./theme-words.js";
 import { customValues, fillCustom } from "./custom.js";
 
 const els = {
@@ -26,7 +26,7 @@ const els = {
 const emptyResult = els.result.innerHTML; // "Your picture will show up here."
 const POLL_MS = 700;
 
-// Advanced and Custom both make several pictures, with the options.
+// Advanced and Custom both make several pictures.
 function isAdvanced() {
   return els.view.dataset.mode !== "standard";
 }
@@ -72,7 +72,7 @@ async function onGenerate(event) {
 
   const advanced = isAdvanced();
   const count = advanced ? Number(els.count.value) : 1;
-  const options = advanced ? chosenOptions() : {};
+  const words = advanced && !isCustom ? themeWords() : null; // Advanced: the theme's words as changed
   const custom = isCustom ? customValues() : null;
   if (isCustom && !custom) return showNote("Custom isn't ready", "The model list didn't load. Reload the page.");
 
@@ -86,7 +86,7 @@ async function onGenerate(event) {
     const res = await fetch("api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ theme, prompt, count, options, custom }),
+      body: JSON.stringify({ theme, prompt, count, words, custom }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail);
@@ -318,14 +318,13 @@ async function onSave() {
 }
 
 // Library → Copy settings: the Custom tab, filled in with everything a
-// picture was made with (prompt, model, LoRAs, words, size, options) and
+// picture was made with (prompt, model, LoRAs, words, size) and
 // its character, ready to tweak and Generate again.
 export function startFrom(recipe) {
   els.prompt.value = recipe.prompt;
   els.promptError.hidden = true;
   els.character.value = recipe.character;
   els.characterError.hidden = true;
-  setOptions(recipe.options || {});
   const note = document.getElementById("copied-note");
   const from = recipe.character ? `a picture of ${recipe.character}` : "a saved picture";
   note.textContent =
@@ -355,4 +354,3 @@ els.character.addEventListener("input", () => {
   updateSave();
 });
 
-loadOptions();

@@ -95,11 +95,18 @@ class CustomChoice(BaseModel):
     scheduler: str
 
 
+class ThemeWords(BaseModel):
+    """The Advanced tab: the theme's words, changed for these pictures only."""
+    prompt_before: str = ""
+    prompt_after: str = ""
+    negative: str = ""
+
+
 class GenerateRequest(BaseModel):
     theme: str = ""  # not used when custom is given
     prompt: str
     count: int = 1
-    options: dict = {}  # the Advanced tab's extra choices (see server/options.json)
+    words: ThemeWords | None = None  # Advanced: in place of the theme's own
     custom: CustomChoice | None = None
 
 
@@ -243,13 +250,6 @@ async def upload_file(kind: str, name: str, request: Request) -> dict:
     return {"file": path.name, **generation.choices()}
 
 
-@app.get("/api/options")
-def picture_options() -> dict:
-    """The Advanced tab's extra choices: detail, face lines, light, outlines,
-    and the extra detail pass."""
-    return generation.options()
-
-
 @app.post("/api/generate")
 def generate(req: GenerateRequest) -> dict:
     """Adds a picture to the queue; the page then asks /api/jobs/{job} for progress."""
@@ -278,12 +278,12 @@ def generate(req: GenerateRequest) -> dict:
             "negative": _tidy(c.negative),
             **{key: getattr(c, key) for key in ("width", "height", "steps", "guidance", "scheduler")},
         }
+    elif req.words:
+        # The theme's words as changed on the Advanced tab (the file stays as it is).
+        w = req.words
+        theme = {**theme, "prompt": _prompt_template(w.prompt_before, w.prompt_after), "negative": _tidy(w.negative)}
     try:
-        chosen = generation.check_options(req.options)
-    except ValueError as err:
-        raise HTTPException(400, str(err))
-    try:
-        return {"job": jobs.submit(theme_id, theme, prompt, req.count, chosen)}
+        return {"job": jobs.submit(theme_id, theme, prompt, req.count)}
     except jobs.QueueFull as err:
         raise HTTPException(429, str(err))
 
@@ -388,7 +388,6 @@ def picture_recipe(pic_id: str) -> dict:
     return {
         "prompt": info.get("prompt", ""),
         "character": info.get("character", ""),
-        "options": info.get("options", {}),
         "complete": all(key in info for key in ("words", "negative", "guidance", "scheduler")),
         "custom": {
             "model": info.get("model") or theme.get("model", ""),

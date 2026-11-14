@@ -4,6 +4,7 @@
 import { startGpu } from "./gpu.js";
 import { loadThemes } from "./theme-picker.js";
 import { fillCustom } from "./custom.js";
+import { showThemeWords } from "./theme-words.js";
 import "./create.js";
 import "./character-picker.js";
 import { loadLibrary } from "./library.js";
@@ -37,11 +38,12 @@ function showView() {
 }
 
 // Inside Create: Standard, Advanced and Custom share one form. Advanced adds
-// "How many pictures" and the options, and shows the results as a grid to
-// pick from; Custom adds those but has no theme: you make your own.
+// "How many pictures" and the theme's words to change, and shows the results
+// as a grid to pick from; Custom has no theme: you make your own.
 function showCreateMode(mode) {
   document.getElementById("view-create").dataset.mode = mode;
   if (mode === "custom") fillCustom();
+  if (mode === "advanced") showThemeWords();
   document.querySelectorAll("#view-create [data-subview]").forEach((el) => {
     if (el.dataset.subview === mode) el.setAttribute("aria-current", "page");
     else el.removeAttribute("aria-current");

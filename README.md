@@ -83,10 +83,9 @@ Ground rules carried over from the last project:
 | `POST /api/themes` | Make a new theme file (Theme tab → New) |
 | `GET /api/files/{kind}/{name}/check?size=` | Before adding a model or LoRA: is the name fine, is it new, is there room? `kind` is `model` or `lora` |
 | `PUT /api/files/{kind}/{name}` | Add a model or LoRA: the `.safetensors` file is the request body. Checked, then put in the models or LoRA folder |
-| `GET /api/options` | The Advanced tab's extra choices (from `server/options.json`) |
 | `POST /api/unlock` | The lock page sends the six-digit code (`{"code"}`); `{"open": true}` sets a 30-day cookie. While the code lock is on, every other route answers 401 `locked` without that cookie |
 | `GET /api/custom` | Where the Custom tab starts (`custom` in settings.json) |
-| `POST /api/generate` `{theme, prompt, count, options, custom}` | Queues `count` pictures (default 1, up to `max_pictures` in settings), answers `{"job"}`. `options`: the Advanced choices. `custom` (Custom tab, no theme): `{model, loras, prompt_before, prompt_after, negative, width, height, steps, guidance, scheduler}` |
+| `POST /api/generate` `{theme, prompt, count, words, custom}` | Queues `count` pictures (default 1, up to `max_pictures` in settings), answers `{"job"}`. `words` (Advanced tab): `{prompt_before, prompt_after, negative}` used in place of the theme's own, for these pictures only. `custom` (Custom tab, no theme): `{model, loras, prompt_before, prompt_after, negative, width, height, steps, guidance, scheduler}` |
 | `GET /api/jobs/{job}` | Progress: `status` waiting / working (with `number` of `count`, `stage`, `step`, `steps`) / done (with `pictures`, and `blocked` = how many failed the safety check) / blocked / failed |
 | `GET /api/queue` | Picture jobs being made or waiting, in order |
 | `DELETE /api/queue/{job}` | Remove a job (a waiting one is dropped; the one being made stops after its current step). The queue holds at most `max_queue` (500) jobs |
@@ -96,7 +95,7 @@ Ground rules carried over from the last project:
 | `GET`/`POST /api/settings` | The "Use 3060 settings" switch (this machine only) |
 | `GET /api/pictures/{id}` | A picture (`?download=1` to save it as a file) |
 | `GET /api/pictures-zip?ids=a,b&name=…` | Several pictures in one zip, named after the character if given (computer only; phones download one by one) |
-| `GET /api/pictures/{id}/recipe` | Library → Copy settings: the prompt, character, options and every setting (model, LoRAs, words, size, steps, guidance, sampler) to make it again on the Custom tab. `complete` is false for older pictures, whose missing settings come from their theme as it is now |
+| `GET /api/pictures/{id}/recipe` | Library → Copy settings: the prompt, character and every setting (model, LoRAs, words, size, steps, guidance, sampler) to make it again on the Custom tab. `complete` is false for older pictures, whose missing settings come from their theme as it is now |
 | `POST /api/pictures-delete` | Delete saved pictures for good (`{"ids": [...]}`); a character with none left goes too. Only pictures saved in the Library |
 | `POST /api/pictures/{id}/edit` `{prompt}` | Edit: change the picture by an instruction ("make the cloak red"); returns `{job}` like Generate, and the job's picture is a new one (the old one stays) |
 | `POST /api/pictures/{id}/save` `{character}` | Saves the picture to that character |
