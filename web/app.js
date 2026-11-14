@@ -231,6 +231,22 @@ function startOver() {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+// --- Tabs: Create, Library, and the Settings gear. The address ends in
+// #create, #library or #settings, so the phone's Back button works too. ---
+
+function showView() {
+  const name = location.hash.slice(1) || "create";
+  const view = document.getElementById(`view-${name}`) ? name : "create";
+  document.querySelectorAll(".view").forEach((el) => (el.hidden = el.id !== `view-${view}`));
+  document.querySelectorAll("[data-view]").forEach((el) => {
+    if (el.dataset.view === view) el.setAttribute("aria-current", "page");
+    else el.removeAttribute("aria-current");
+  });
+}
+
+window.addEventListener("hashchange", showView);
+showView();
+
 els.form.addEventListener("submit", onGenerate);
 els.prompt.addEventListener("input", () => (els.promptError.hidden = true));
 loadThemes();
