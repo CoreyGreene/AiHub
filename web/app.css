@@ -175,14 +175,18 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
 /* The finished picture with its Download button. */
 .done { display: grid; gap: 12px; width: 100%; }
 .picture { display: block; width: 100%; height: auto; border-radius: 8px; }
-a.button {
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.button {
   display: grid;
   place-items: center;
   min-height: 48px;
+  font: inherit;
   font-weight: 700;
   color: var(--text);
+  background: none;
   text-decoration: none;
+  cursor: pointer;
   border: 1px solid var(--line);
   border-radius: 10px;
 }
-a.button:hover { border-color: var(--accent); }
+.button:hover { border-color: var(--accent); }

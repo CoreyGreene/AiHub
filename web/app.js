@@ -13,6 +13,8 @@ const els = {
   result: document.getElementById("result"),
 };
 
+const emptyResult = els.result.innerHTML; // "Your picture will show up here."
+
 function showNote(title, text) {
   const note = document.createElement("p");
   note.className = "note";
@@ -188,7 +190,7 @@ async function onGenerate(event) {
 function showSpinner() {
   const box = document.createElement("div");
   box.className = "working";
-  box.innerHTML = `<div class="spinner" aria-hidden="true"></div><p>Making your picture…</p>`;
+  box.innerHTML = `<div class="spinner" aria-hidden="true"></div><p>Generating your image…</p>`;
   els.result.replaceChildren(box);
 }
 
@@ -204,10 +206,29 @@ function showImage(url) {
   save.download = "";
   save.textContent = "Download";
 
+  const reset = document.createElement("button");
+  reset.type = "button";
+  reset.className = "button";
+  reset.textContent = "Reset";
+  reset.addEventListener("click", startOver);
+
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  actions.append(save, reset);
+
   const box = document.createElement("div");
   box.className = "done";
-  box.append(img, save);
+  box.append(img, actions);
   els.result.replaceChildren(box);
+}
+
+// Back to a clean page: first theme, empty prompt, no picture.
+function startOver() {
+  if (themes.length) choose(themes[0]);
+  els.prompt.value = "";
+  els.promptError.hidden = true;
+  els.result.innerHTML = emptyResult;
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 els.form.addEventListener("submit", onGenerate);

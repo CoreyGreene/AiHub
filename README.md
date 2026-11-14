@@ -2,7 +2,7 @@
 
 A website for making pictures: pick a theme, type a prompt, press Generate.
 
-**No AI yet.** Pressing Generate waits about 5 seconds, then shows a
+**No AI yet.** Pressing Generate waits about a second, then shows a
 built-in demo picture (a stick figure) that you can download. No models,
 no downloads needed.
 
@@ -64,5 +64,5 @@ Ground rules carried over from the last project:
 | Call | What it does |
 | --- | --- |
 | `GET /api/themes` | List of themes |
-| `POST /api/generate` `{theme, prompt}` | Waits ~5 s, then answers `{"status": "done", "image": "api/demo-image", ...}` |
+| `POST /api/generate` `{theme, prompt}` | Waits ~1 s, then answers `{"status": "done", "image": "api/demo-image", ...}` |
 | `GET /api/demo-image` | The demo picture (`?download=1` to save it as a file) |
