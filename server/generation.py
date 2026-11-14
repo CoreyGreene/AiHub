@@ -10,6 +10,9 @@ import random
 from . import backends, safety, settings
 
 
+BLOCKED_MESSAGE = "This picture didn't pass the safety check. Try changing the prompt."
+
+
 class Blocked(Exception):
     """Every try was stopped by the nudity check."""
 
@@ -89,4 +92,4 @@ def generate(theme: dict, prompt: str, on_progress) -> tuple:
             }
             return image, details
         print(f"Nudity check stopped try {attempt} of {tries}")
-    raise Blocked("This picture didn't pass the safety check. Try changing the prompt.")
+    raise Blocked(BLOCKED_MESSAGE)

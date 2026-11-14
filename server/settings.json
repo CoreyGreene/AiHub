@@ -13,6 +13,9 @@
   "use_3060_settings": false,
   "fp16_vae": "sdxl-vae-fp16-fix",
 
+  "_max_pictures": "Most pictures one Generate can make (Advanced tab).",
+  "max_pictures": 8,
+
   "safety": {
     "_about": "Every picture is checked by both checkers and is not shown if either one scores it at or above the threshold. Up to 'tries' pictures are made before giving up. 'negative' is added to every theme's negative prompt.",
     "checkers": [

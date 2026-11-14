@@ -69,6 +69,38 @@ h2 { margin: 0 0 12px; font-size: 1rem; color: var(--muted); font-weight: 600; }
 main { display: grid; gap: 16px; }
 main[hidden] { display: none; }
 
+/* Standard / Advanced inside Create: a smaller two-part switch, so it reads
+   as part of the Create tab rather than another row of main tabs. */
+.subtabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.subtab {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  border-radius: 8px;
+}
+.subtab:hover { color: var(--text); }
+.subtab[aria-current] { color: var(--text); background: var(--note-bg); }
+
+.create-area { display: grid; gap: 16px; }
+#view-create:not([data-mode="advanced"]) .advanced-only { display: none; }
+
+/* How many pictures: − [ 4 ] + with big tap targets. */
+.stepper { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; }
+.stepper .button { font-size: 1.4rem; }
+.stepper input { text-align: center; -moz-appearance: textfield; }
+.stepper input::-webkit-inner-spin-button,
+.stepper input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
 .card {
   background: var(--card);
   border: 1px solid var(--line);
@@ -325,21 +357,84 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
 .facts dt { color: var(--muted); }
 .facts dd { margin: 0; }
 
+/* Advanced results: a grid of pictures to pick from. */
+.picks { display: grid; gap: 12px; width: 100%; align-self: start; }
+.pick-bar { display: flex; align-items: center; gap: 4px; }
+.pick-bar .muted { margin-right: auto; }
+.link-button {
+  min-height: 44px;
+  padding: 0 10px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.pick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.pick { display: grid; gap: 6px; }
+.pick-toggle {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 3px solid transparent;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+  cursor: pointer;
+}
+.pick-toggle img { display: block; width: 100%; aspect-ratio: 832 / 1216; object-fit: contain; }
+.pick.picked .pick-toggle { border-color: var(--accent); }
+.check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: rgb(0 0 0 / 0.35);
+  color: transparent;
+  font-weight: 700;
+}
+.pick.picked .check { background: var(--accent); color: var(--accent-text); }
+.saved-tag:not(:empty) {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  font-size: 0.75rem;
+}
+.small-button { min-height: 40px; font-size: 0.9rem; }
+/* Phones: no bulk download, each picture has its own Download. */
+@media (pointer: coarse) {
+  .bulk-download { display: none; }
+  .picks .actions { grid-template-columns: 1fr; }
+}
+
 /* Wider screens: use the whole width. Tabs stretch across, the form sits
    on the left and the result gets the bigger share and most of the height. */
 @media (min-width: 800px) {
   body { padding: 0 32px 32px; }
-  .view-create {
+  .subtabs { width: 360px; }
+  .create-area {
     grid-template-columns: minmax(340px, 2fr) 3fr;
     align-items: stretch;
     gap: 24px;
   }
-  .view-create textarea { min-height: 200px; }
+  .create-area textarea { min-height: 200px; }
   .result { display: flex; flex-direction: column; }
-  .result-box { flex: 1; min-height: calc(100vh - 232px); }
+  .result-box { flex: 1; min-height: calc(100vh - 302px); }
   /* The picture fills the space but always fits on screen with its buttons. */
   .done { justify-items: center; }
-  .picture { width: 100%; height: calc(100vh - 380px); min-height: 300px; object-fit: contain; }
+  .picture { width: 100%; height: calc(100vh - 450px); min-height: 300px; object-fit: contain; }
   .done .primary, .actions { width: min(100%, 520px); }
   .theme-body { grid-template-columns: 3fr 2fr; gap: 32px; }
+  .pick-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .picks .primary, .picks .actions { width: 100%; }
 }

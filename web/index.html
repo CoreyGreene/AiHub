@@ -26,7 +26,14 @@
     <a href="#theme" class="tab" data-view="theme">Theme</a>
   </nav>
 
-  <main id="view-create" class="view view-create">
+  <main id="view-create" class="view">
+    <nav class="subtabs" aria-label="Create mode">
+      <a href="#create" class="subtab" data-subview="standard">Standard</a>
+      <a href="#create/advanced" class="subtab" data-subview="advanced">Advanced</a>
+    </nav>
+
+    <!-- One form for both: Advanced only adds "How many pictures". -->
+    <div class="create-area">
     <form id="make" class="card" novalidate>
       <div class="field">
         <label class="label" for="theme-name">Theme</label>
@@ -55,6 +62,15 @@
         <span id="character-error" class="error-line" hidden></span>
       </label>
 
+      <div class="field advanced-only">
+        <label class="label" for="count">How many pictures</label>
+        <div class="stepper">
+          <button id="count-down" type="button" class="button" aria-label="Fewer pictures">−</button>
+          <input id="count" class="text-input" type="number" inputmode="numeric" min="1" max="8" value="4">
+          <button id="count-up" type="button" class="button" aria-label="More pictures">+</button>
+        </div>
+      </div>
+
       <button id="generate" type="submit" class="primary">Generate</button>
     </form>
 
@@ -64,6 +80,7 @@
         <p class="muted">Your picture will show up here.</p>
       </div>
     </section>
+    </div>
   </main>
 
   <main id="view-library" class="view" hidden>

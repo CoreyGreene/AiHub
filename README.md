@@ -76,9 +76,10 @@ Ground rules carried over from the last project:
 | Call | What it does |
 | --- | --- |
 | `GET /api/themes` | List of themes |
-| `POST /api/generate` `{theme, prompt}` | Queues a picture, answers `{"job"}` |
-| `GET /api/jobs/{job}` | Progress: `status` waiting / working (with `stage`, `step`, `steps`) / done (with `picture`, `image`) / blocked / failed |
+| `POST /api/generate` `{theme, prompt, count}` | Queues `count` pictures (default 1, up to `max_pictures` in settings), answers `{"job"}` |
+| `GET /api/jobs/{job}` | Progress: `status` waiting / working (with `number` of `count`, `stage`, `step`, `steps`) / done (with `pictures`, and `blocked` = how many failed the safety check) / blocked / failed |
 | `GET /api/characters` | Saved characters, each with its first picture |
 | `GET`/`POST /api/settings` | The "Use 3060 settings" switch (this machine only) |
 | `GET /api/pictures/{id}` | A picture (`?download=1` to save it as a file) |
+| `GET /api/pictures-zip?ids=a,b&name=…` | Several pictures in one zip, named after the character if given (computer only; phones download one by one) |
 | `POST /api/pictures/{id}/save` `{character}` | Saves the picture to that character |

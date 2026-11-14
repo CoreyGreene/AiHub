@@ -1,7 +1,9 @@
 // The Create tab: Generate, show progress, then the picture with Save,
-// Download and Reset. All image work happens on the server.
+// Download and Reset. Advanced mode makes several pictures and shows them
+// as a grid to pick from (pick-grid.js). All image work happens on the server.
 
 import { chosenTheme, resetTheme } from "./theme-picker.js";
+import { showGrid } from "./pick-grid.js";
 
 const els = {
   form: document.getElementById("make"),
@@ -11,12 +13,36 @@ const els = {
   characterError: document.getElementById("character-error"),
   button: document.getElementById("generate"),
   result: document.getElementById("result"),
+  view: document.getElementById("view-create"),
+  count: document.getElementById("count"),
+  countDown: document.getElementById("count-down"),
+  countUp: document.getElementById("count-up"),
 };
 
 const emptyResult = els.result.innerHTML; // "Your picture will show up here."
 const POLL_MS = 700;
 
-function showNote(title, text) {
+function isAdvanced() {
+  return els.view.dataset.mode === "advanced";
+}
+
+// How many pictures (Advanced): kept between 1 and the server's limit.
+function setCount(n) {
+  const most = Number(els.count.max);
+  els.count.value = Math.min(most, Math.max(1, Math.round(Number(n)) || 1));
+}
+els.countDown.addEventListener("click", () => setCount(Number(els.count.value) - 1));
+els.countUp.addEventListener("click", () => setCount(Number(els.count.value) + 1));
+els.count.addEventListener("change", () => setCount(els.count.value));
+fetch("api/settings")
+  .then((res) => res.json())
+  .then((data) => {
+    els.count.max = data.max_pictures;
+    setCount(els.count.value);
+  })
+  .catch(() => {});
+
+export function showNote(title, text) {
   const note = document.createElement("p");
   note.className = "note";
   const strong = document.createElement("strong");
@@ -38,6 +64,9 @@ async function onGenerate(event) {
   els.promptError.hidden = Boolean(prompt);
   if (!prompt) return;
 
+  const advanced = isAdvanced();
+  const count = advanced ? Number(els.count.value) : 1;
+
   // Close the phone keyboard and bring the result area into view.
   document.activeElement?.blur();
   els.button.disabled = true;
@@ -48,11 +77,15 @@ async function onGenerate(event) {
     const res = await fetch("api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ theme, prompt }),
+      body: JSON.stringify({ theme, prompt, count }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail);
-    await follow(data.job);
+    const job = await follow(data.job);
+    if (job.status === "blocked") showNote("Not shown", job.message);
+    else if (job.status === "failed") showNote("Something went wrong", job.message);
+    else if (advanced) showGrid(els.result, job.pictures, job.blocked, startOver);
+    else showImage(job.pictures[0].picture, job.pictures[0].image);
   } catch (err) {
     showNote("Couldn't make the picture", err.message || "Check that the server is still running.");
   } finally {
@@ -61,15 +94,13 @@ async function onGenerate(event) {
   }
 }
 
+// Ask the server how the job is going until it's finished; returns the job.
 async function follow(jobId) {
   for (;;) {
     const res = await fetch(`api/jobs/${jobId}`);
     const job = await res.json();
     if (!res.ok) throw new Error(job.detail);
-
-    if (job.status === "done") return showImage(job.picture, job.image);
-    if (job.status === "blocked") return showNote("Not shown", job.message);
-    if (job.status === "failed") return showNote("Something went wrong", job.message);
+    if (!["waiting", "working"].includes(job.status)) return job;
     showProgress(...describe(job));
     await new Promise((r) => setTimeout(r, POLL_MS));
   }
@@ -78,13 +109,18 @@ async function follow(jobId) {
 // What to say while waiting, and how full the bar is (0..1, or null).
 function describe(job) {
   if (job.status === "waiting") {
-    return job.ahead ? [`Waiting: ${job.ahead} picture${job.ahead > 1 ? "s" : ""} ahead…`, null] : ["Starting…", null];
+    return job.ahead ? [`Waiting: ${job.ahead} picture job${job.ahead > 1 ? "s" : ""} ahead…`, null] : ["Starting…", null];
   }
+  // With several pictures: "Picture 2 of 4 · ", and the bar covers all of them.
+  const many = job.count > 1;
+  const which = many ? `Picture ${job.number} of ${job.count} · ` : "";
+  const done = (job.number - 1) / job.count;
   if (job.stage === "loading") return ["Loading the model (the first picture takes a little longer)…", null];
   if (job.stage === "drawing" && job.steps) {
-    return [`Generating your image… step ${job.step} of ${job.steps}`, job.step / job.steps];
+    const text = many ? `${which}step ${job.step} of ${job.steps}` : `Generating your image… step ${job.step} of ${job.steps}`;
+    return [text, done + job.step / job.steps / job.count];
   }
-  if (job.stage === "checking") return ["Checking the picture…", 1];
+  if (job.stage === "checking") return [`${which}Checking the picture…`, done + 1 / job.count];
   return ["Generating your image…", null];
 }
 
@@ -186,7 +222,7 @@ async function onSave() {
 }
 
 // Back to a clean page: first theme, empty prompt, no picture.
-function startOver() {
+export function startOver() {
   resetTheme();
   els.prompt.value = "";
   els.promptError.hidden = true;
