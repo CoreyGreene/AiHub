@@ -46,6 +46,17 @@ def find(pic_id: str) -> Path | None:
     return None
 
 
+def info(pic_id: str) -> dict | None:
+    """The settings saved beside a picture."""
+    picture = find(pic_id)
+    if picture is None:
+        return None
+    try:
+        return json.loads(picture.with_suffix(".json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
 def is_saved(path: Path) -> bool:
     return path.parent.parent == _characters()
 
@@ -71,6 +82,28 @@ def save_to_character(pic_id: str, character: str) -> None:
         info_path.unlink()
     if picture.parent != folder:
         shutil.move(picture, folder / picture.name)
+
+
+def delete_saved(pic_ids: list[str]) -> int:
+    """Delete saved pictures (and their settings) for good. A character left
+    with no pictures goes too. Returns how many were deleted."""
+    done = 0
+    for pic_id in pic_ids:
+        picture = find(pic_id)
+        if picture is None or not is_saved(picture):
+            continue
+        picture.unlink()
+        picture.with_suffix(".json").unlink(missing_ok=True)
+        done += 1
+        folder = picture.parent
+        if not any(folder.glob("*.png")):
+            for leftover in folder.glob("*.json"):
+                leftover.unlink()
+            try:
+                folder.rmdir()
+            except OSError:  # something else is in it (e.g. .DS_Store): leave it
+                pass
+    return done
 
 
 def _read_folder(folder: Path) -> list[dict]:

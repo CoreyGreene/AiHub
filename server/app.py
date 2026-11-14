@@ -363,6 +363,61 @@ def pictures_zip(ids: str, name: str = "") -> Response:
     )
 
 
+def _split_words(template: str) -> tuple[str, str]:
+    """A theme's "best quality, {prompt}, full body" -> the words before and
+    after your prompt."""
+    before, _, after = template.partition("{prompt}")
+    return before.strip(" ,"), after.strip(" ,")
+
+
+@app.get("/api/pictures/{pic_id}/recipe")
+def picture_recipe(pic_id: str) -> dict:
+    """Library → Copy settings: everything to make this picture again on the
+    Custom tab (a new seed each time). Pictures made before the full
+    settings were saved fill the gaps from their theme as it is now
+    ("complete": false)."""
+    info = pictures.info(pic_id)
+    if info is None:
+        raise HTTPException(404, "That picture isn't here any more.")
+    start = settings.get()["custom"]
+    theme = themes.get(info.get("theme", "")) or {}
+    template = info.get("words") or theme.get("prompt") or _prompt_template(start["prompt_before"], start["prompt_after"])
+    before, after = _split_words(template)
+    width, height = info.get("size") or [theme.get("width", start["width"]), theme.get("height", start["height"])]
+    pick = lambda key: info.get(key, theme.get(key, start[key]))  # noqa: E731
+    return {
+        "prompt": info.get("prompt", ""),
+        "character": info.get("character", ""),
+        "options": info.get("options", {}),
+        "complete": all(key in info for key in ("words", "negative", "guidance", "scheduler")),
+        "custom": {
+            "model": info.get("model") or theme.get("model", ""),
+            "loras": info.get("loras", theme.get("loras", [])),
+            "prompt_before": before,
+            "prompt_after": after,
+            "negative": pick("negative"),
+            "width": width,
+            "height": height,
+            "steps": pick("steps"),
+            "guidance": pick("guidance"),
+            "scheduler": pick("scheduler"),
+        },
+    }
+
+
+class DeleteRequest(BaseModel):
+    ids: list[str]
+
+
+@app.post("/api/pictures-delete")
+def delete_pictures(req: DeleteRequest) -> dict:
+    """Library → Select → Delete: saved pictures, gone for good (the page
+    asks "are you sure" first)."""
+    if not req.ids or len(req.ids) > 1000:
+        raise HTTPException(400, "Pick some pictures first.")
+    return {"deleted": pictures.delete_saved(req.ids)}
+
+
 class SaveRequest(BaseModel):
     character: str
 

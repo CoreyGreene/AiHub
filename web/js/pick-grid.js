@@ -1,29 +1,34 @@
-// Advanced results: a grid of pictures. Tap pictures to pick them, then
-// save the picked ones to a character. Each picture has its own Download;
-// on a computer there's also "Download selected" (one zip file). Phones
-// don't get the bulk option: one download per picture.
+// Advanced results: a grid of pictures, shown as each one is made (the
+// progress line stays on top until the last). Tap a picture to see it big
+// (and pick it there); tap its tick to pick it. Then save the picked ones
+// to a character. Each picture has its own Download; on a computer there's
+// also "Download selected" (one zip file). Phones don't get the bulk
+// option: one download per picture.
+
+import { openViewer, refreshViewer } from "./viewer.js";
 
 const character = document.getElementById("character");
 const characterError = document.getElementById("character-error");
 
-let tiles = []; // { id, url, picked, savedTo, el }
+let tiles = []; // { id, image, picked, savedTo, el }
 let saveButton = null;
 let bulkButton = null;
 let countLine = null;
 let saving = false;
+let grid = null;
+let progress = null; // the "Picture 2 of 4" line while more are coming
+let notes = null;
 
-export function showGrid(result, pictures, blocked, onReset) {
-  tiles = pictures.map((p) => ({ id: p.picture, url: p.image, picked: false, savedTo: null }));
-
+// The empty grid, with the progress line; pictures are added as they come.
+export function startGrid(result, onReset) {
+  tiles = [];
   const box = document.createElement("div");
   box.className = "picks";
 
-  if (blocked) {
-    const note = document.createElement("p");
-    note.className = "note small";
-    note.textContent = `${blocked} picture${blocked > 1 ? "s" : ""} didn't pass the safety check and ${blocked > 1 ? "were" : "was"} left out.`;
-    box.append(note);
-  }
+  progress = document.createElement("div");
+  progress.className = "grid-working";
+  progress.innerHTML = `<div class="spinner small-spinner" aria-hidden="true"></div><p class="small"></p><div class="bar"><span></span></div>`;
+  notes = document.createElement("div");
 
   // Picked count with Select all / none.
   const bar = document.createElement("div");
@@ -33,10 +38,12 @@ export function showGrid(result, pictures, blocked, onReset) {
   const all = textButton("Select all", () => pickAll(true));
   const none = textButton("None", () => pickAll(false));
   bar.append(countLine, all, none);
+  const help = document.createElement("p");
+  help.className = "muted small pick-help";
+  help.textContent = "Tap a picture to see it big. Tap its tick to pick it.";
 
-  const grid = document.createElement("div");
+  grid = document.createElement("div");
   grid.className = "pick-grid";
-  grid.append(...tiles.map(tileFor));
 
   saveButton = document.createElement("button");
   saveButton.type = "button";
@@ -54,7 +61,7 @@ export function showGrid(result, pictures, blocked, onReset) {
   reset.textContent = "Reset";
   reset.addEventListener("click", () => {
     tiles = [];
-    saveButton = bulkButton = null;
+    saveButton = bulkButton = grid = null;
     onReset();
   });
 
@@ -62,9 +69,41 @@ export function showGrid(result, pictures, blocked, onReset) {
   actions.className = "actions";
   actions.append(bulkButton, reset);
 
-  box.append(bar, grid, saveButton, actions);
+  box.append(progress, notes, bar, help, grid, saveButton, actions);
   result.replaceChildren(box);
   update();
+}
+
+// The job's pictures so far: any new ones are added to the grid.
+export function addPictures(pictures) {
+  if (!grid) return;
+  for (const p of pictures.slice(tiles.length)) {
+    const tile = { id: p.picture, image: p.image, picked: false, savedTo: null };
+    tiles.push(tile);
+    grid.append(tileFor(tile, tiles.length - 1));
+  }
+  update();
+  refreshViewer();
+}
+
+export function gridProgress(text, fraction) {
+  if (!progress) return;
+  progress.querySelector("p").textContent = text;
+  const bar = progress.querySelector(".bar");
+  bar.hidden = fraction === null;
+  if (fraction !== null) bar.firstElementChild.style.width = `${Math.round(fraction * 100)}%`;
+}
+
+// All made: take the progress line away; say what was left out, if anything.
+export function finishGrid(blocked, message = "") {
+  progress?.remove();
+  progress = null;
+  const lines = [];
+  if (blocked) lines.push(`${blocked} picture${blocked > 1 ? "s" : ""} didn't pass the safety check and ${blocked > 1 ? "were" : "was"} left out.`);
+  if (message) lines.push(message);
+  notes.replaceChildren(
+    ...lines.map((text) => Object.assign(document.createElement("p"), { className: "note small", textContent: text }))
+  );
 }
 
 function textButton(text, onClick) {
@@ -76,29 +115,47 @@ function textButton(text, onClick) {
   return b;
 }
 
+// Big view: the Pick button there picks the same tile.
+const pickInViewer = {
+  isPicked: (i) => tiles[i].picked,
+  toggle: (i) => {
+    tiles[i].picked = !tiles[i].picked;
+    update();
+  },
+};
+
 function tileFor(tile, i) {
   const item = document.createElement("div");
   item.className = "pick";
 
-  // The picture itself is the on/off button for picking it.
-  const toggle = document.createElement("button");
-  toggle.type = "button";
-  toggle.className = "pick-toggle";
-  toggle.setAttribute("aria-label", `Picture ${i + 1}`);
-  toggle.innerHTML = `<img alt=""><span class="check" aria-hidden="true">✓</span><span class="saved-tag"></span>`;
-  toggle.querySelector("img").src = tile.url;
-  toggle.addEventListener("click", () => {
+  // The picture opens the big view; the tick in its corner picks it.
+  const frame = document.createElement("div");
+  frame.className = "pick-frame";
+  const open = document.createElement("button");
+  open.type = "button";
+  open.className = "pick-toggle";
+  open.setAttribute("aria-label", `See picture ${i + 1} big`);
+  open.innerHTML = `<img alt=""><span class="saved-tag"></span>`;
+  open.querySelector("img").src = tile.image;
+  open.addEventListener("click", () => openViewer(tiles, tiles.indexOf(tile), { pick: pickInViewer }));
+  const check = document.createElement("button");
+  check.type = "button";
+  check.className = "check";
+  check.textContent = "✓";
+  check.setAttribute("aria-label", `Pick picture ${i + 1}`);
+  check.addEventListener("click", () => {
     tile.picked = !tile.picked;
     update();
   });
+  frame.append(open, check);
 
   const download = document.createElement("a");
   download.className = "button small-button";
-  download.href = `${tile.url}?download=1`;
+  download.href = `${tile.image}?download=1`;
   download.download = "";
   download.textContent = "Download";
 
-  item.append(toggle, download);
+  item.append(frame, download);
   tile.el = item;
   return item;
 }
@@ -116,14 +173,14 @@ function update() {
 
   for (const t of tiles) {
     t.el.classList.toggle("picked", t.picked);
-    t.el.querySelector(".pick-toggle").setAttribute("aria-pressed", t.picked);
+    t.el.querySelector(".check").setAttribute("aria-pressed", t.picked);
     t.el.querySelector(".saved-tag").textContent = t.savedTo ? `Saved to ${t.savedTo}` : "";
   }
   countLine.textContent = `${picked.length} of ${tiles.length} picked`;
 
   const unsaved = picked.filter((t) => t.savedTo !== name);
   if (saving) saveButton.textContent = "Saving…";
-  else if (!picked.length) saveButton.textContent = "Tap pictures to pick them";
+  else if (!picked.length) saveButton.textContent = "Tick pictures to pick them";
   else if (!name) saveButton.textContent = "Type a name to save";
   else if (!unsaved.length) saveButton.textContent = `Saved to ${name} ✓`;
   else saveButton.textContent = `Save ${unsaved.length} to ${name}`;

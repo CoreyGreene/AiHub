@@ -153,11 +153,17 @@ def generate(theme: dict, prompt: str, on_progress, chosen: dict | None = None) 
         image = backend.make(req, lambda done, total: on_progress("drawing", done, total))
         on_progress("checking", 0, 0)
         if safety.is_safe(image):
+            # Enough to make it again (Library → Copy settings), even if
+            # the theme changes later.
             details = {
                 "seed": req["seed"],
                 "model": theme["model"],
                 "loras": theme.get("loras", []),
+                "words": theme["prompt"],
+                "negative": theme.get("negative", ""),
                 "steps": req["steps"],
+                "guidance": req["guidance"],
+                "scheduler": req["scheduler"],
                 "size": list(image.size),
                 "options": chosen,
                 "tries": attempt,

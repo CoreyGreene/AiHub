@@ -3,9 +3,10 @@
 // as a grid to pick from (pick-grid.js). All image work happens on the server.
 
 import { chosenTheme, resetTheme } from "./theme-picker.js";
-import { showGrid } from "./pick-grid.js";
-import { chosenOptions, loadOptions } from "./options.js";
-import { customValues } from "./custom.js";
+import { addPictures, finishGrid, gridProgress, startGrid } from "./pick-grid.js";
+import { openViewer } from "./viewer.js";
+import { chosenOptions, loadOptions, setOptions } from "./options.js";
+import { customValues, fillCustom } from "./custom.js";
 
 const els = {
   form: document.getElementById("make"),
@@ -88,11 +89,16 @@ async function onGenerate(event) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail);
-    const job = await follow(data.job);
-    if (job.status === "blocked") showNote("Not shown", job.message);
+    const job = await follow(data.job, advanced);
+    if (advanced && job.pictures.length) {
+      // The grid is already showing them; say how it ended, if it's news.
+      addPictures(job.pictures);
+      const made = `${job.pictures.length} of ${job.count} pictures were made`;
+      if (job.status === "failed") finishGrid(job.blocked, `Something went wrong: ${job.message} (${made}.)`);
+      else finishGrid(job.blocked, job.stopped ? `Stopped: ${made}.` : "");
+    } else if (job.status === "blocked") showNote("Not shown", job.message);
     else if (job.status === "removed") showNote("Removed from the queue", job.message);
     else if (job.status === "failed") showNote("Something went wrong", job.message);
-    else if (advanced) showGrid(els.result, job.pictures, job.blocked, startOver);
     else showImage(job.pictures[0].picture, job.pictures[0].image);
   } catch (err) {
     showNote("Couldn't make the picture", err.message || "Check that the server is still running.");
@@ -103,13 +109,23 @@ async function onGenerate(event) {
 }
 
 // Ask the server how the job is going until it's finished; returns the job.
-async function follow(jobId) {
+// Several pictures: the grid shows up with the first one, and each new one
+// is added as it's made.
+async function follow(jobId, grid) {
+  let started = false;
   for (;;) {
     const res = await fetch(`api/jobs/${jobId}`);
     const job = await res.json();
     if (!res.ok) throw new Error(job.detail);
+    if (grid && job.pictures.length && !started) {
+      startGrid(els.result, startOver);
+      started = true;
+    }
     if (!["waiting", "working"].includes(job.status)) return job;
-    showProgress(...describe(job));
+    if (started) {
+      addPictures(job.pictures);
+      gridProgress(...describe(job));
+    } else showProgress(...describe(job));
     await new Promise((r) => setTimeout(r, POLL_MS));
   }
 }
@@ -160,6 +176,7 @@ function showImage(id, url) {
   img.className = "picture";
   img.alt = "Your picture";
   img.src = url;
+  img.addEventListener("click", () => openViewer([{ image: url }], 0)); // see it big
 
   saveButton = document.createElement("button");
   saveButton.type = "button";
@@ -227,6 +244,25 @@ async function onSave() {
     saving = false;
     updateSave();
   }
+}
+
+// Library → Copy settings: the Custom tab, filled in with everything a
+// picture was made with (prompt, model, LoRAs, words, size, options) and
+// its character, ready to tweak and Generate again.
+export function startFrom(recipe) {
+  els.prompt.value = recipe.prompt;
+  els.promptError.hidden = true;
+  els.character.value = recipe.character;
+  els.characterError.hidden = true;
+  setOptions(recipe.options || {});
+  const note = document.getElementById("copied-note");
+  const from = recipe.character ? `a picture of ${recipe.character}` : "a saved picture";
+  note.textContent =
+    `Settings copied from ${from}. Change anything you like, then Generate. Each new picture still comes out a bit different.` +
+    (recipe.complete ? "" : " (This picture is older, so its theme's words and settings are as they are now.)");
+  note.hidden = false;
+  fillCustom(true, recipe.custom);
+  location.hash = "#create/custom";
 }
 
 // Back to a clean page: first theme, empty prompt, no picture.

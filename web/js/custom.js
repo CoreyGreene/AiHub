@@ -1,12 +1,15 @@
 // The Custom tab: your own theme, no theme file behind it. Pick the model
 // and LoRAs, write the words around your prompt, set the size and steps.
-// It starts from the server's defaults (settings.json "custom"); what you
-// change stays while the page is open.
+// It starts from the server's defaults (settings.json "custom"), or from a
+// picture's settings (Library → Copy settings); what you change stays while
+// the page is open.
 
 import { SAMPLERS, choices, field, loraEditor, numberInput, select, textArea } from "./theme-edit.js";
 
 const box = document.getElementById("custom-fields");
 let form = null;
+let building = null; // the form being built (it waits for the server)
+const copiedNote = document.getElementById("copied-note");
 
 function pair(a, b) {
   const row = document.createElement("div");
@@ -15,15 +18,22 @@ function pair(a, b) {
   return row;
 }
 
-// Build the form (first time on the Custom tab, or "Start again").
-export async function fillCustom(force = false) {
-  if (form && !force) return;
+// Build the form (first time on the Custom tab, or "Start again"), or from
+// a picture's settings when `from` is given.
+export function fillCustom(force = false, from = null) {
+  if (!force && (form || building)) return building;
   form = null;
+  building = build(from).finally(() => (building = null));
+  return building;
+}
+
+async function build(from) {
   try {
-    const [found, start] = await Promise.all([choices(), fetch("api/custom").then((res) => res.json())]);
+    const [found, defaults] = await Promise.all([choices(), from || fetch("api/custom").then((res) => res.json())]);
+    const start = from || defaults;
     const f = {
-      model: select(found.models, start.model),
-      loras: loraEditor(found.loras, []),
+      model: select([...found.models], start.model),
+      loras: loraEditor([...found.loras], start.loras || []),
       before: textArea(start.prompt_before),
       after: textArea(start.prompt_after),
       negative: textArea(start.negative),
@@ -66,4 +76,7 @@ export function customValues() {
   };
 }
 
-document.getElementById("custom-reset").addEventListener("click", () => fillCustom(true));
+document.getElementById("custom-reset").addEventListener("click", () => {
+  copiedNote.hidden = true;
+  fillCustom(true);
+});

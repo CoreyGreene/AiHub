@@ -60,6 +60,20 @@ function choiceRow(choice) {
   return row;
 }
 
+// Pick these values (Library → Copy settings), and remember them.
+export function setOptions(values) {
+  remembered = { ...remembered, ...values };
+  try {
+    localStorage.setItem(KEY, JSON.stringify(remembered));
+  } catch {}
+  for (const group of choicesBox.querySelectorAll("[data-option]")) {
+    const want = remembered[group.dataset.option];
+    const buttons = [...group.querySelectorAll("[role=radio]")];
+    if (!buttons.some((b) => b.dataset.value === want)) continue;
+    buttons.forEach((b) => b.setAttribute("aria-checked", b.dataset.value === want));
+  }
+}
+
 export function chosenOptions() {
   const out = {};
   for (const group of choicesBox.querySelectorAll("[data-option]")) {

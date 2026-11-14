@@ -96,4 +96,6 @@ Ground rules carried over from the last project:
 | `GET`/`POST /api/settings` | The "Use 3060 settings" switch (this machine only) |
 | `GET /api/pictures/{id}` | A picture (`?download=1` to save it as a file) |
 | `GET /api/pictures-zip?ids=a,b&name=…` | Several pictures in one zip, named after the character if given (computer only; phones download one by one) |
+| `GET /api/pictures/{id}/recipe` | Library → Copy settings: the prompt, character, options and every setting (model, LoRAs, words, size, steps, guidance, sampler) to make it again on the Custom tab. `complete` is false for older pictures, whose missing settings come from their theme as it is now |
+| `POST /api/pictures-delete` | Delete saved pictures for good (`{"ids": [...]}`); a character with none left goes too. Only pictures saved in the Library |
 | `POST /api/pictures/{id}/save` `{character}` | Saves the picture to that character |
