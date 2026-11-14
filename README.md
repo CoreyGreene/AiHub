@@ -2,8 +2,9 @@
 
 A website for making pictures: pick a theme, type a prompt, press Generate.
 
-**Right now it's only the shell.** Nothing is generated yet: pressing
-Generate just says "Not connected yet". No AI models, no downloads.
+**No AI yet.** Pressing Generate waits about 5 seconds, then shows a
+built-in demo picture (a stick figure) that you can download. No models,
+no downloads needed.
 
 ## Start it
 
@@ -42,7 +43,8 @@ server/               the Python side
   __main__.py         starts the web server, prints the addresses
   app.py              web routes: serves web/ and the /api calls
   themes.py           the list of themes (placeholders for now)
-  generation.py       where image making will plug in later
+  generation.py       where image making plugs in (fake for now)
+  assets/demo.png     the demo picture
 web/                  the page your browser loads
   index.html
   app.css             mobile first; wider screens get a two-column layout
@@ -62,4 +64,5 @@ Ground rules carried over from the last project:
 | Call | What it does |
 | --- | --- |
 | `GET /api/themes` | List of themes |
-| `POST /api/generate` `{theme, prompt}` | For now always answers `{"status": "not_connected", ...}` |
+| `POST /api/generate` `{theme, prompt}` | Waits ~5 s, then answers `{"status": "done", "image": "api/demo-image", ...}` |
+| `GET /api/demo-image` | The demo picture (`?download=1` to save it as a file) |

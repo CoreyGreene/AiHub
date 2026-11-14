@@ -40,33 +40,71 @@ main { display: grid; gap: 16px; }
 
 .muted { color: var(--muted); margin: 0; }
 
-/* Theme picker: big tappable tiles, two per row on a phone. */
-.themes { border: 0; margin: 0 0 16px; padding: 0; min-width: 0; }
-.themes legend { padding: 0; margin-bottom: 8px; font-weight: 600; }
+/* Theme picker: a text box with a drop list under it. Type to search. */
+.combo { position: relative; }
 
-.theme-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.theme {
-  display: block;
-  position: relative;
-  border: 2px solid var(--line);
+.combo input {
+  width: 100%;
+  min-height: 48px;
+  font: inherit;
+  font-size: 16px; /* 16px stops iPhone from zooming in on focus */
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 10px 12px;
-  min-height: 64px;
+  padding: 10px 52px 10px 12px;
+}
+.combo input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+.combo-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 48px;
+  height: 48px;
+  font-size: 1.2rem;
+  color: var(--muted);
+  background: none;
+  border: 0;
   cursor: pointer;
 }
-.theme input { position: absolute; opacity: 0; pointer-events: none; }
-.theme .name { display: block; font-weight: 600; }
-.theme .hint { display: block; font-size: 0.85rem; color: var(--muted); }
-.theme:has(input:checked) { border-color: var(--accent); background: var(--note-bg); }
-.theme:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.combo-list {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+}
+.combo-list li {
+  min-height: 48px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+}
+.combo-list li[aria-selected="true"],
+.combo-list li:not(.empty):hover { background: var(--note-bg); }
+.combo-list li.chosen { border-left-color: var(--accent); }
+.combo-list li.empty { color: var(--muted); cursor: default; }
+.combo-list .name { display: block; font-weight: 600; }
+.combo-list .hint { display: block; font-size: 0.85rem; color: var(--muted); }
+
+.hint-line { margin: 6px 0 0; min-height: 1.2em; font-size: 0.85rem; color: var(--muted); }
 
 .field { display: block; margin-bottom: 16px; }
 .label { display: block; font-weight: 600; margin-bottom: 8px; }
+.error-line { display: block; margin-top: 6px; font-size: 0.9rem; color: #ff9b9b; }
+.error-line[hidden] { display: none; }
 
 textarea {
   width: 100%;
@@ -118,3 +156,33 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
   main { grid-template-columns: 1fr 1fr; align-items: start; }
   .result-box { min-height: 360px; }
 }
+
+/* Waiting for a picture: a spinning ring. */
+.working { display: grid; justify-items: center; gap: 14px; color: var(--muted); }
+.working p { margin: 0; }
+.spinner {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 15%, var(--accent));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.5s; } }
+
+/* The finished picture with its Download button. */
+.done { display: grid; gap: 12px; width: 100%; }
+.picture { display: block; width: 100%; height: auto; border-radius: 8px; }
+a.button {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+a.button:hover { border-color: var(--accent); }

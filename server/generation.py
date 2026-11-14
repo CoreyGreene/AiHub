@@ -1,14 +1,22 @@
 """Where image generation will plug in.
 
-Nothing is connected yet: generate() only says so. A later phase will
-load a model here and return the finished image.
+No model yet: generate() waits a few seconds, then hands back a built-in
+demo picture, so the page can show the whole make-a-picture flow. A later
+phase will load a model here and return the finished image.
 """
+
+import time
+from pathlib import Path
+
+DEMO_IMAGE = Path(__file__).resolve().parent / "assets" / "demo.png"
+FAKE_SECONDS = 5
 
 
 def generate(theme: str, prompt: str) -> dict:
+    time.sleep(FAKE_SECONDS)
     return {
-        "status": "not_connected",
-        "message": "Image making isn't connected yet. This is just the website for now.",
+        "status": "done",
+        "image": "api/demo-image",
         "theme": theme,
         "prompt": prompt,
     }

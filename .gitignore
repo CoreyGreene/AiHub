@@ -37,8 +37,9 @@ datasets/
 *.tiff
 *.heic
 *.psd
-# ...except the page's own icons, which live in web/
+# ...except the page's own icons (web/) and the built-in demo picture
 !web/**/*.png
+!server/assets/*.png
 
 # Private settings, keys and logs
 .env

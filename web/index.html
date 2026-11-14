@@ -15,16 +15,24 @@
 
   <main>
     <form id="make" class="card" novalidate>
-      <fieldset class="themes">
-        <legend>Theme</legend>
-        <div id="theme-list" class="theme-list">
-          <p class="muted">Loading themes…</p>
+      <div class="field">
+        <label class="label" for="theme">Theme</label>
+        <div class="combo">
+          <input id="theme" type="text" role="combobox" aria-expanded="false"
+                 aria-controls="theme-options" aria-autocomplete="list"
+                 autocomplete="off" autocapitalize="off" spellcheck="false"
+                 placeholder="Loading themes…" disabled>
+          <button id="theme-toggle" type="button" class="combo-toggle" tabindex="-1"
+                  aria-label="Show all themes">▾</button>
+          <ul id="theme-options" class="combo-list" role="listbox" hidden></ul>
         </div>
-      </fieldset>
+        <p id="theme-hint" class="hint-line"></p>
+      </div>
 
       <label class="field">
         <span class="label">Prompt</span>
         <textarea id="prompt" rows="4" placeholder="A goblin merchant with a big backpack"></textarea>
+        <span id="prompt-error" class="error-line" hidden>Type a prompt first: describe the picture you want.</span>
       </label>
 
       <button id="generate" type="submit" class="primary">Generate</button>
