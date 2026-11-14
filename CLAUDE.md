@@ -37,7 +37,28 @@ runs. Start it with `python3 start.py` (see README.md).
   set with `--port` or `IMAGEAI_PORT`.
 - **Keep it lean.** The last project grew lots of unused parts. Add only what
   the current phase needs; delete experiments that didn't pan out.
-- **Big files never go in git:** models, LoRAs, generated pictures.
+
+## Public repo
+
+The GitHub repo (github.com/CoreyGreene/ImageAi) is **public**. Anything
+committed can be seen by anyone, and stays in the history even if deleted
+later. So:
+
+- **Never in git:** AI models of any kind (checkpoints, LoRAs, embeddings,
+  VAEs, MLX and Core ML models), and pictures of any kind (generated ones,
+  training sets, reference art). `.gitignore` covers these; the only
+  pictures allowed are the page's own icons under `web/`.
+- **Nothing private:** no passwords, API keys or tokens, no Tailscale
+  addresses or machine names, no personal paths (`/home/...`,
+  `/Users/...`), no email addresses.
+- **Local settings stay local.** Where models live on disk and anything
+  machine-specific go in an ignored file (`.env` or `*.local.json`).
+  Commit an example file with made-up values instead.
+- **Themes are shared, models are not.** A theme file may name a model or
+  LoRA (and where to download it), but never includes the file itself or
+  a private path to it.
+- **Before every commit**, run `git status` and look at the list. If a big
+  file or a private value shows up, stop and fix `.gitignore` first.
 
 ## How it's built
 

@@ -1,17 +1,53 @@
+# This repo is public. Nothing private, nothing big.
+
 # Python
 .venv/
 __pycache__/
 *.pyc
 
-# Models and generated pictures (big files, never in git)
+# AI models: checkpoints, LoRAs, embeddings, VAEs, MLX and Core ML models
 models/
-outputs/
+loras/
+checkpoints/
+embeddings/
+vae/
 *.safetensors
 *.ckpt
+*.pt
+*.pth
+*.bin
 *.gguf
+*.onnx
+*.npz
+*.mlmodel
+*.mlpackage/
+*.mlmodelc/
+.cache/
 
-# Local settings
+# Pictures: generated ones, training sets, anything else
+outputs/
+datasets/
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.bmp
+*.tif
+*.tiff
+*.heic
+*.psd
+# ...except the page's own icons, which live in web/
+!web/**/*.png
+
+# Private settings, keys and logs
 .env
+.env.*
+*.local.json
+*.pem
+*.key
+*.log
+.claude/settings.local.json
 
 # OS / editor clutter
 .DS_Store
