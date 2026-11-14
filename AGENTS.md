@@ -29,7 +29,11 @@ for where they go and how to write a theme.
 - **Pictures:** `server/generation.py` is the only way in. Behind it, each
   way of running a model is a small backend in `server/backends/` with the
   same shape (`Backend(device).make(req, on_step)`); a theme names its
-  backend.
+  backend. The Edit button (change a picture by an instruction) uses the
+  `qwen-edit` backend, set in the `"edit"` block of `settings.json`.
+- **Memory:** measured, not set (`settings.memory_gb()`). Below the edit's
+  `roomy_gb` it's squeezed in (4-bit text reader, parts taking turns); a
+  big machine loads it whole.
 - **Queue:** `server/jobs.py` makes one picture job at a time; the page
   asks for progress. The model stays loaded, and is let go when idle.
 - **Settings:** `server/settings.json` (shared) and

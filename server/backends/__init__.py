@@ -17,15 +17,22 @@ import importlib
 
 MODULES = {
     "diffusers-sdxl": "server.backends.diffusers_sdxl",
+    "qwen-edit": "server.backends.qwen_edit",  # picture + instruction -> picture
 }
 
 _loaded = {}
 
 
-def get(name: str, device: str):
-    """The backend for a name, made once and kept (so its model stays loaded)."""
+def get(name: str, device: str, alone: bool = False):
+    """The backend for a name, made once and kept (so its model stays loaded).
+    alone: let go of the other backends' models first (a 12 GB card holds
+    only one at a time)."""
     if name not in MODULES:
         raise ValueError(f"Unknown backend '{name}'. Known: {', '.join(MODULES)}")
+    if alone:
+        for other, backend in _loaded.items():
+            if other != name:
+                backend.unload()
     if name not in _loaded:
         _loaded[name] = importlib.import_module(MODULES[name]).Backend(device)
     return _loaded[name]

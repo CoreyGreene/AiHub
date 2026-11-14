@@ -9,7 +9,7 @@ import json
 import random
 from pathlib import Path
 
-from . import backends, safety, settings
+from . import backends, pictures, safety, settings
 
 OPTIONS_FILE = Path(__file__).resolve().parent / "options.json"
 
@@ -144,7 +144,7 @@ def generate(theme: dict, prompt: str, on_progress, chosen: dict | None = None) 
     chosen: the Advanced tab's options (see check_options).
     """
     chosen = chosen or {}
-    backend = backends.get(theme["backend"], settings.device())
+    backend = backends.get(theme["backend"], settings.device(), alone=settings.get()["use_3060_settings"])
     tries = settings.get()["safety"]["tries"]
     for attempt in range(1, tries + 1):
         req = _request(theme, prompt, random.randrange(2**31), chosen)
@@ -170,6 +170,51 @@ def generate(theme: dict, prompt: str, on_progress, chosen: dict | None = None) 
             }
             return image, details
         print(f"Nudity check stopped try {attempt} of {tries}")
+    raise Blocked(BLOCKED_MESSAGE)
+
+
+def edit(pic_id: str, instruction: str, on_progress) -> tuple:
+    """Change a picture by an instruction ("make his cloak red") with the
+    edit model (settings.json "edit"). Returns (image, details) like
+    generate(); details are the first picture's, so Copy settings still
+    makes the original, plus "edits": every change made, in order."""
+    from PIL import Image
+
+    path = pictures.find(pic_id)
+    source = pictures.info(pic_id)
+    if path is None or source is None:
+        raise FileNotFoundError("That picture isn't here any more.")
+    with Image.open(path) as opened:
+        image = opened.convert("RGB")
+    cfg = settings.get()["edit"]
+    # Squeeze it in (4-bit reader, the parts taking turns, nothing else
+    # loaded) unless this machine has room for it all at once.
+    low = settings.memory_gb() < cfg["roomy_gb"]
+    backend = backends.get(cfg["backend"], settings.device(), alone=low)
+    tries = settings.get()["safety"]["tries"]
+    for attempt in range(1, tries + 1):
+        req = {
+            "folder": settings.folder("models_dir") / cfg["folder"],
+            "gguf": cfg["gguf"],
+            "lightning": cfg.get("lightning", ""),
+            "image": image,
+            "prompt": instruction,
+            # Same size as the picture, in steps of 16 (what the model needs).
+            "width": image.width // 16 * 16,
+            "height": image.height // 16 * 16,
+            "steps": cfg["steps"],
+            "guidance": cfg["guidance"],
+            "seed": random.randrange(2**31),
+            "low_memory": low,
+        }
+        on_progress("loading", 0, 0)  # when squeezed, the parts load in turns each time
+        result = backend.make(req, lambda done, total: on_progress("drawing", done, total))
+        on_progress("checking", 0, 0)
+        if safety.is_safe(result):
+            keep = {k: v for k, v in source.items() if k not in ("id", "made", "character", "tries")}
+            change = {"prompt": instruction, "from": pic_id, "seed": req["seed"], "model": cfg["folder"]}
+            return result, {**keep, "edits": [*source.get("edits", []), change], "tries": attempt}
+        print(f"Nudity check stopped edit try {attempt} of {tries}")
     raise Blocked(BLOCKED_MESSAGE)
 
 

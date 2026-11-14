@@ -1,6 +1,7 @@
 // The Create tab: Generate, show progress, then the picture with Save,
-// Download and Reset. Advanced mode makes several pictures and shows them
-// as a grid to pick from (pick-grid.js). All image work happens on the server.
+// Download, Edit and Reset. Edit changes the picture by an instruction
+// ("make the cloak red"), and the new one can be edited again. Advanced
+// mode makes several pictures and shows them as a grid to pick from (pick-grid.js). All image work happens on the server.
 
 import { chosenTheme, resetTheme } from "./theme-picker.js";
 import { addPictures, finishGrid, gridProgress, startGrid } from "./pick-grid.js";
@@ -169,7 +170,8 @@ let saveButton = null;
 let savedTo = null; // character it was last saved to
 let saving = false;
 
-function showImage(id, url) {
+// note: a line to show under it (when an edit didn't work).
+function showImage(id, url, note = "") {
   pictureId = id;
 
   const img = document.createElement("img");
@@ -197,14 +199,83 @@ function showImage(id, url) {
   reset.textContent = "Reset";
   reset.addEventListener("click", startOver);
 
+  const editBox = makeEditBox(id, url);
+  const edit = document.createElement("button");
+  edit.type = "button";
+  edit.className = "button";
+  edit.textContent = "Edit";
+  edit.addEventListener("click", () => {
+    editBox.hidden = false;
+    editBox.querySelector("textarea").focus();
+  });
+
   const actions = document.createElement("div");
-  actions.className = "actions";
-  actions.append(download, reset);
+  actions.className = "actions three";
+  actions.append(download, edit, reset);
 
   const box = document.createElement("div");
   box.className = "done";
-  box.append(img, saveButton, actions);
+  box.append(img, saveButton, actions, editBox);
+  if (note) {
+    const line = document.createElement("p");
+    line.className = "error-line";
+    line.textContent = note;
+    box.append(line);
+  }
   els.result.replaceChildren(box);
+}
+
+// --- Edit: "what should change?", then the edited picture in its place ---
+
+function makeEditBox(id, url) {
+  const box = document.createElement("div");
+  box.className = "edit-box";
+  box.hidden = true;
+  box.innerHTML = `
+    <label class="field">
+      <span class="label">What should change?</span>
+      <textarea rows="2" placeholder="Make the cloak red"></textarea>
+      <span class="error-line" hidden>Say what to change first.</span>
+    </label>
+    <div class="actions">
+      <button type="button" class="primary">Edit</button>
+      <button type="button" class="button">Cancel</button>
+    </div>`;
+  const text = box.querySelector("textarea");
+  const error = box.querySelector(".error-line");
+  const [go, cancel] = box.querySelectorAll("button");
+  text.addEventListener("input", () => (error.hidden = true));
+  cancel.addEventListener("click", () => (box.hidden = true));
+  go.addEventListener("click", () => {
+    const instruction = text.value.trim();
+    error.hidden = Boolean(instruction);
+    if (instruction) runEdit(id, url, instruction);
+  });
+  return box;
+}
+
+async function runEdit(id, url, instruction) {
+  els.button.disabled = true;
+  showProgress("Sending…");
+  let problem = "";
+  try {
+    const res = await fetch(`api/pictures/${id}/edit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: instruction }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    const job = await follow(data.job, false);
+    if (job.status === "done") return showImage(job.pictures[0].picture, job.pictures[0].image);
+    problem = job.message;
+  } catch (err) {
+    problem = err.message || "Check that the server is still running.";
+  } finally {
+    els.button.disabled = false;
+  }
+  // It didn't work: the picture from before comes back, with what happened.
+  showImage(id, url, `Couldn't edit: ${problem}`);
 }
 
 // Saving needs a character name; downloading doesn't. So Save stays

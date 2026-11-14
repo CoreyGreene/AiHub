@@ -405,6 +405,25 @@ def picture_recipe(pic_id: str) -> dict:
     }
 
 
+class EditRequest(BaseModel):
+    prompt: str
+
+
+@app.post("/api/pictures/{pic_id}/edit")
+def edit_picture(pic_id: str, req: EditRequest) -> dict:
+    """The Edit button: change this picture by an instruction. Queued like
+    any picture; follow it at /api/jobs/{job}."""
+    instruction = " ".join(req.prompt.split())
+    if not instruction:
+        raise HTTPException(400, "Type what to change first.")
+    if pictures.find(pic_id) is None:
+        raise HTTPException(404, "That picture isn't here any more.")
+    try:
+        return {"job": jobs.submit_edit(pic_id, instruction)}
+    except jobs.QueueFull as err:
+        raise HTTPException(429, str(err))
+
+
 class DeleteRequest(BaseModel):
     ids: list[str]
 

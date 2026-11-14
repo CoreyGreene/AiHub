@@ -41,6 +41,23 @@ def folder(key: str) -> Path:
     return (ROOT / get()[key]).resolve()
 
 
+@cache
+def memory_gb() -> float:
+    """How much memory the models can use, in GB: the card's own memory on
+    NVIDIA, or the whole machine's on a Mac (shared by CPU and GPU) and on
+    the CPU. Measured, so a big machine needs no setting. 0 if unknown."""
+    import os
+
+    import torch
+
+    if device() == "cuda":
+        return torch.cuda.get_device_properties(0).total_memory / 2**30
+    try:
+        return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / 2**30
+    except (ValueError, OSError, AttributeError):  # e.g. Windows
+        return 0.0
+
+
 def device() -> str:
     """cuda (NVIDIA), then mps (Apple), then cpu, unless the settings name one."""
     wanted = get().get("device", "auto")

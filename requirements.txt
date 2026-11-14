@@ -12,3 +12,8 @@ safetensors==0.8.0
 compel==2.5.1
 peft==0.21.2
 pillow==13.0.0
+# Picture editing (Qwen-Image-Edit) on a 12 GB card: the drawing model as a
+# GGUF file, the text reader loaded in 4-bit. Not needed on the Mac.
+gguf==0.19.0
+torchvision==0.29.1
+bitsandbytes==0.50.2; sys_platform != "darwin"

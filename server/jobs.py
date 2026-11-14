@@ -48,6 +48,14 @@ def submit(theme_id: str, theme: dict, prompt: str, count: int = 1, options: dic
     return job_id
 
 
+def submit_edit(pic_id: str, instruction: str) -> str:
+    """Queue a change to a picture (the Edit button). One picture comes out."""
+    job_id = submit("", {"name": "Edit"}, instruction)
+    with _lock:
+        _jobs[job_id]["edit_of"] = pic_id
+    return job_id
+
+
 def status(job_id: str) -> dict | None:
     """What the page sees: status, stage, step, steps, count, number (which
     picture is being made), pictures made so far, blocked, ahead, message."""
@@ -55,7 +63,7 @@ def status(job_id: str) -> dict | None:
         job = _jobs.get(job_id)
         if job is None:
             return None
-        out = {k: v for k, v in job.items() if k not in ("theme", "prompt", "theme_id", "stop", "options")}
+        out = {k: v for k, v in job.items() if k not in ("theme", "prompt", "theme_id", "stop", "options", "edit_of")}
         out["pictures"] = list(job["pictures"])
         if job["status"] == "waiting":
             out["ahead"] = sum(
@@ -140,7 +148,10 @@ def _work():
             for number in range(1, job["count"] + 1):
                 _update(job_id, number=number)
                 try:
-                    image, details = generation.generate(job["theme"], job["prompt"], progress, job["options"])
+                    if job.get("edit_of"):
+                        image, details = generation.edit(job["edit_of"], job["prompt"], progress)
+                    else:
+                        image, details = generation.generate(job["theme"], job["prompt"], progress, job["options"])
                 except generation.Blocked:
                     _update(job_id, blocked=job["blocked"] + 1)
                     continue

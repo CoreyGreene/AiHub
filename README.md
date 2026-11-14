@@ -98,4 +98,5 @@ Ground rules carried over from the last project:
 | `GET /api/pictures-zip?ids=a,b&name=…` | Several pictures in one zip, named after the character if given (computer only; phones download one by one) |
 | `GET /api/pictures/{id}/recipe` | Library → Copy settings: the prompt, character, options and every setting (model, LoRAs, words, size, steps, guidance, sampler) to make it again on the Custom tab. `complete` is false for older pictures, whose missing settings come from their theme as it is now |
 | `POST /api/pictures-delete` | Delete saved pictures for good (`{"ids": [...]}`); a character with none left goes too. Only pictures saved in the Library |
+| `POST /api/pictures/{id}/edit` `{prompt}` | Edit: change the picture by an instruction ("make the cloak red"); returns `{job}` like Generate, and the job's picture is a new one (the old one stays) |
 | `POST /api/pictures/{id}/save` `{character}` | Saves the picture to that character |
