@@ -81,7 +81,8 @@ Ground rules carried over from the last project:
 | `GET /api/themes/choices` | Model and LoRA files here, and the samplers |
 | `PUT /api/themes/{id}` | Save changes to a theme (Theme tab → Change) |
 | `GET /api/options` | The Advanced tab's extra choices (from `server/options.json`) |
-| `POST /api/generate` `{theme, prompt, count}` | Queues `count` pictures (default 1, up to `max_pictures` in settings), answers `{"job"}` |
+| `GET /api/custom` | Where the Custom tab starts (`custom` in settings.json) |
+| `POST /api/generate` `{theme, prompt, count, options, custom}` | Queues `count` pictures (default 1, up to `max_pictures` in settings), answers `{"job"}`. `options`: the Advanced choices. `custom` (Custom tab, no theme): `{model, loras, prompt_before, prompt_after, negative, width, height, steps, guidance, scheduler}` |
 | `GET /api/jobs/{job}` | Progress: `status` waiting / working (with `number` of `count`, `stage`, `step`, `steps`) / done (with `pictures`, and `blocked` = how many failed the safety check) / blocked / failed |
 | `GET /api/queue` | Picture jobs being made or waiting, in order |
 | `DELETE /api/queue/{job}` | Remove a job (a waiting one is dropped; the one being made stops after its current step). The queue holds at most `max_queue` (500) jobs |

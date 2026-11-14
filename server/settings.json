@@ -13,6 +13,21 @@
   "use_3060_settings": false,
   "fp16_vae": "sdxl-vae-fp16-fix",
 
+  "_custom": "Where the Custom tab starts (its own theme, no theme file behind it). The model is the first one in the models folder unless named here.",
+  "custom": {
+    "backend": "diffusers-sdxl",
+    "model_config": "sdxl-config",
+    "model": "",
+    "prompt_before": "masterpiece, best quality",
+    "prompt_after": "",
+    "negative": "lowres, worst quality, bad quality, blurry, bad anatomy, bad hands, text, watermark",
+    "width": 832,
+    "height": 1216,
+    "steps": 28,
+    "guidance": 6.0,
+    "scheduler": "euler_a"
+  },
+
   "_max_pictures": "Most pictures one Generate can make (Advanced tab).",
   "max_pictures": 8,
 

@@ -30,11 +30,41 @@ async def no_stale_page(request, call_next):
     return response
 
 
+@app.get("/api/custom")
+def custom_start() -> dict:
+    """Where the Custom tab starts: model, words and picture settings."""
+    start = dict(settings.get()["custom"])
+    models = generation.choices()["models"]
+    if start["model"] not in models:
+        start["model"] = models[0] if models else ""
+    return {k: v for k, v in start.items() if k not in ("backend", "model_config")}
+
+
+class LoraChoice(BaseModel):
+    file: str
+    weight: float
+
+
+class CustomChoice(BaseModel):
+    """The Custom tab: your own theme for these pictures (no theme file)."""
+    model: str
+    loras: list[LoraChoice] = []
+    prompt_before: str = ""
+    prompt_after: str = ""
+    negative: str = ""
+    width: int
+    height: int
+    steps: int
+    guidance: float
+    scheduler: str
+
+
 class GenerateRequest(BaseModel):
-    theme: str
+    theme: str = ""  # not used when custom is given
     prompt: str
     count: int = 1
     options: dict = {}  # the Advanced tab's extra choices (see server/options.json)
+    custom: CustomChoice | None = None
 
 
 @app.get("/api/themes")
@@ -54,9 +84,41 @@ def theme_choices() -> dict:
     return generation.choices()
 
 
-class LoraChoice(BaseModel):
-    file: str
-    weight: float
+def _check_model_and_loras(model: str, loras: list[LoraChoice]) -> dict:
+    """The model and LoRAs must be files that are here, each LoRA once."""
+    found = generation.choices()
+    if model not in found["models"]:
+        raise HTTPException(400, "Pick a model that's in the models folder.")
+    if len({lora.file for lora in loras}) < len(loras):
+        raise HTTPException(400, "The same LoRA is in the list twice. Remove one.")
+    for lora in loras:
+        if lora.file not in found["loras"]:
+            raise HTTPException(400, f"The LoRA {lora.file} isn't in the LoRA folder.")
+        if not -2 <= lora.weight <= 2:
+            raise HTTPException(400, "LoRA strength must be between -2 and 2.")
+    return found
+
+
+def _check_picture_settings(req, found: dict) -> None:
+    """Size, steps, guidance and sampler (a theme change or a custom picture)."""
+    for label, value in (("Width", req.width), ("Height", req.height)):
+        if not 512 <= value <= 2048 or value % 8:
+            raise HTTPException(400, f"{label} must be 512 to 2048, and divide by 8.")
+    if not 1 <= req.steps <= 100:
+        raise HTTPException(400, "Steps must be 1 to 100.")
+    if not 0 <= req.guidance <= 30:
+        raise HTTPException(400, "Guidance must be 0 to 30.")
+    if req.scheduler not in found["schedulers"]:
+        raise HTTPException(400, "Pick one of the samplers in the list.")
+
+
+def _tidy(words: str) -> str:
+    return " ".join(words.split()).strip(" ,")
+
+
+def _prompt_template(before: str, after: str) -> str:
+    """Your prompt goes between the words before and after it."""
+    return ", ".join(w for w in (_tidy(before), "{prompt}", _tidy(after)) if w)
 
 
 class ThemeChange(BaseModel):
@@ -79,37 +141,17 @@ def change_theme(theme_id: str, req: ThemeChange) -> dict:
     """Save changes to a theme file. The next picture uses them."""
     if themes.get(theme_id) is None:
         raise HTTPException(404, "That theme isn't there any more. Reload the page.")
-    found = generation.choices()
     name = " ".join(req.name.split())
     if not name:
         raise HTTPException(400, "Give the theme a name.")
-    if req.model not in found["models"]:
-        raise HTTPException(400, "Pick a model that's in the models folder.")
-    if len({lora.file for lora in req.loras}) < len(req.loras):
-        raise HTTPException(400, "The same LoRA is in the list twice. Remove one.")
-    for lora in req.loras:
-        if lora.file not in found["loras"]:
-            raise HTTPException(400, f"The LoRA {lora.file} isn't in the LoRA folder.")
-        if not -2 <= lora.weight <= 2:
-            raise HTTPException(400, "LoRA strength must be between -2 and 2.")
-    for label, value in (("Width", req.width), ("Height", req.height)):
-        if not 512 <= value <= 2048 or value % 8:
-            raise HTTPException(400, f"{label} must be 512 to 2048, and divide by 8.")
-    if not 1 <= req.steps <= 100:
-        raise HTTPException(400, "Steps must be 1 to 100.")
-    if not 0 <= req.guidance <= 30:
-        raise HTTPException(400, "Guidance must be 0 to 30.")
-    if req.scheduler not in found["schedulers"]:
-        raise HTTPException(400, "Pick one of the samplers in the list.")
+    found = _check_model_and_loras(req.model, req.loras)
+    _check_picture_settings(req, found)
 
-    # Your prompt goes between the words before and after it.
-    tidy = lambda words: " ".join(words.split()).strip(" ,")
-    prompt = ", ".join(w for w in (tidy(req.prompt_before), "{prompt}", tidy(req.prompt_after)) if w)
     themes.save(theme_id, {
         "name": name,
         "hint": " ".join(req.hint.split()),
-        "prompt": prompt,
-        "negative": tidy(req.negative),
+        "prompt": _prompt_template(req.prompt_before, req.prompt_after),
+        "negative": _tidy(req.negative),
         "model": req.model,
         "loras": [{"file": l.file, "weight": l.weight} for l in req.loras],
         "width": req.width,
@@ -131,8 +173,9 @@ def picture_options() -> dict:
 @app.post("/api/generate")
 def generate(req: GenerateRequest) -> dict:
     """Adds a picture to the queue; the page then asks /api/jobs/{job} for progress."""
-    theme = themes.get(req.theme)
-    if theme is None:
+    theme_id = "custom" if req.custom else req.theme
+    theme = None if req.custom else themes.get(req.theme)
+    if theme is None and not req.custom:
         raise HTTPException(400, "That theme isn't there any more. Reload the page.")
     prompt = " ".join(req.prompt.split())
     if not prompt:
@@ -140,12 +183,27 @@ def generate(req: GenerateRequest) -> dict:
     most = settings.get()["max_pictures"]
     if not 1 <= req.count <= most:
         raise HTTPException(400, f"Pick between 1 and {most} pictures.")
+    if req.custom:
+        # Your own theme, made from the Custom tab (nothing is saved to a file).
+        c = req.custom
+        _check_picture_settings(c, _check_model_and_loras(c.model, c.loras))
+        start = settings.get()["custom"]
+        theme = {
+            "name": "Custom",
+            "backend": start["backend"],
+            "model_config": start["model_config"],
+            "model": c.model,
+            "loras": [{"file": l.file, "weight": l.weight} for l in c.loras],
+            "prompt": _prompt_template(c.prompt_before, c.prompt_after),
+            "negative": _tidy(c.negative),
+            **{key: getattr(c, key) for key in ("width", "height", "steps", "guidance", "scheduler")},
+        }
     try:
         chosen = generation.check_options(req.options)
     except ValueError as err:
         raise HTTPException(400, str(err))
     try:
-        return {"job": jobs.submit(req.theme, theme, prompt, req.count, chosen)}
+        return {"job": jobs.submit(theme_id, theme, prompt, req.count, chosen)}
     except jobs.QueueFull as err:
         raise HTTPException(429, str(err))
 
@@ -182,7 +240,7 @@ def character(folder: str) -> dict:
     if found is None:
         raise HTTPException(404, "That character isn't in the library.")
     # Show the theme's name where it still exists, else its id.
-    names = {t["id"]: t["name"] for t in themes.public_list()}
+    names = {t["id"]: t["name"] for t in themes.public_list()} | {"custom": "Custom"}
     for pic in found["pictures"]:
         pic["theme"] = names.get(pic["theme"], pic["theme"])
     return found

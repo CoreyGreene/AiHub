@@ -5,6 +5,7 @@
 import { chosenTheme, resetTheme } from "./theme-picker.js";
 import { showGrid } from "./pick-grid.js";
 import { chosenOptions, loadOptions } from "./options.js";
+import { customValues } from "./custom.js";
 
 const els = {
   form: document.getElementById("make"),
@@ -23,8 +24,9 @@ const els = {
 const emptyResult = els.result.innerHTML; // "Your picture will show up here."
 const POLL_MS = 700;
 
+// Advanced and Custom both make several pictures, with the options.
 function isAdvanced() {
-  return els.view.dataset.mode === "advanced";
+  return els.view.dataset.mode !== "standard";
 }
 
 // How many pictures (Advanced): kept between 1 and the server's limit.
@@ -56,10 +58,11 @@ export function showNote(title, text) {
 
 async function onGenerate(event) {
   event.preventDefault();
-  const theme = chosenTheme()?.id;
+  const isCustom = els.view.dataset.mode === "custom";
+  const theme = isCustom ? "" : chosenTheme()?.id; // Custom is its own theme
   const prompt = els.prompt.value.trim();
 
-  if (!theme) return showNote("Pick a theme first", "");
+  if (!theme && !isCustom) return showNote("Pick a theme first", "");
   // Shown right under the box (not in the result area, which the phone
   // keyboard can hide).
   els.promptError.hidden = Boolean(prompt);
@@ -68,6 +71,8 @@ async function onGenerate(event) {
   const advanced = isAdvanced();
   const count = advanced ? Number(els.count.value) : 1;
   const options = advanced ? chosenOptions() : {};
+  const custom = isCustom ? customValues() : null;
+  if (isCustom && !custom) return showNote("Custom isn't ready", "The model list didn't load. Reload the page.");
 
   // Close the phone keyboard and bring the result area into view.
   document.activeElement?.blur();
@@ -79,7 +84,7 @@ async function onGenerate(event) {
     const res = await fetch("api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ theme, prompt, count, options }),
+      body: JSON.stringify({ theme, prompt, count, options, custom }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail);
