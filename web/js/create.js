@@ -83,6 +83,7 @@ async function onGenerate(event) {
     if (!res.ok) throw new Error(data.detail);
     const job = await follow(data.job);
     if (job.status === "blocked") showNote("Not shown", job.message);
+    else if (job.status === "removed") showNote("Removed from the queue", job.message);
     else if (job.status === "failed") showNote("Something went wrong", job.message);
     else if (advanced) showGrid(els.result, job.pictures, job.blocked, startOver);
     else showImage(job.pictures[0].picture, job.pictures[0].image);

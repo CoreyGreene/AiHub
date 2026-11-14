@@ -11,6 +11,7 @@
 <body>
   <header class="top">
     <h1>ImageAi</h1>
+    <div id="gpu" class="gpu">Graphics card: checking…</div>
     <a href="#settings" class="gear" data-view="settings" aria-label="Settings">
       <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none"
            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -110,6 +111,12 @@
       </label>
       <p id="settings-note" class="hint-line" aria-live="polite"></p>
       <p class="muted small">Pictures are made on: <span id="settings-device">…</span></p>
+    </section>
+
+    <section class="card">
+      <h2>Picture queue</h2>
+      <p class="muted small">One picture job is made at a time; the rest wait here in order.</p>
+      <ol id="queue-list" class="queue-list"></ol>
     </section>
   </main>
 

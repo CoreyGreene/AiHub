@@ -54,6 +54,7 @@ server/               the Python side
   generation.py       theme + prompt -> a checked picture
   backends/           ways of running a model (diffusers SDXL for now)
   safety.py           the nudity check
+  gpu.py              graphics card name and memory, for the top of the page
   pictures.py         keeps pictures in outputs/ (new ones, and saved per character)
   theme/              your theme files (JSON, not in git), the guide, examples/
   aIModels/, lora/    models and LoRAs (not in git)
@@ -78,7 +79,10 @@ Ground rules carried over from the last project:
 | `GET /api/themes` | List of themes |
 | `POST /api/generate` `{theme, prompt, count}` | Queues `count` pictures (default 1, up to `max_pictures` in settings), answers `{"job"}` |
 | `GET /api/jobs/{job}` | Progress: `status` waiting / working (with `number` of `count`, `stage`, `step`, `steps`) / done (with `pictures`, and `blocked` = how many failed the safety check) / blocked / failed |
+| `GET /api/queue` | Picture jobs being made or waiting, in order |
+| `DELETE /api/queue/{job}` | Remove a job (a waiting one is dropped; the one being made stops after its current step). The queue holds at most `max_queue` (500) jobs |
 | `GET /api/characters` | Saved characters, each with its first picture |
+| `GET /api/status` | `gpu`: graphics card name, memory used on the whole card / taken by this site / total (GB). `queue`: picture jobs `working` and `waiting` |
 | `GET`/`POST /api/settings` | The "Use 3060 settings" switch (this machine only) |
 | `GET /api/pictures/{id}` | A picture (`?download=1` to save it as a file) |
 | `GET /api/pictures-zip?ids=a,b&name=…` | Several pictures in one zip, named after the character if given (computer only; phones download one by one) |

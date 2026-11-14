@@ -1,7 +1,8 @@
 """SDXL models (Illustrious, Pony, plain SDXL ...) through diffusers / PyTorch.
 
 Runs on cuda, mps or cpu. The model stays loaded between pictures; it is
-only reloaded when a theme asks for a different one. LoRAs are swapped
+only reloaded when a theme asks for a different one, or after it was let go
+to free the graphics card's memory. LoRAs are swapped
 in and out as themes need them.
 """
 
@@ -35,14 +36,21 @@ class Backend:
     def is_loaded(self, req) -> bool:
         return self.model == (req["model"], req["low_memory"])
 
+    def unload(self):
+        """Let go of the model and give its memory back to the graphics card."""
+        self.pipe = self.model = None
+        self.loras = ()
+        gc.collect()
+        if self.device == "cuda":
+            torch.cuda.empty_cache()
+        elif self.device == "mps":
+            torch.mps.empty_cache()
+
     def _load(self, req):
         key = (req["model"], req["low_memory"])
         if self.model == key:
             return
-        self.pipe = self.model = None
-        gc.collect()
-        if self.device == "cuda":
-            torch.cuda.empty_cache()
+        self.unload()
         extra = {}
         if req["low_memory"]:
             # 3060 settings, part 1: a VAE (the step that turns the result into

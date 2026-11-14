@@ -4,6 +4,7 @@ Every backend has the same shape:
 
     backend = Backend(device)
     image = backend.make(request, on_step)   # a PIL image
+    backend.unload()                         # free the graphics card's memory
 
 where request is a dict with model / model_config / loras (full paths),
 prompt, negative, width, height, steps, guidance, scheduler, seed, and
@@ -28,3 +29,9 @@ def get(name: str, device: str):
     if name not in _loaded:
         _loaded[name] = importlib.import_module(MODULES[name]).Backend(device)
     return _loaded[name]
+
+
+def unload_all():
+    """Let go of every loaded model (they load again on the next picture)."""
+    for backend in _loaded.values():
+        backend.unload()

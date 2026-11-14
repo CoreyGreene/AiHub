@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import generation, jobs, pictures, settings, themes
+from . import generation, gpu, jobs, pictures, settings, themes
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 # Changes on every server start. The page asks for app.css and app.js with
@@ -59,7 +59,10 @@ def generate(req: GenerateRequest) -> dict:
     most = settings.get()["max_pictures"]
     if not 1 <= req.count <= most:
         raise HTTPException(400, f"Pick between 1 and {most} pictures.")
-    return {"job": jobs.submit(req.theme, theme, prompt, req.count)}
+    try:
+        return {"job": jobs.submit(req.theme, theme, prompt, req.count)}
+    except jobs.QueueFull as err:
+        raise HTTPException(429, str(err))
 
 
 @app.get("/api/jobs/{job_id}")
@@ -68,6 +71,19 @@ def job(job_id: str) -> dict:
     if found is None:
         raise HTTPException(404, "That picture job isn't known (the server may have restarted).")
     return found
+
+
+@app.get("/api/queue")
+def queue_list() -> list[dict]:
+    """Every picture job being made or waiting, in order."""
+    return jobs.listing()
+
+
+@app.delete("/api/queue/{job_id}")
+def queue_remove(job_id: str) -> dict:
+    if not jobs.remove(job_id):
+        raise HTTPException(404, "That job isn't in the queue any more.")
+    return {"status": "removed"}
 
 
 @app.get("/api/characters")
@@ -126,6 +142,13 @@ def save_picture(pic_id: str, req: SaveRequest) -> dict:
     except FileNotFoundError:
         raise HTTPException(404, "That picture isn't here any more.")
     return {"status": "saved", "character": character}
+
+
+@app.get("/api/status")
+def status() -> dict:
+    """For the line at the top of the page: the graphics card and its memory,
+    and how many picture jobs are being made or waiting."""
+    return {"gpu": gpu.status(), "queue": jobs.queue()}
 
 
 class SettingsRequest(BaseModel):

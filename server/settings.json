@@ -16,6 +16,12 @@
   "_max_pictures": "Most pictures one Generate can make (Advanced tab).",
   "max_pictures": 8,
 
+  "_unload_after_minutes": "Let go of the model when no pictures have been made for this long, so the graphics card's memory is free. The next picture then takes a few seconds longer to start. 0 = let go as soon as the queue is empty.",
+  "unload_after_minutes": 5,
+
+  "_max_queue": "Most picture jobs waiting or being made at once. More requests are turned away until some finish.",
+  "max_queue": 500,
+
   "safety": {
     "_about": "Every picture is checked by both checkers and is not shown if either one scores it at or above the threshold. Up to 'tries' pictures are made before giving up. 'negative' is added to every theme's negative prompt.",
     "checkers": [

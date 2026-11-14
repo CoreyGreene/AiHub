@@ -76,6 +76,8 @@ later. So:
   website never cares which one ran.
 - Long jobs never block a request: the server queues them (`jobs.py`, one
   picture at a time) and the page asks for progress.
+- The model stays loaded between pictures, and is let go after
+  `unload_after_minutes` with nothing to do, so the card's memory is free.
 - **Nothing hard-coded.** Folders, device, safety and the 3060 switch live in
   `server/settings.json` (shared) and `server/settings.local.json` (this
   machine only, git-ignored, written by the Settings page). Model, LoRAs,

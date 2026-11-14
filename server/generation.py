@@ -93,3 +93,9 @@ def generate(theme: dict, prompt: str, on_progress) -> tuple:
             return image, details
         print(f"Nudity check stopped try {attempt} of {tries}")
     raise Blocked(BLOCKED_MESSAGE)
+
+
+def free_memory():
+    """Give the graphics card's memory back when no pictures are being made.
+    The next picture loads the model again (a few seconds)."""
+    backends.unload_all()
