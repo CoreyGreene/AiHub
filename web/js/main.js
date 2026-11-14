@@ -13,7 +13,7 @@ import { loadThemeInfo } from "./theme-info.js";
 
 // Tabs: Create, Library, Theme, and the Settings gear. The address ends in
 // #create, #library and so on, so the phone's Back button works too.
-// #library/<folder> opens one character.
+// #library/<folder> opens one character, #library/<folder>/<date> one day of it.
 const onShow = {
   library: loadLibrary,
   theme: loadThemeInfo,
@@ -25,7 +25,7 @@ const onShow = {
 
 function showView() {
   // "#create/advanced" = the Create tab, its Advanced sub-tab.
-  const [name, sub] = location.hash.slice(1).split("/");
+  const [name, sub, more] = location.hash.slice(1).split("/");
   const view = document.getElementById(`view-${name}`) ? name : "create";
   document.querySelectorAll(".view").forEach((el) => (el.hidden = el.id !== `view-${view}`));
   document.querySelectorAll("[data-view]").forEach((el) => {
@@ -33,7 +33,7 @@ function showView() {
     else el.removeAttribute("aria-current");
   });
   if (view === "create") showCreateMode(["advanced", "custom"].includes(sub) ? sub : "standard");
-  onShow[view]?.(sub);
+  onShow[view]?.(sub, more);
 }
 
 // Inside Create: Standard, Advanced and Custom share one form. Advanced adds

@@ -1,6 +1,8 @@
 // The Library tab: every saved character, shown with its first picture.
 // Tap one to open it (#library/<folder>) and see all of its pictures,
-// either as small pictures (two across, no words) or full with details.
+// either as small pictures (two across, no words), full with details, or
+// by date: one card per day, tap it (#library/<folder>/<date>) for that
+// day's pictures.
 
 const list = document.getElementById("library-list");
 const title = document.getElementById("library-title");
@@ -65,8 +67,12 @@ viewer.addEventListener("touchend", (event) => {
 const LAYOUT_KEY = "imageai.libraryLayout";
 let layout = "full";
 try {
-  layout = localStorage.getItem(LAYOUT_KEY) === "thumbs" ? "thumbs" : "full";
+  const saved = localStorage.getItem(LAYOUT_KEY);
+  if (["thumbs", "dates"].includes(saved)) layout = saved;
 } catch {}
+
+let folderShown = ""; // the character on screen
+let dateShown = ""; // the day on screen, or "" for all of them
 
 layoutButtons.addEventListener("click", (event) => {
   const button = event.target.closest("[data-layout]");
@@ -75,11 +81,12 @@ layoutButtons.addEventListener("click", (event) => {
   try {
     localStorage.setItem(LAYOUT_KEY, layout);
   } catch {}
-  showLayout();
+  // Inside one day, any choice goes back to the whole character.
+  if (dateShown) location.hash = `#library/${encodeURIComponent(folderShown)}`;
+  else showCharacter(folderShown);
 });
 
 function showLayout() {
-  list.classList.toggle("thumbs", layout === "thumbs");
   for (const b of layoutButtons.querySelectorAll("[data-layout]")) {
     b.setAttribute("aria-pressed", b.dataset.layout === layout);
   }
@@ -87,15 +94,31 @@ function showLayout() {
 
 const pictures = (n) => `${n} picture${n === 1 ? "" : "s"}`;
 
-export function loadLibrary(folder) {
+// The day a picture was made, on this phone's clock: "2026-11-14".
+function dayOf(pic) {
+  const d = new Date(pic.made);
+  if (isNaN(d)) return "unknown";
+  const two = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
+}
+
+function dayName(day) {
+  if (day === "unknown") return "Unknown date";
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+export function loadLibrary(folder, date) {
   window.scrollTo(0, 0);
-  if (folder) showCharacter(decodeURIComponent(folder));
+  if (folder) showCharacter(decodeURIComponent(folder), date || "");
   else showAll();
 }
 
 async function showAll() {
   title.textContent = "Library";
   back.hidden = count.hidden = layoutButtons.hidden = true;
+  back.href = "#library";
+  back.textContent = "← All characters";
   list.className = "library-grid";
   try {
     const res = await fetch("api/characters");
@@ -121,27 +144,67 @@ function card(character) {
   return item;
 }
 
-async function showCharacter(folder) {
+async function showCharacter(folder, date = "") {
+  folderShown = folder;
+  dateShown = date;
   back.hidden = layoutButtons.hidden = false;
+  back.href = date ? `#library/${encodeURIComponent(folder)}` : "#library";
+  back.textContent = date ? "← All dates" : "← All characters";
   title.textContent = "…";
   count.hidden = true;
-  list.className = "character-pictures";
   showLayout();
+  list.className = "character-pictures";
   list.innerHTML = `<p class="muted">Loading…</p>`;
   try {
     const res = await fetch(`api/characters/${encodeURIComponent(folder)}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail);
     title.textContent = data.name;
-    count.textContent = `${pictures(data.pictures.length)}. To add more, make a picture with the name ${data.name} and press Save.`;
     count.hidden = false;
-    shown = data.pictures;
-    list.replaceChildren(...data.pictures.map(pictureCard));
+    if (date) {
+      // One day: small pictures, the viewer goes through that day only.
+      shown = data.pictures.filter((pic) => dayOf(pic) === date);
+      count.textContent = `${pictures(shown.length)} on ${dayName(date)}.`;
+      list.className = "character-pictures thumbs";
+      list.replaceChildren(...shown.map(pictureCard));
+    } else if (layout === "dates") {
+      list.className = "library-grid days";
+      const days = byDay(data.pictures);
+      count.textContent = `${pictures(data.pictures.length)} on ${days.length} day${days.length === 1 ? "" : "s"}. Tap a day to see its pictures.`;
+      list.replaceChildren(...days.map((day) => dayCard(folder, day)));
+    } else {
+      shown = data.pictures;
+      count.textContent = `${pictures(data.pictures.length)}. To add more, make a picture with the name ${data.name} and press Save.`;
+      list.classList.toggle("thumbs", layout === "thumbs");
+      list.replaceChildren(...data.pictures.map(pictureCard));
+    }
   } catch (err) {
     title.textContent = "Library";
     list.innerHTML = `<p class="muted"></p>`;
     list.firstChild.textContent = err.message || "Couldn't load this character. Is the server running?";
   }
+}
+
+// The pictures grouped by day, newest day first.
+function byDay(pics) {
+  const days = new Map();
+  for (const pic of pics) {
+    const day = dayOf(pic);
+    if (!days.has(day)) days.set(day, []);
+    days.get(day).push(pic);
+  }
+  return [...days].map(([day, list]) => ({ day, pics: list })).sort((a, b) => (a.day < b.day ? 1 : -1));
+}
+
+function dayCard(folder, { day, pics }) {
+  const item = document.createElement("a");
+  item.className = "character";
+  item.href = `#library/${encodeURIComponent(folder)}/${day}`;
+  item.innerHTML = `<img alt="" loading="lazy"><h3></h3><p class="muted"></p>`;
+  item.querySelector("img").src = pics[0].image;
+  item.querySelector("h3").textContent = dayName(day);
+  item.querySelector("p").textContent = pictures(pics.length);
+  return item;
 }
 
 function pictureCard(pic, index) {
