@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#16161d">
+  <title>ImageAi</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="top">
+    <h1>ImageAi</h1>
+  </header>
+
+  <main>
+    <form id="make" class="card" novalidate>
+      <fieldset class="themes">
+        <legend>Theme</legend>
+        <div id="theme-list" class="theme-list">
+          <p class="muted">Loading themes…</p>
+        </div>
+      </fieldset>
+
+      <label class="field">
+        <span class="label">Prompt</span>
+        <textarea id="prompt" rows="4" placeholder="A goblin merchant with a big backpack"></textarea>
+      </label>
+
+      <button id="generate" type="submit" class="primary">Generate</button>
+    </form>
+
+    <section class="card result" aria-live="polite">
+      <h2>Result</h2>
+      <div id="result" class="result-box">
+        <p class="muted">Your picture will show up here.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
