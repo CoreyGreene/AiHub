@@ -91,6 +91,18 @@ def characters() -> list[dict]:
     return pictures.list_characters()
 
 
+@app.get("/api/characters/{folder}")
+def character(folder: str) -> dict:
+    found = pictures.character(folder)
+    if found is None:
+        raise HTTPException(404, "That character isn't in the library.")
+    # Show the theme's name where it still exists, else its id.
+    names = {t["id"]: t["name"] for t in themes.public_list()}
+    for pic in found["pictures"]:
+        pic["theme"] = names.get(pic["theme"], pic["theme"])
+    return found
+
+
 @app.get("/api/pictures/{pic_id}")
 def picture(pic_id: str, download: bool = False) -> FileResponse:
     path = pictures.find(pic_id)

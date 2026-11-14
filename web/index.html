@@ -56,12 +56,15 @@
         <span id="prompt-error" class="error-line" hidden>Type a prompt first: describe the picture you want.</span>
       </label>
 
-      <label class="field">
-        <span class="label">Character name <span class="optional">(optional)</span></span>
-        <input id="character" class="text-input" type="text" placeholder="Grim the goblin"
-               autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="60">
+      <div class="field">
+        <label class="label" for="character">Character name <span class="optional">(optional)</span></label>
+        <div class="name-row">
+          <input id="character" class="text-input" type="text" placeholder="Grim the goblin"
+                 autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="60">
+          <button id="pick-character" type="button" class="button">Pick</button>
+        </div>
         <span id="character-error" class="error-line" hidden></span>
-      </label>
+      </div>
 
       <div class="field advanced-only">
         <label class="label" for="count">How many pictures</label>
@@ -84,9 +87,20 @@
     </div>
   </main>
 
+  <dialog id="character-chooser" class="chooser" aria-labelledby="chooser-title">
+    <div class="chooser-head">
+      <h2 id="chooser-title">Pick a character</h2>
+      <button id="chooser-close" type="button" class="button" aria-label="Close">✕</button>
+    </div>
+    <p class="muted small">New pictures will be saved to the one you pick.</p>
+    <div id="chooser-list" class="choice-list"></div>
+  </dialog>
+
   <main id="view-library" class="view" hidden>
     <section class="card">
-      <h2>Library</h2>
+      <a href="#library" id="library-back" class="link-button back-link" hidden>← All characters</a>
+      <h2 id="library-title">Library</h2>
+      <p id="library-count" class="muted" hidden></p>
       <div id="library-list" class="library-grid">
         <p class="muted">Loading…</p>
       </div>

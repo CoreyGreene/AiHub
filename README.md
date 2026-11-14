@@ -82,6 +82,7 @@ Ground rules carried over from the last project:
 | `GET /api/queue` | Picture jobs being made or waiting, in order |
 | `DELETE /api/queue/{job}` | Remove a job (a waiting one is dropped; the one being made stops after its current step). The queue holds at most `max_queue` (500) jobs |
 | `GET /api/characters` | Saved characters, each with its first picture |
+| `GET /api/characters/{folder}` | One character and all its pictures (prompt, theme, date) |
 | `GET /api/status` | `gpu`: graphics card name, memory used on the whole card / taken by this site / total (GB). `queue`: picture jobs `working` and `waiting` |
 | `GET`/`POST /api/settings` | The "Use 3060 settings" switch (this machine only) |
 | `GET /api/pictures/{id}` | A picture (`?download=1` to save it as a file) |

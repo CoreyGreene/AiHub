@@ -4,6 +4,7 @@
 import { startGpu } from "./gpu.js";
 import { loadThemes } from "./theme-picker.js";
 import "./create.js";
+import "./character-picker.js";
 import { loadLibrary } from "./library.js";
 import { loadSettings } from "./settings.js";
 import { startQueueList } from "./queue-list.js";
@@ -11,6 +12,7 @@ import { loadThemeInfo } from "./theme-info.js";
 
 // Tabs: Create, Library, Theme, and the Settings gear. The address ends in
 // #create, #library and so on, so the phone's Back button works too.
+// #library/<folder> opens one character.
 const onShow = {
   library: loadLibrary,
   theme: loadThemeInfo,
@@ -30,7 +32,7 @@ function showView() {
     else el.removeAttribute("aria-current");
   });
   if (view === "create") showCreateMode(sub === "advanced" ? "advanced" : "standard");
-  onShow[view]?.();
+  onShow[view]?.(sub);
 }
 
 // Inside Create: Standard and Advanced share one form; Advanced adds
