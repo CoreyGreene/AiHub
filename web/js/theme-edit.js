@@ -1,0 +1,284 @@
+// Changing a theme on the Theme tab (a form in place of the theme's card),
+// or making a new one (the same form, empty, on the New tab). Saving writes
+// the theme file on the server; the next video uses it. New model and
+// LoRA files can be added from the form too.
+
+import { uploadBox } from "./upload.js";
+
+let choicesWait = null; // model and LoRA files here, and the samplers
+
+export function choices() {
+  choicesWait ??= fetch("api/themes/choices").then((res) => res.json());
+  return choicesWait;
+}
+
+// After a file is added, the lists are read again next time.
+function forgetChoices() {
+  choicesWait = null;
+}
+
+export const SAMPLERS = { default: "The model's own", unipc: "UniPC", flow_euler: "Flow Euler" };
+
+// Size and length boxes, shared with the Custom tab.
+export const LIMITS = {
+  size: { min: 256, max: 1920, step: 16 },
+  frames: { min: 1, max: 241, step: 1 },
+  fps: { min: 4, max: 60, step: 1 },
+};
+
+// "81 frames at 16 a second" -> "about 5.1 seconds", under the Frames box.
+export function lengthNote(frames, fps) {
+  const update = () => {
+    const s = Number(frames.value) / Number(fps.value);
+    note.textContent = Number.isFinite(s) && s > 0 ? `About ${s.toFixed(1)} seconds` : "";
+  };
+  const note = document.createElement("span");
+  note.className = "muted small field-help";
+  frames.addEventListener("input", update);
+  fps.addEventListener("input", update);
+  update();
+  return note;
+}
+
+export function field(label, input, help) {
+  const box = document.createElement("label");
+  box.className = "field";
+  const title = document.createElement("span");
+  title.className = "label";
+  title.textContent = label;
+  box.append(title, input);
+  if (help) {
+    const note = document.createElement("span");
+    note.className = "muted small field-help";
+    note.textContent = help;
+    box.append(note);
+  }
+  return box;
+}
+
+function textInput(value, maxLength = 80) {
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "text-input";
+  input.maxLength = maxLength;
+  input.value = value;
+  return input;
+}
+
+export function textArea(value) {
+  const area = document.createElement("textarea");
+  area.rows = 4;
+  area.value = value;
+  return area;
+}
+
+export function numberInput(value, { min, max, step }) {
+  const input = document.createElement("input");
+  input.type = "number";
+  input.inputMode = step < 1 ? "decimal" : "numeric";
+  input.className = "text-input";
+  Object.assign(input, { min, max, step, value });
+  return input;
+}
+
+export function select(options, value, labels = {}) {
+  const box = document.createElement("select");
+  box.className = "text-input";
+  for (const option of options) box.append(new Option(labels[option] || option, option));
+  // A file the theme names but that isn't here still shows, marked.
+  if (value && !options.includes(value)) box.append(new Option(`${value} (not found)`, value));
+  box.value = value;
+  return box;
+}
+
+export function button(text, className, onClick) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = className;
+  b.textContent = text;
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+// LoRAs: one row each (file, strength, remove), plus "Add a LoRA".
+// Returns { box, values(), addFile(file) } where values() is [{ file, weight }]
+// and addFile puts a newly added LoRA file in the lists, in a new row.
+export function loraEditor(files, start) {
+  const rows = document.createElement("div");
+  rows.className = "lora-rows";
+  function addLora(file, weight) {
+    const row = document.createElement("div");
+    row.className = "lora-row";
+    const pick = select(files, file);
+    pick.setAttribute("aria-label", "LoRA file");
+    const label = document.createElement("span");
+    label.className = "muted small";
+    label.textContent = "Strength";
+    const strength = numberInput(weight, { min: -2, max: 2, step: 0.05 });
+    strength.setAttribute("aria-label", "Strength");
+    row.append(pick, label, strength, button("Remove", "button small-button", () => row.remove()));
+    rows.append(row);
+  }
+  start.forEach((l) => addLora(l.file, l.weight));
+  // A new row starts with a LoRA that isn't in the list yet.
+  const add = button("Add a LoRA", "button small-button", () => {
+    const used = [...rows.querySelectorAll("select")].map((pick) => pick.value);
+    addLora(files.find((file) => !used.includes(file)) || files[0], 0.8);
+  });
+  add.disabled = !files.length;
+  const box = document.createElement("div");
+  box.className = "field";
+  box.append(Object.assign(document.createElement("span"), { className: "label", textContent: "LoRAs" }), rows, add);
+  return {
+    box,
+    addFile(file) {
+      files.push(file);
+      files.sort();
+      for (const pick of rows.querySelectorAll("select")) pick.append(new Option(file, file));
+      addLora(file, 0.8);
+      add.disabled = false;
+    },
+    values: () =>
+      [...rows.children].map((row) => ({
+        file: row.querySelector("select").value,
+        weight: Number(row.querySelector("input").value),
+      })),
+  };
+}
+
+// Show the form inside `card`. onDone(theme) gets the saved theme, or null
+// for Cancel. isNew: make a new theme file instead of changing this one.
+export async function editTheme(card, theme, onDone, { isNew = false } = {}) {
+  card.replaceChildren(Object.assign(document.createElement("p"), { className: "muted", textContent: "Loading…" }));
+  let found;
+  try {
+    found = await choices();
+  } catch {
+    card.querySelector("p").textContent = "Couldn't load the model list. Is the server running?";
+    return;
+  }
+  const s = theme.settings;
+
+  const name = textInput(theme.name, 40);
+  const hint = textInput(theme.hint, 80);
+  const before = textArea(theme.prompt_before);
+  const after = textArea(theme.prompt_after);
+  const negative = textArea(theme.negative);
+  const model = select([...found.models], theme.model.file);
+  const width = numberInput(s.width, LIMITS.size);
+  const height = numberInput(s.height, LIMITS.size);
+  const frames = numberInput(s.frames, LIMITS.frames);
+  const fps = numberInput(s.fps, LIMITS.fps);
+  const steps = numberInput(s.steps, { min: 1, max: 100, step: 1 });
+  const guidance = numberInput(s.guidance, { min: 0, max: 30, step: 0.5 });
+  const sampler = select(found.schedulers, s.scheduler, SAMPLERS);
+
+  const loras = loraEditor([...found.loras], theme.loras);
+
+  // Adding files: while one is being sent, the theme can't be saved yet.
+  let busy = 0;
+  const onBusy = (on) => {
+    busy += on ? 1 : -1;
+    save.disabled = busy > 0;
+  };
+  const addModel = uploadBox("model", {
+    onBusy,
+    onAdded(file) {
+      forgetChoices();
+      model.append(new Option(file, file));
+      model.value = file;
+    },
+  });
+  const addLora = uploadBox("lora", {
+    onBusy,
+    onAdded(file) {
+      forgetChoices();
+      loras.addFile(file);
+    },
+  });
+  const size = document.createElement("div");
+  size.className = "two-up";
+  size.append(field("Width", width), field("Height", height));
+  const length = document.createElement("div");
+  length.className = "two-up";
+  length.append(field("Frames", frames), field("Frames a second", fps));
+  const more = document.createElement("div");
+  more.className = "two-up";
+  more.append(field("Steps", steps, "More = more detail, slower"), field("Guidance", guidance, "How closely it follows the prompt"));
+
+  const error = document.createElement("p");
+  error.className = "error-line";
+  error.hidden = true;
+
+  const saveText = isNew ? "Make theme" : "Save theme";
+  const save = button(saveText, "primary", onSave);
+  const cancel = button(isNew ? "Start again" : "Cancel", "button", () => onDone(null));
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  actions.append(cancel);
+
+  const heading = document.createElement("h2");
+  heading.className = "theme-title";
+  heading.textContent = isNew ? "New theme" : `Change ${theme.name}`;
+
+  card.replaceChildren(
+    heading,
+    field("Name", name),
+    field("Hint", hint, "The short line under the theme in the picker"),
+    field("Words before your prompt", before),
+    field("Words after your prompt", after),
+    field("What to avoid", negative, "The safety words are always added too"),
+    field("Model", model),
+    addModel,
+    loras.box,
+    addLora,
+    size,
+    length,
+    lengthNote(frames, fps),
+    more,
+    field("Sampler", sampler),
+    error,
+    save,
+    actions
+  );
+  if (!isNew) name.focus(); // on New, the phone's keyboard would cover the form
+
+  async function onSave() {
+    error.hidden = true;
+    save.disabled = true;
+    save.textContent = "Saving…";
+    const body = {
+      name: name.value,
+      hint: hint.value,
+      prompt_before: before.value,
+      prompt_after: after.value,
+      negative: negative.value,
+      model: model.value,
+      loras: loras.values(),
+      width: Number(width.value),
+      height: Number(height.value),
+      frames: Number(frames.value),
+      fps: Number(fps.value),
+      steps: Number(steps.value),
+      guidance: Number(guidance.value),
+      scheduler: sampler.value,
+    };
+    try {
+      const res = await fetch(isNew ? "api/themes" : `api/themes/${encodeURIComponent(theme.id)}`, {
+        method: isNew ? "POST" : "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(typeof data.detail === "string" ? data.detail : "Some boxes need a number.");
+      }
+      onDone(data);
+    } catch (err) {
+      error.textContent = err.message || "Couldn't save. Is the server running?";
+      error.hidden = false;
+      save.disabled = busy > 0;
+      save.textContent = saveText;
+    }
+  }
+}
