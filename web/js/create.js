@@ -4,6 +4,7 @@
 
 import { chosenTheme, resetTheme } from "./theme-picker.js";
 import { showGrid } from "./pick-grid.js";
+import { chosenOptions, loadOptions } from "./options.js";
 
 const els = {
   form: document.getElementById("make"),
@@ -66,6 +67,7 @@ async function onGenerate(event) {
 
   const advanced = isAdvanced();
   const count = advanced ? Number(els.count.value) : 1;
+  const options = advanced ? chosenOptions() : {};
 
   // Close the phone keyboard and bring the result area into view.
   document.activeElement?.blur();
@@ -77,7 +79,7 @@ async function onGenerate(event) {
     const res = await fetch("api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ theme, prompt, count }),
+      body: JSON.stringify({ theme, prompt, count, options }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail);
@@ -240,3 +242,5 @@ els.character.addEventListener("input", () => {
   els.characterError.hidden = true;
   updateSave();
 });
+
+loadOptions();

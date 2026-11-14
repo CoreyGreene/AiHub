@@ -34,6 +34,7 @@ class GenerateRequest(BaseModel):
     theme: str
     prompt: str
     count: int = 1
+    options: dict = {}  # the Advanced tab's extra choices (see server/options.json)
 
 
 @app.get("/api/themes")
@@ -120,6 +121,13 @@ def change_theme(theme_id: str, req: ThemeChange) -> dict:
     return {"id": theme_id, **generation.describe(themes.get(theme_id))}
 
 
+@app.get("/api/options")
+def picture_options() -> dict:
+    """The Advanced tab's extra choices: detail, face lines, light, outlines,
+    and the extra detail pass."""
+    return generation.options()
+
+
 @app.post("/api/generate")
 def generate(req: GenerateRequest) -> dict:
     """Adds a picture to the queue; the page then asks /api/jobs/{job} for progress."""
@@ -133,7 +141,11 @@ def generate(req: GenerateRequest) -> dict:
     if not 1 <= req.count <= most:
         raise HTTPException(400, f"Pick between 1 and {most} pictures.")
     try:
-        return {"job": jobs.submit(req.theme, theme, prompt, req.count)}
+        chosen = generation.check_options(req.options)
+    except ValueError as err:
+        raise HTTPException(400, str(err))
+    try:
+        return {"job": jobs.submit(req.theme, theme, prompt, req.count, chosen)}
     except jobs.QueueFull as err:
         raise HTTPException(429, str(err))
 

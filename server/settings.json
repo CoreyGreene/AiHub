@@ -9,7 +9,7 @@
   "_device": "auto = cuda (NVIDIA), then mps (Mac), then cpu. Or name one.",
   "device": "auto",
 
-  "_use_3060_settings": "For a 12 GB graphics card like the RTX 3060: a lighter VAE (the step that turns the result into pixels) that works in half precision, used in tiles. Not needed on the Mac. Switched on the Settings page, which saves it in settings.local.json.",
+  "_use_3060_settings": "For a 12 GB graphics card like the RTX 3060: a lighter VAE (the step that turns the result into pixels) that works in half precision, used in tiles, and long prompts read in full with Compel (otherwise the model reads only the first 77 tokens). Not needed on the Mac. Switched on the Settings page, which saves it in settings.local.json.",
   "use_3060_settings": false,
   "fp16_vae": "sdxl-vae-fp16-fix",
 

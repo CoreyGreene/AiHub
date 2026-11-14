@@ -5,9 +5,13 @@ the theme's backend (server/backends/), builds the prompt from the theme
 file, and runs every picture through the nudity check (server/safety.py).
 """
 
+import json
 import random
+from pathlib import Path
 
 from . import backends, safety, settings
+
+OPTIONS_FILE = Path(__file__).resolve().parent / "options.json"
 
 
 BLOCKED_MESSAGE = "This picture didn't pass the safety check. Try changing the prompt."
@@ -70,10 +74,55 @@ def choices() -> dict:
     }
 
 
-def _request(theme: dict, prompt: str, seed: int) -> dict:
+def _options_file() -> dict:
+    return json.loads(OPTIONS_FILE.read_text(encoding="utf-8"))
+
+
+def options() -> dict:
+    """The Advanced tab's extra choices, for the page (no prompt words)."""
+    data = _options_file()
+    return {
+        "choices": [
+            {"id": c["id"], "label": c["label"], "values": [{"id": v["id"], "label": v["label"]} for v in c["values"]]}
+            for c in data["choices"]
+        ],
+    }
+
+
+def check_options(chosen: dict) -> dict:
+    """Keep only known choices with known values; unknown ones raise ValueError.
+    Choices left out get their default (the first value)."""
+    data = _options_file()
+    out = {}
+    for choice in data["choices"]:
+        ids = [v["id"] for v in choice["values"]]
+        value = chosen.get(choice["id"], ids[0])
+        if value not in ids:
+            raise ValueError(f"'{value}' isn't one of the {choice['label']} choices.")
+        out[choice["id"]] = value
+    return out
+
+
+def _option_words(chosen: dict) -> tuple[str, str]:
+    """The words the chosen options add: (prompt, negative)."""
+    data = _options_file()
+    prompt, negative = [], []
+    for choice in data["choices"]:
+        for value in choice["values"]:
+            if value["id"] == chosen.get(choice["id"]):
+                prompt.append(value.get("prompt", ""))
+                negative.append(value.get("negative", ""))
+    join = lambda parts: ", ".join(p for p in parts if p)
+    return join(prompt), join(negative)
+
+
+def _request(theme: dict, prompt: str, seed: int, chosen: dict) -> dict:
     models = settings.folder("models_dir")
     loras = settings.folder("loras_dir")
-    negative = ", ".join(n for n in (theme.get("negative"), settings.get()["safety"]["negative"]) if n)
+    extra, avoid = _option_words(chosen)
+    if extra:
+        prompt = f"{prompt}, {extra}"
+    negative = ", ".join(n for n in (theme.get("negative"), avoid, settings.get()["safety"]["negative"]) if n)
     return {
         "model": models / theme["model"],
         "model_config": models / theme["model_config"],
@@ -87,16 +136,18 @@ def _request(theme: dict, prompt: str, seed: int) -> dict:
     }
 
 
-def generate(theme: dict, prompt: str, on_progress) -> tuple:
+def generate(theme: dict, prompt: str, on_progress, chosen: dict | None = None) -> tuple:
     """Make a picture. Returns (image, details). Raises Blocked if every try
     fails the nudity check.
 
     on_progress(stage, done, total): stage is "loading", "drawing" or "checking".
+    chosen: the Advanced tab's options (see check_options).
     """
+    chosen = chosen or {}
     backend = backends.get(theme["backend"], settings.device())
     tries = settings.get()["safety"]["tries"]
     for attempt in range(1, tries + 1):
-        req = _request(theme, prompt, seed=random.randrange(2**31))
+        req = _request(theme, prompt, random.randrange(2**31), chosen)
         if not backend.is_loaded(req):
             on_progress("loading", 0, 0)
         image = backend.make(req, lambda done, total: on_progress("drawing", done, total))
@@ -107,7 +158,8 @@ def generate(theme: dict, prompt: str, on_progress) -> tuple:
                 "model": theme["model"],
                 "loras": theme.get("loras", []),
                 "steps": req["steps"],
-                "size": [req["width"], req["height"]],
+                "size": list(image.size),
+                "options": chosen,
                 "tries": attempt,
             }
             return image, details

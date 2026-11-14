@@ -75,6 +75,11 @@
         </div>
       </div>
 
+      <fieldset id="picture-options" class="options advanced-only" hidden>
+        <legend class="label">Options</legend>
+        <div id="option-choices"></div>
+      </fieldset>
+
       <button id="generate" type="submit" class="primary">Generate</button>
     </form>
 
@@ -139,7 +144,7 @@
       <label class="switch-row">
         <span>
           <strong>Use 3060 settings</strong>
-          <span class="muted small">For the 12 GB RTX 3060 on the Linux PC: uses less graphics memory. Leave off on the Mac.</span>
+          <span class="muted small">For the 12 GB RTX 3060 on the Linux PC: uses less graphics memory, and reads long prompts in full (not just the first 77 words). Leave off on the Mac.</span>
         </span>
         <input id="use-3060" type="checkbox" role="switch" disabled>
       </label>

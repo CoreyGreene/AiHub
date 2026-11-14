@@ -8,5 +8,7 @@ diffusers==0.41.0
 transformers==5.20.2
 accelerate==1.15.0
 safetensors==0.8.0
+# Long prompts: reads them in pieces instead of cutting at 77 tokens.
+compel==2.5.1
 peft==0.21.2
 pillow==13.0.0
