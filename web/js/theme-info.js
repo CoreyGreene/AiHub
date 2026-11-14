@@ -2,13 +2,12 @@
 // around your prompt, what it tells the model to avoid, the model and LoRAs
 // it uses, and its settings. "Change" opens a form to edit the theme.
 
-import { editTheme } from "./theme-edit.js";
+import { SAMPLERS, editTheme } from "./theme-edit.js";
 import { loadThemes } from "./theme-picker.js";
 
 const box = document.getElementById("theme-info");
 
 const BACKENDS = { "diffusers-sdxl": "SDXL model, run with diffusers (PyTorch)" };
-const SAMPLERS = { euler_a: "Euler a", euler: "Euler", "dpm++": "DPM++" };
 
 export async function loadThemeInfo() {
   try {

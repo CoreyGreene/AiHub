@@ -18,10 +18,14 @@ from diffusers import (
     StableDiffusionXLPipeline,
 )
 
+# Samplers: (kind, extra settings). "dpm++_karras" is DPM++ 2M Karras: the
+# same sampler with its steps spaced the Karras way (what many realistic
+# models are made for).
 SCHEDULERS = {
-    "euler_a": EulerAncestralDiscreteScheduler,
-    "euler": EulerDiscreteScheduler,
-    "dpm++": DPMSolverMultistepScheduler,
+    "euler_a": (EulerAncestralDiscreteScheduler, {}),
+    "euler": (EulerDiscreteScheduler, {}),
+    "dpm++": (DPMSolverMultistepScheduler, {}),
+    "dpm++_karras": (DPMSolverMultistepScheduler, {"use_karras_sigmas": True}),
 }
 
 
@@ -118,8 +122,8 @@ class Backend:
         self._load(req)
         self._use_loras(req["loras"])
 
-        scheduler = SCHEDULERS[req.get("scheduler", "euler_a")]
-        self.pipe.scheduler = scheduler.from_config(self.pipe.scheduler.config)
+        kind, extra = SCHEDULERS[req.get("scheduler", "euler_a")]
+        self.pipe.scheduler = kind.from_config(self.pipe.scheduler.config, **extra)
 
         steps = int(req["steps"])
 

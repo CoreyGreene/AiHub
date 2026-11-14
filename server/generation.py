@@ -56,7 +56,7 @@ def describe(theme: dict) -> dict:
 
 
 # Samplers a theme can pick (the diffusers backend knows these names).
-SCHEDULERS = ("euler_a", "euler", "dpm++")
+SCHEDULERS = ("euler_a", "euler", "dpm++", "dpm++_karras")
 MODEL_TYPES = (".safetensors", ".ckpt")
 
 

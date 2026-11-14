@@ -3,10 +3,9 @@
 // It starts from the server's defaults (settings.json "custom"); what you
 // change stays while the page is open.
 
-import { choices, field, loraEditor, numberInput, select, textArea } from "./theme-edit.js";
+import { SAMPLERS, choices, field, loraEditor, numberInput, select, textArea } from "./theme-edit.js";
 
 const box = document.getElementById("custom-fields");
-const SAMPLERS = { euler_a: "Euler a", euler: "Euler", "dpm++": "DPM++" };
 let form = null;
 
 function pair(a, b) {

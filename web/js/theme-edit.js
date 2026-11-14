@@ -8,7 +8,7 @@ export function choices() {
   return choicesWait;
 }
 
-const SAMPLERS = { euler_a: "Euler a", euler: "Euler", "dpm++": "DPM++" };
+export const SAMPLERS = { euler_a: "Euler a", euler: "Euler", "dpm++": "DPM++", "dpm++_karras": "DPM++ 2M Karras" };
 
 export function field(label, input, help) {
   const box = document.createElement("label");

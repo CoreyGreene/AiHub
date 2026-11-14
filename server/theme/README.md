@@ -77,7 +77,7 @@ skips it and prints why in the server's terminal.
 | `width`, `height` | no (1024) | Picture size in pixels. For SDXL keep the total near 1024×1024, in steps of 64 | `832`, `1216` |
 | `steps` | no (28) | More = more detail, slower | `28` |
 | `guidance` | no (6.0) | How closely it follows the prompt (5 to 8 is usual) | `6.0` |
-| `scheduler` | no (`euler_a`) | Sampler: `euler_a`, `euler` or `dpm++` | `"euler_a"` |
+| `scheduler` | no (`euler_a`) | Sampler: `euler_a`, `euler`, `dpm++` or `dpm++_karras` (DPM++ 2M Karras, good for realistic models) | `"euler_a"` |
 | `_notes` | no | A note for people; shown on the Theme tab, not used for the picture | `"Why this theme exists"` |
 
 Any key starting with `_` is a note and is ignored when making pictures.
