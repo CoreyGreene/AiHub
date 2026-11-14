@@ -96,10 +96,30 @@
     <div id="chooser-list" class="choice-list"></div>
   </dialog>
 
+  <dialog id="picture-viewer" class="viewer" aria-label="Picture">
+    <img id="viewer-image" alt="">
+    <div class="viewer-bar">
+      <button id="viewer-prev" type="button" class="button" aria-label="Previous picture">‹</button>
+      <span id="viewer-count" class="muted"></span>
+      <button id="viewer-next" type="button" class="button" aria-label="Next picture">›</button>
+      <button id="viewer-close" type="button" class="button">Close</button>
+    </div>
+  </dialog>
+
   <main id="view-library" class="view" hidden>
     <section class="card">
       <a href="#library" id="library-back" class="link-button back-link" hidden>← All characters</a>
-      <h2 id="library-title">Library</h2>
+      <div class="library-head">
+        <h2 id="library-title">Library</h2>
+        <div id="library-layout" class="layout-toggle" role="group" aria-label="How to show the pictures" hidden>
+          <button type="button" class="icon-button" data-layout="thumbs" aria-label="Small pictures">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+          </button>
+          <button type="button" class="icon-button" data-layout="full" aria-label="Full pictures with details">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="12" rx="1.5"/><rect x="4" y="17.5" width="16" height="1.5" rx="0.75"/><rect x="4" y="20.5" width="10" height="1.5" rx="0.75"/></svg>
+          </button>
+        </div>
+      </div>
       <p id="library-count" class="muted" hidden></p>
       <div id="library-list" class="library-grid">
         <p class="muted">Loading…</p>

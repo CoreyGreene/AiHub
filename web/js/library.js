@@ -1,10 +1,89 @@
 // The Library tab: every saved character, shown with its first picture.
-// Tap one to open it (#library/<folder>) and see all of its pictures.
+// Tap one to open it (#library/<folder>) and see all of its pictures,
+// either as small pictures (two across, no words) or full with details.
 
 const list = document.getElementById("library-list");
 const title = document.getElementById("library-title");
 const count = document.getElementById("library-count");
 const back = document.getElementById("library-back");
+const layoutButtons = document.getElementById("library-layout");
+const viewer = document.getElementById("picture-viewer");
+const viewerImage = document.getElementById("viewer-image");
+
+// Tapping a picture shows it on its own, centred on a dark screen. Swipe
+// left or right (or use the arrows) to go through the character's pictures.
+let shown = []; // the character's pictures
+let at = 0; // which one the viewer shows
+
+function openViewer(index) {
+  at = index;
+  showInViewer();
+  viewer.showModal();
+}
+
+function showInViewer() {
+  viewerImage.src = shown[at].image;
+  document.getElementById("viewer-count").textContent = `${at + 1} of ${shown.length}`;
+  document.getElementById("viewer-prev").disabled = at === 0;
+  document.getElementById("viewer-next").disabled = at === shown.length - 1;
+}
+
+function step(by) {
+  const next = at + by;
+  if (next < 0 || next >= shown.length) return;
+  at = next;
+  showInViewer();
+}
+
+document.getElementById("viewer-prev").addEventListener("click", () => step(-1));
+document.getElementById("viewer-next").addEventListener("click", () => step(1));
+document.getElementById("viewer-close").addEventListener("click", () => viewer.close());
+viewer.addEventListener("click", (event) => {
+  if (event.target === viewer || event.target === viewerImage) viewer.close();
+});
+viewer.addEventListener("keydown", (event) => {
+  if (event.key === "ArrowLeft") step(-1);
+  if (event.key === "ArrowRight") step(1);
+});
+
+// A swipe: mostly sideways and at least 40px. Swipe left = next picture.
+let touchStart = null;
+viewer.addEventListener("touchstart", (event) => {
+  const t = event.changedTouches[0];
+  touchStart = { x: t.clientX, y: t.clientY };
+}, { passive: true });
+viewer.addEventListener("touchend", (event) => {
+  if (!touchStart) return;
+  const t = event.changedTouches[0];
+  const dx = t.clientX - touchStart.x;
+  const dy = t.clientY - touchStart.y;
+  touchStart = null;
+  if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) step(dx < 0 ? 1 : -1);
+});
+
+// The chosen layout is remembered on this phone (if the browser allows).
+const LAYOUT_KEY = "imageai.libraryLayout";
+let layout = "full";
+try {
+  layout = localStorage.getItem(LAYOUT_KEY) === "thumbs" ? "thumbs" : "full";
+} catch {}
+
+layoutButtons.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-layout]");
+  if (!button) return;
+  layout = button.dataset.layout;
+  try {
+    localStorage.setItem(LAYOUT_KEY, layout);
+  } catch {}
+  showLayout();
+});
+
+function showLayout() {
+  list.classList.toggle("thumbs", layout === "thumbs");
+  for (const b of layoutButtons.querySelectorAll("[data-layout]")) {
+    b.setAttribute("aria-pressed", b.dataset.layout === layout);
+  }
+}
 
 const pictures = (n) => `${n} picture${n === 1 ? "" : "s"}`;
 
@@ -16,7 +95,7 @@ export function loadLibrary(folder) {
 
 async function showAll() {
   title.textContent = "Library";
-  back.hidden = count.hidden = true;
+  back.hidden = count.hidden = layoutButtons.hidden = true;
   list.className = "library-grid";
   try {
     const res = await fetch("api/characters");
@@ -43,10 +122,11 @@ function card(character) {
 }
 
 async function showCharacter(folder) {
-  back.hidden = false;
+  back.hidden = layoutButtons.hidden = false;
   title.textContent = "…";
   count.hidden = true;
   list.className = "character-pictures";
+  showLayout();
   list.innerHTML = `<p class="muted">Loading…</p>`;
   try {
     const res = await fetch(`api/characters/${encodeURIComponent(folder)}`);
@@ -55,6 +135,7 @@ async function showCharacter(folder) {
     title.textContent = data.name;
     count.textContent = `${pictures(data.pictures.length)}. To add more, make a picture with the name ${data.name} and press Save.`;
     count.hidden = false;
+    shown = data.pictures;
     list.replaceChildren(...data.pictures.map(pictureCard));
   } catch (err) {
     title.textContent = "Library";
@@ -63,17 +144,22 @@ async function showCharacter(folder) {
   }
 }
 
-function pictureCard(pic) {
+function pictureCard(pic, index) {
   const item = document.createElement("article");
   item.className = "saved-picture";
   item.innerHTML = `
-    <a class="saved-image" target="_blank" rel="noopener"><img alt="" loading="lazy"></a>
+    <a class="saved-image"><img alt="" loading="lazy"></a>
     <div class="saved-info">
       <p class="saved-prompt"></p>
       <p class="muted small saved-meta"></p>
       <a class="button small-button" download>Download</a>
     </div>`;
-  item.querySelector(".saved-image").href = pic.image;
+  const link = item.querySelector(".saved-image");
+  link.href = pic.image;
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    openViewer(index);
+  });
   item.querySelector("img").src = pic.image;
   item.querySelector(".saved-prompt").textContent = pic.prompt;
   const made = pic.made ? new Date(pic.made).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";

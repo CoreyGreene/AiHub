@@ -358,6 +358,24 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
 /* One character: all of its pictures, each with its prompt and theme. */
 .back-link { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 4px; text-decoration: none; }
 .back-link[hidden] { display: none; }
+.library-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.library-head h2 { margin: 0; }
+.layout-toggle { display: flex; gap: 6px; }
+.layout-toggle[hidden] { display: none; }
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.icon-button svg { width: 22px; height: 22px; fill: currentColor; }
+.icon-button[aria-pressed="true"] { color: var(--accent-text); background: var(--accent); border-color: var(--accent); }
 #library-count { margin-bottom: 14px; }
 .character-pictures {
   display: grid;
@@ -378,6 +396,11 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
 .saved-info p { margin: 0; }
 .saved-meta { margin-bottom: 4px !important; }
 .saved-info .button { margin-top: auto; }
+
+/* Small pictures: two across on a phone, pictures only. */
+.character-pictures.thumbs { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.character-pictures.thumbs .saved-info { display: none; }
+.character-pictures.thumbs .saved-image img { aspect-ratio: 1; object-fit: cover; object-position: top; }
 
 /* Settings: a label on the left, an on/off switch on the right. */
 .small { font-size: 0.85rem; }
@@ -562,4 +585,42 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
   .theme-body { grid-template-columns: 3fr 2fr; gap: 32px; }
   .pick-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
   .picks .primary, .picks .actions { width: 100%; }
+}
+
+/* One picture on its own, centred on a dark screen (tap a saved picture). */
+.viewer {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 16px;
+  border: 0;
+  background: #000;
+  color: var(--text);
+}
+.viewer[open] { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+.viewer::backdrop { background: #000; }
+.viewer img { display: block; max-width: 100%; max-height: calc(100% - 80px); object-fit: contain; border-radius: 6px; }
+.viewer-bar { display: grid; grid-template-columns: 56px 1fr 56px 1fr; align-items: center; gap: 10px; width: min(100%, 360px); }
+.viewer-bar #viewer-count { text-align: center; }
+.viewer-bar #viewer-prev, .viewer-bar #viewer-next { font-size: 1.6rem; }
+.viewer-bar .button:disabled { opacity: 0.35; cursor: default; }
+.viewer img { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+
+/* Phone held sideways: the screen is short, so the buttons go beside the
+   picture instead of under it, and the picture gets the full height. */
+@media (orientation: landscape) and (max-height: 540px) {
+  .viewer { padding: 8px 12px; }
+  .viewer[open] { flex-direction: row; gap: 12px; }
+  .viewer img { max-height: 100%; max-width: calc(100% - 136px); }
+  .viewer-bar {
+    width: 120px;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: "count count" "prev next" "close close";
+  }
+  .viewer-bar #viewer-count { grid-area: count; }
+  .viewer-bar #viewer-prev { grid-area: prev; }
+  .viewer-bar #viewer-next { grid-area: next; }
+  .viewer-bar #viewer-close { grid-area: close; }
 }
