@@ -1,11 +1,14 @@
-// The Theme tab: what each theme does behind the scenes. The words it adds
-// around your prompt, what it tells the model to avoid, the model and LoRAs
-// it uses, and its settings. "Change" opens a form to edit the theme.
+// The Theme tab: pick a theme from the list to see what it does behind the
+// scenes. The words it adds around your prompt, what it tells the model to
+// avoid, the model and LoRAs it uses, and its settings. "Change" opens a
+// form to edit the theme.
 
 import { SAMPLERS, editTheme } from "./theme-edit.js";
 import { loadThemes } from "./theme-picker.js";
 
 const box = document.getElementById("theme-info");
+
+const CHOSEN_KEY = "imageai.themeTab"; // the theme last looked at, on this phone
 
 const BACKENDS = { "diffusers-sdxl": "SDXL model, run with diffusers (PyTorch)" };
 
@@ -17,7 +20,7 @@ export async function loadThemeInfo() {
       box.innerHTML = `<p class="muted">No themes yet. Add a theme file to the theme folder.</p>`;
       return;
     }
-    box.replaceChildren(...themes.map(card));
+    showChooser(themes);
   } catch {
     box.innerHTML = `<p class="muted">Couldn't load the themes. Is the server running?</p>`;
   }
@@ -51,21 +54,52 @@ function fileLine(file, found, extra) {
   return line;
 }
 
-function card(theme) {
+// The drop list on top, the chosen theme's card under it.
+function showChooser(themes) {
+  const chooser = el("label", "card field theme-chooser");
+  const list = el("select", "text-input");
+  list.id = "theme-tab-choice";
+  for (const theme of themes) {
+    const option = el("option", "", theme.name);
+    option.value = theme.id;
+    list.append(option);
+  }
+  chooser.append(el("span", "label", "Theme"), list);
   const root = el("article", "card theme-card");
-  fill(root, theme);
-  return root;
+
+  let chosen = "";
+  try {
+    chosen = localStorage.getItem(CHOSEN_KEY) || "";
+  } catch {}
+  list.value = themes.some((t) => t.id === chosen) ? chosen : themes[0].id;
+
+  const show = () => {
+    const theme = themes.find((t) => t.id === list.value);
+    try {
+      localStorage.setItem(CHOSEN_KEY, theme.id);
+    } catch {}
+    fill(root, theme, (saved) => {
+      Object.assign(theme, saved); // a new name shows in the list too
+      list.selectedOptions[0].textContent = saved.name;
+    });
+  };
+  list.addEventListener("change", show);
+  box.replaceChildren(chooser, root);
+  show();
 }
 
-function fill(root, theme) {
+function fill(root, theme, onSaved) {
   root.replaceChildren();
   const head = el("div", "theme-head");
   const change = el("button", "button small-button", "Change");
   change.type = "button";
   change.addEventListener("click", () =>
     editTheme(root, theme, (saved) => {
-      fill(root, saved || theme);
-      if (saved) loadThemes(); // the picker on Create shows the new name
+      fill(root, saved || theme, onSaved);
+      if (saved) {
+        loadThemes(); // the picker on Create shows the new name
+        onSaved(saved);
+      }
       root.scrollIntoView({ block: "start" });
     })
   );

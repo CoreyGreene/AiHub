@@ -166,7 +166,8 @@ main[hidden] { display: none; }
 .segmented button[aria-checked="true"] { background: var(--accent); color: var(--accent-text); font-weight: 700; }
 
 /* How many pictures: − [ 4 ] + with big tap targets. */
-.stepper { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; }
+/* Just wide enough for a number up to 8, on any screen. */
+.stepper { display: grid; grid-template-columns: 56px 80px 56px; gap: 8px; width: max-content; }
 .stepper .button { font-size: 1.4rem; }
 .stepper input { text-align: center; -moz-appearance: textfield; }
 .stepper input::-webkit-inner-spin-button,
@@ -487,6 +488,8 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
 
 /* Changing a theme. */
 .theme-card select.text-input { appearance: auto; }
+.theme-chooser select.text-input { appearance: auto; max-width: 420px; }
+.theme-chooser .label { display: block; margin-bottom: 6px; }
 .field-help { display: block; margin-top: 4px; }
 .two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .lora-rows { display: grid; gap: 8px; margin-bottom: 8px; }
