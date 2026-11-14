@@ -55,6 +55,11 @@ datasets/
 *.log
 .claude/settings.local.json
 
+# Notes for this machine's own AI helper (paths, plans): kept local.
+# AGENTS.md is the shared overview.
+CLAUDE.md
+.claude/
+
 # OS / editor clutter
 .DS_Store
 Thumbs.db
