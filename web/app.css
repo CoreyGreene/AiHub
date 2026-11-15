@@ -753,7 +753,8 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
 .viewer-bar #viewer-count { text-align: center; }
 .viewer-bar #viewer-prev, .viewer-bar #viewer-next { font-size: 1.6rem; }
 .viewer-bar .button:disabled { opacity: 0.35; cursor: default; }
-.viewer img { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+/* The picture handles its own pinch, drag and swipe (viewer.js). */
+.viewer img { touch-action: none; user-select: none; -webkit-user-select: none; transition: transform 0.05s; }
 
 /* Phone held sideways: the screen is short, so the buttons go beside the
    picture instead of under it, and the picture gets the full height. */
@@ -841,3 +842,7 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
 #view-library .subtabs { margin-bottom: 12px; }
 .layout-toggle [hidden] { display: none; }
 #flow[hidden] { display: none; }
+
+/* iPhone: two quick taps (the viewer's next arrow, a stepper) would zoom the
+   page. "manipulation" turns double-tap zoom off; pinch zoom still works. */
+button, .button, a, input, select, textarea, label, .viewer { touch-action: manipulation; }
