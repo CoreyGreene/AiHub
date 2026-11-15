@@ -37,9 +37,11 @@ def main() -> None:
     if args.host == "0.0.0.0" and (ip := lan_address()):
         print(f"  From your phone:  http://{ip}:{args.port}")
     from .lock import describe
+    from .pictures import start_clearing
 
     print(f"  {describe()}")
     print("  Stop with Ctrl+C\n", flush=True)
+    start_clearing()
 
     uvicorn.run("server.app:app", host=args.host, port=args.port, log_level="warning")
 

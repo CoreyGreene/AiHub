@@ -1,6 +1,7 @@
 """Where pictures are kept on disk (the outputs folder, never in git).
 
-    outputs/new/<id>.png                 just made, not saved yet
+    outputs/new/<id>.png                 just made, not saved yet (deleted
+                                         after new_keep_hours, see clear_new)
     outputs/staging/<folder>/<id>.png    made by a workflow, waiting to be
                                          picked (Library → Staging)
     outputs/characters/<folder>/<id>.png saved to a character
@@ -10,6 +11,8 @@
 import json
 import re
 import shutil
+import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -44,6 +47,38 @@ def keep_new(image, info: dict, staging: str = "") -> str:
     info = {"id": pic_id, **info, **({"staging": staging} if staging else {}), "made": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     (folder / f"{pic_id}.json").write_text(json.dumps(info, indent=2), encoding="utf-8")
     return pic_id
+
+
+def clear_new() -> int:
+    """Delete unsaved pictures (outputs/new) older than "new_keep_hours".
+    Saved and staged pictures are never touched. Returns how many went."""
+    folder = _new()
+    if not folder.is_dir():
+        return 0
+    oldest = time.time() - settings.get()["new_keep_hours"] * 3600
+    gone = 0
+    for picture in folder.glob("*.png"):
+        try:
+            if picture.stat().st_mtime < oldest:
+                picture.unlink()
+                picture.with_suffix(".json").unlink(missing_ok=True)
+                gone += 1
+        except OSError:  # already gone, or in use: next time
+            pass
+    return gone
+
+
+def start_clearing() -> None:
+    """Clear old unsaved pictures now (server start) and then every hour."""
+
+    def loop():
+        while True:
+            gone = clear_new()
+            if gone:
+                print(f"Cleared {gone} unsaved picture{'s' if gone != 1 else ''} older than {settings.get()['new_keep_hours']} hours")
+            time.sleep(3600)
+
+    threading.Thread(target=loop, daemon=True).start()
 
 
 def find(pic_id: str) -> Path | None:

@@ -35,6 +35,9 @@
   "_unload_after_minutes": "Let go of the model when no pictures have been made for this long, so the graphics card's memory is free. The next picture then takes a few seconds longer to start. 0 = let go as soon as the queue is empty.",
   "unload_after_minutes": 5,
 
+  "_new_keep_hours": "Pictures made but never saved (outputs/new) are deleted once they are this old. Checked when the server starts and every hour. Saved and staging pictures are never deleted this way.",
+  "new_keep_hours": 24,
+
   "_max_queue": "Most picture jobs waiting or being made at once. More requests are turned away until some finish.",
   "max_queue": 500,
 
