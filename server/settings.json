@@ -4,6 +4,7 @@
   "models_dir": "server/aIModels",
   "loras_dir": "server/lora",
   "themes_dir": "server/theme",
+  "workflows_dir": "server/workflow",
   "outputs_dir": "outputs",
 
   "_device": "auto = cuda (NVIDIA), then mps (Mac), then cpu. Or name one.",

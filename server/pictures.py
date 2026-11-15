@@ -1,6 +1,8 @@
 """Where pictures are kept on disk (the outputs folder, never in git).
 
     outputs/new/<id>.png                 just made, not saved yet
+    outputs/staging/<folder>/<id>.png    made by a workflow, waiting to be
+                                         picked (Library → Staging)
     outputs/characters/<folder>/<id>.png saved to a character
     ...each with <id>.json beside it: theme, prompt, seed, character, time.
 """
@@ -25,13 +27,21 @@ def _characters() -> Path:
     return settings.folder("outputs_dir") / "characters"
 
 
-def keep_new(image, info: dict) -> str:
-    """Save a freshly made picture into outputs/new and return its id."""
-    folder = _new()
+def _staging() -> Path:
+    return settings.folder("outputs_dir") / "staging"
+
+
+PLACES = {"characters": _characters, "staging": _staging}
+
+
+def keep_new(image, info: dict, staging: str = "") -> str:
+    """Save a freshly made picture into outputs/new (or a staging group, for
+    a workflow's pictures) and return its id."""
+    folder = _staging() / (folder_name(staging) or "unnamed") if staging else _new()
     folder.mkdir(parents=True, exist_ok=True)
     pic_id = uuid.uuid4().hex
     image.save(folder / f"{pic_id}.png")
-    info = {"id": pic_id, **info, "made": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    info = {"id": pic_id, **info, **({"staging": staging} if staging else {}), "made": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     (folder / f"{pic_id}.json").write_text(json.dumps(info, indent=2), encoding="utf-8")
     return pic_id
 
@@ -40,7 +50,7 @@ def find(pic_id: str) -> Path | None:
     """The picture file for an id, wherever it is kept."""
     if not ID_PATTERN.match(pic_id):
         return None
-    for path in [_new() / f"{pic_id}.png", *_characters().glob(f"*/{pic_id}.png")]:
+    for path in [_new() / f"{pic_id}.png", *_characters().glob(f"*/{pic_id}.png"), *_staging().glob(f"*/{pic_id}.png")]:
         if path.is_file():
             return path
     return None
@@ -61,6 +71,22 @@ def is_saved(path: Path) -> bool:
     return path.parent.parent == _characters()
 
 
+def is_staged(path: Path) -> bool:
+    return path.parent.parent == _staging()
+
+
+def _drop_if_empty(folder: Path) -> None:
+    """A character or staging group with no pictures left goes too."""
+    if any(folder.glob("*.png")):
+        return
+    for leftover in folder.glob("*.json"):
+        leftover.unlink()
+    try:
+        folder.rmdir()
+    except OSError:  # something else is in it (e.g. .DS_Store): leave it
+        pass
+
+
 def folder_name(character: str) -> str:
     """A safe folder name for a character: 'Grim the Goblin' -> 'grim-the-goblin'."""
     return re.sub(r"[^a-z0-9]+", "-", character.lower()).strip("-")
@@ -77,32 +103,29 @@ def save_to_character(pic_id: str, character: str) -> None:
     info_path = picture.with_suffix(".json")
     info = json.loads(info_path.read_text(encoding="utf-8"))
     info["character"] = character
+    info.pop("staging", None)
     (folder / f"{pic_id}.json").write_text(json.dumps(info, indent=2), encoding="utf-8")
     if info_path.parent != folder:
         info_path.unlink()
     if picture.parent != folder:
         shutil.move(picture, folder / picture.name)
+        if is_staged(picture):
+            _drop_if_empty(picture.parent)
 
 
 def delete_saved(pic_ids: list[str]) -> int:
-    """Delete saved pictures (and their settings) for good. A character left
-    with no pictures goes too. Returns how many were deleted."""
+    """Delete saved or staged pictures (and their settings) for good. A
+    character or staging group left with none goes too. Returns how many
+    were deleted."""
     done = 0
     for pic_id in pic_ids:
         picture = find(pic_id)
-        if picture is None or not is_saved(picture):
+        if picture is None or not (is_saved(picture) or is_staged(picture)):
             continue
         picture.unlink()
         picture.with_suffix(".json").unlink(missing_ok=True)
         done += 1
-        folder = picture.parent
-        if not any(folder.glob("*.png")):
-            for leftover in folder.glob("*.json"):
-                leftover.unlink()
-            try:
-                folder.rmdir()
-            except OSError:  # something else is in it (e.g. .DS_Store): leave it
-                pass
+        _drop_if_empty(picture.parent)
     return done
 
 
@@ -120,10 +143,11 @@ def _read_folder(folder: Path) -> list[dict]:
     return infos
 
 
-def list_characters() -> list[dict]:
-    """Every character, with its first picture as the cover."""
+def list_characters(place: str = "characters") -> list[dict]:
+    """Every character (or staging group), with its first picture as the cover."""
     out = []
-    root = _characters()
+    root = PLACES[place]()
+    key = "character" if place == "characters" else "staging"
     if not root.is_dir():
         return out
     for folder in root.iterdir():
@@ -131,7 +155,7 @@ def list_characters() -> list[dict]:
         if not infos:
             continue
         out.append({
-            "name": infos[0].get("character", folder.name),
+            "name": infos[0].get(key, folder.name),
             "folder": folder.name,
             "count": len(infos),
             "cover": f"api/pictures/{infos[0]['id']}",
@@ -140,16 +164,16 @@ def list_characters() -> list[dict]:
     return out
 
 
-def character(folder_id: str) -> dict | None:
-    """One character and all of its pictures, oldest first."""
+def character(folder_id: str, place: str = "characters") -> dict | None:
+    """One character (or staging group) and all of its pictures, oldest first."""
     if folder_id != folder_name(folder_id) or not folder_id:
         return None
-    folder = _characters() / folder_id
+    folder = PLACES[place]() / folder_id
     infos = _read_folder(folder) if folder.is_dir() else []
     if not infos:
         return None
     return {
-        "name": infos[0].get("character", folder_id),
+        "name": infos[0].get("character" if place == "characters" else "staging", folder_id),
         "folder": folder_id,
         "pictures": [
             {

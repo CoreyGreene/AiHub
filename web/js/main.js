@@ -5,12 +5,13 @@ import { startGpu } from "./gpu.js";
 import { loadThemes } from "./theme-picker.js";
 import { fillCustom } from "./custom.js";
 import { showThemeWords } from "./theme-words.js";
-import "./create.js";
+import { isAdding } from "./create.js";
 import "./character-picker.js";
 import { loadLibrary } from "./library.js";
 import { loadSettings } from "./settings.js";
 import { startQueueList } from "./queue-list.js";
 import { loadThemeInfo } from "./theme-info.js";
+import { loadWorkflows } from "./workflows.js";
 
 // Tabs: Create, Library, Theme, Workflows, and the Settings gear. The address ends in
 // #create, #library and so on, so the phone's Back button works too.
@@ -18,6 +19,7 @@ import { loadThemeInfo } from "./theme-info.js";
 const onShow = {
   library: loadLibrary,
   theme: loadThemeInfo,
+  workflows: () => loadWorkflows(),
   settings: () => {
     loadSettings();
     startQueueList();
@@ -41,6 +43,8 @@ function showView() {
 // "How many pictures" and the theme's words to change, and shows the results
 // as a grid to pick from; Custom has no theme: you make your own.
 function showCreateMode(mode) {
+  // Adding a workflow item: it needs a count, so no Standard.
+  if (mode === "standard" && isAdding()) return location.replace("#create/advanced");
   document.getElementById("view-create").dataset.mode = mode;
   if (mode === "custom") fillCustom();
   if (mode === "advanced") showThemeWords();

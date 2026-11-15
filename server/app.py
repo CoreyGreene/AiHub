@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import generation, gpu, jobs, lock, pictures, settings, themes, uploads
+from . import generation, gpu, jobs, lock, pictures, settings, themes, uploads, workflows
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 # Changes on every server start. The page asks for app.css and app.js with
@@ -250,9 +250,9 @@ async def upload_file(kind: str, name: str, request: Request) -> dict:
     return {"file": path.name, **generation.choices()}
 
 
-@app.post("/api/generate")
-def generate(req: GenerateRequest) -> dict:
-    """Adds a picture to the queue; the page then asks /api/jobs/{job} for progress."""
+def _job_parts(req: GenerateRequest) -> tuple[str, dict, str]:
+    """Check what Generate (or a workflow item) was given; returns
+    (theme id, the theme to use, the prompt). Raises 400 if something's off."""
     theme_id = "custom" if req.custom else req.theme
     theme = None if req.custom else themes.get(req.theme)
     if theme is None and not req.custom:
@@ -282,10 +282,112 @@ def generate(req: GenerateRequest) -> dict:
         # The theme's words as changed on the Advanced tab (the file stays as it is).
         w = req.words
         theme = {**theme, "prompt": _prompt_template(w.prompt_before, w.prompt_after), "negative": _tidy(w.negative)}
+    return theme_id, theme, prompt
+
+
+@app.post("/api/generate")
+def generate(req: GenerateRequest) -> dict:
+    """Adds a picture to the queue; the page then asks /api/jobs/{job} for progress."""
+    theme_id, theme, prompt = _job_parts(req)
     try:
         return {"job": jobs.submit(theme_id, theme, prompt, req.count)}
     except jobs.QueueFull as err:
         raise HTTPException(429, str(err))
+
+
+# --- Workflows: saved lists of items, each like one Advanced / Custom Generate ---
+
+
+class WorkflowItem(GenerateRequest):
+    name: str = ""  # where its pictures go in staging (empty: the workflow's name + a number)
+
+
+class WorkflowName(BaseModel):
+    name: str
+
+
+class Workflow(BaseModel):
+    name: str
+    items: list[WorkflowItem] = []
+
+
+def _flow_name(name: str) -> str:
+    name = " ".join(name.split())
+    if not name:
+        raise HTTPException(400, "Give the workflow a name.")
+    return name
+
+
+@app.get("/api/workflows")
+def workflow_list() -> list[dict]:
+    return workflows.listing()
+
+
+@app.get("/api/workflows/{flow_id}")
+def workflow_get(flow_id: str) -> dict:
+    """The workflow, and how its last Start is going (one per item)."""
+    flow = workflows.get(flow_id)
+    if flow is None:
+        raise HTTPException(404, "That workflow isn't there any more.")
+    return {**flow, "running": workflows.is_running(flow_id), "run": workflows.run_status(flow_id)}
+
+
+RUNNING = "This workflow is running. Change it when it's done."
+
+
+@app.post("/api/workflows")
+def workflow_new(req: WorkflowName) -> dict:
+    return {"id": workflows.create(_flow_name(req.name))}
+
+
+@app.put("/api/workflows/{flow_id}")
+def workflow_save(flow_id: str, req: Workflow) -> dict:
+    """Save the whole workflow: its name and every item, each checked like Generate."""
+    if workflows.get(flow_id) is None:
+        raise HTTPException(404, "That workflow isn't there any more.")
+    if workflows.is_running(flow_id):
+        raise HTTPException(409, RUNNING)
+    items = []
+    for n, item in enumerate(req.items, 1):
+        try:
+            _job_parts(item)
+        except HTTPException as err:
+            raise HTTPException(400, f"Item {n}: {err.detail}")
+        items.append({**item.model_dump(exclude_none=True), "name": " ".join(item.name.split()), "prompt": " ".join(item.prompt.split())})
+    workflows.save(flow_id, {"name": _flow_name(req.name), "items": items})
+    return {"status": "saved"}
+
+
+@app.post("/api/workflows/{flow_id}/start")
+def workflow_start(flow_id: str) -> dict:
+    """Queue every item; their pictures go to Library → Staging."""
+    flow = workflows.get(flow_id)
+    if flow is None:
+        raise HTTPException(404, "That workflow isn't there any more.")
+    if not flow["items"]:
+        raise HTTPException(400, "Add an item first.")
+    if workflows.is_running(flow_id):
+        raise HTTPException(409, "This workflow is already running.")
+    parts = []
+    for n, item in enumerate(flow["items"], 1):
+        try:
+            theme_id, theme, prompt = _job_parts(WorkflowItem(**item))
+        except HTTPException as err:
+            raise HTTPException(400, f"Item {n}: {err.detail}")
+        parts.append((theme_id, theme, prompt, item["count"]))
+    if len(parts) > jobs.room():
+        raise HTTPException(429, "The queue is too full for this workflow. Try again when some jobs are done.")
+    workflows.start(flow_id, parts)
+    return {"status": "started"}
+
+
+@app.delete("/api/workflows/{flow_id}")
+def workflow_delete(flow_id: str) -> dict:
+    if workflows.is_running(flow_id):
+        raise HTTPException(409, RUNNING)
+    if not workflows.delete(flow_id):
+        raise HTTPException(404, "That workflow isn't there any more.")
+    return {"status": "deleted"}
 
 
 @app.get("/api/jobs/{job_id}")
@@ -314,16 +416,56 @@ def characters() -> list[dict]:
     return pictures.list_characters()
 
 
+def _with_theme_names(found: dict) -> dict:
+    """Show the theme's name where it still exists, else its id."""
+    names = {t["id"]: t["name"] for t in themes.public_list()} | {"custom": "Custom"}
+    for pic in found["pictures"]:
+        pic["theme"] = names.get(pic["theme"], pic["theme"])
+    return found
+
+
 @app.get("/api/characters/{folder}")
 def character(folder: str) -> dict:
     found = pictures.character(folder)
     if found is None:
         raise HTTPException(404, "That character isn't in the library.")
-    # Show the theme's name where it still exists, else its id.
-    names = {t["id"]: t["name"] for t in themes.public_list()} | {"custom": "Custom"}
-    for pic in found["pictures"]:
-        pic["theme"] = names.get(pic["theme"], pic["theme"])
-    return found
+    return _with_theme_names(found)
+
+
+# --- Staging: workflow pictures waiting to be picked ---
+
+
+@app.get("/api/staging")
+def staging_list() -> list[dict]:
+    return pictures.list_characters("staging")
+
+
+@app.get("/api/staging/{folder}")
+def staging_group(folder: str) -> dict:
+    found = pictures.character(folder, "staging")
+    if found is None:
+        raise HTTPException(404, "That group isn't in staging any more.")
+    return _with_theme_names(found)
+
+
+class ApproveRequest(BaseModel):
+    ids: list[str]
+    character: str
+
+
+@app.post("/api/staging/approve")
+def staging_approve(req: ApproveRequest) -> dict:
+    """Move the chosen staging pictures to a character (new or existing)."""
+    character = " ".join(req.character.split())
+    if not pictures.folder_name(character):
+        raise HTTPException(400, "Type a character name (letters or numbers).")
+    moved = 0
+    for pic_id in req.ids:
+        path = pictures.find(pic_id)
+        if path is not None and pictures.is_staged(path):
+            pictures.save_to_character(pic_id, character)
+            moved += 1
+    return {"moved": moved, "folder": pictures.folder_name(character)}
 
 
 @app.get("/api/pictures/{pic_id}")

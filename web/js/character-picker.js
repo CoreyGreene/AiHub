@@ -1,11 +1,18 @@
-// "Pick" beside the character name: lists every saved character by name; tapping
-// one puts its name in the box, so Save adds new pictures to it.
+// "Pick" beside a character name box: lists every saved character by name;
+// tapping one puts its name in the box (Create's Save, or Staging's "Add to
+// character"), so the pictures go to that character.
 
-const input = document.getElementById("character");
 const chooser = document.getElementById("character-chooser");
 const list = document.getElementById("chooser-list");
+let input = document.getElementById("character"); // the box being filled
 
-document.getElementById("pick-character").addEventListener("click", open);
+// Open the list for a name box.
+export function pickCharacter(box) {
+  input = box;
+  open();
+}
+
+document.getElementById("pick-character").addEventListener("click", () => pickCharacter(document.getElementById("character")));
 document.getElementById("chooser-close").addEventListener("click", () => chooser.close());
 // Tapping the dark area around the sheet closes it too.
 chooser.addEventListener("click", (event) => {

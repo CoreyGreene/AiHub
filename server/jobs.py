@@ -29,7 +29,21 @@ class _Stopped(Exception):
     """Raised inside a picture when its job was removed."""
 
 
-def submit(theme_id: str, theme: dict, prompt: str, count: int = 1) -> str:
+def room() -> int:
+    """How many more jobs the queue takes now."""
+    with _lock:
+        active = sum(1 for j in _jobs.values() if j["status"] in ("waiting", "working"))
+    return settings.get()["max_queue"] - active
+
+
+def is_active(job_id: str) -> bool:
+    with _lock:
+        return _jobs.get(job_id, {}).get("status") in ("waiting", "working")
+
+
+def submit(theme_id: str, theme: dict, prompt: str, count: int = 1, staging: str = "") -> str:
+    """Queue a picture job. staging: a workflow's pictures go to that
+    staging group (Library → Staging) instead of outputs/new."""
     global _worker
     job_id = uuid.uuid4().hex
     with _lock:
@@ -39,7 +53,7 @@ def submit(theme_id: str, theme: dict, prompt: str, count: int = 1) -> str:
             raise QueueFull(f"The queue is full ({most} jobs). Try again when some are done.")
         _jobs[job_id] = {
             "status": "waiting", "theme_id": theme_id, "theme": theme, "prompt": prompt,
-            "count": count, "number": 0, "pictures": [], "blocked": 0, "stop": False,
+            "count": count, "number": 0, "pictures": [], "blocked": 0, "stop": False, "staging": staging,
         }
         if _worker is None:
             _worker = threading.Thread(target=_work, daemon=True)
@@ -156,7 +170,7 @@ def _work():
                     _update(job_id, blocked=job["blocked"] + 1)
                     continue
                 pic_id = pictures.keep_new(
-                    image, {"theme": job["theme_id"], "prompt": job["prompt"], **details}
+                    image, {"theme": job["theme_id"], "prompt": job["prompt"], **details}, job["staging"]
                 )
                 with _lock:
                     job["pictures"].append({"picture": pic_id, "image": f"api/pictures/{pic_id}"})

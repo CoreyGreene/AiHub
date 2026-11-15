@@ -3,10 +3,10 @@
 // ("make the cloak red"), and the new one can be edited again. Advanced
 // mode makes several pictures and shows them as a grid to pick from (pick-grid.js). All image work happens on the server.
 
-import { chosenTheme, resetTheme } from "./theme-picker.js";
+import { chosenTheme, pickTheme, resetTheme } from "./theme-picker.js";
 import { addPictures, finishGrid, gridProgress, startGrid } from "./pick-grid.js";
 import { openViewer } from "./viewer.js";
-import { themeWords } from "./theme-words.js";
+import { setThemeWords, themeWords } from "./theme-words.js";
 import { customValues, fillCustom } from "./custom.js";
 
 const els = {
@@ -75,6 +75,7 @@ async function onGenerate(event) {
   const words = advanced && !isCustom ? themeWords() : null; // Advanced: the theme's words as changed
   const custom = isCustom ? customValues() : null;
   if (isCustom && !custom) return showNote("Custom isn't ready", "The model list didn't load. Reload the page.");
+  if (adding) return addItem({ theme, prompt, count, words, custom, name: els.character.value.trim() });
 
   // Close the phone keyboard and bring the result area into view.
   document.activeElement?.blur();
@@ -335,6 +336,62 @@ export function startFrom(recipe) {
   location.hash = "#create/custom";
 }
 
+// --- Add mode: the form makes a workflow item instead of pictures ---
+// (workflows.js turns it on). Standard is hidden: an item has a count.
+
+let adding = null; // { label, button, done(item) -> problem or null }
+const addingBar = document.getElementById("adding-bar");
+const addingError = document.getElementById("adding-error");
+
+export function isAdding() {
+  return Boolean(adding);
+}
+
+export function setAddMode(mode) {
+  adding = mode;
+  els.view.classList.toggle("adding", Boolean(mode));
+  addingBar.hidden = !mode;
+  addingError.hidden = true;
+  document.getElementById("adding-text").textContent = mode?.label || "";
+  els.button.textContent = mode?.button || "Generate";
+  document.getElementById("character-label").textContent = mode ? "Name for these pictures" : "Character name";
+  els.character.placeholder = mode ? "They go to Library → Staging under this name" : "Grim the goblin";
+}
+
+// Fill the form from an item (or clean, for a new one), on Advanced or Custom.
+export function fillFromItem(item) {
+  startOver();
+  if (item) {
+    els.prompt.value = item.prompt;
+    els.character.value = item.name || "";
+    setCount(item.count);
+    if (item.custom) fillCustom(true, item.custom);
+    else {
+      pickTheme(item.theme);
+      if (item.words) setThemeWords(item.theme, item.words);
+    }
+  }
+  location.hash = item?.custom ? "#create/custom" : "#create/advanced";
+}
+
+async function addItem(item) {
+  els.button.disabled = true;
+  const problem = await adding.done(item).catch(() => "Couldn't save. Is the server running?");
+  els.button.disabled = false;
+  addingError.textContent = problem || "";
+  addingError.hidden = !problem;
+  if (!problem) {
+    setAddMode(null);
+    startOver();
+  }
+}
+
+document.getElementById("adding-cancel").addEventListener("click", () => {
+  setAddMode(null);
+  startOver();
+  location.hash = "#workflows";
+});
+
 // Back to a clean page: first theme, empty prompt, no picture.
 export function startOver() {
   resetTheme();
@@ -343,6 +400,7 @@ export function startOver() {
   els.character.value = "";
   els.characterError.hidden = true;
   pictureId = saveButton = savedTo = null;
+  addingError.hidden = true;
   els.result.innerHTML = emptyResult;
   window.scrollTo({ top: 0, behavior: "smooth" });
 }

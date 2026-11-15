@@ -38,6 +38,10 @@
     <!-- One form for both: Advanced only adds "How many pictures". -->
     <div class="create-area">
     <form id="make" class="card" novalidate>
+      <div id="adding-bar" class="note adding-bar" hidden>
+        <span id="adding-text"></span>
+        <button id="adding-cancel" type="button" class="button small-button">Cancel</button>
+      </div>
       <div class="field not-custom">
         <label class="label" for="theme-name">Theme</label>
         <div class="combo">
@@ -59,7 +63,7 @@
       </label>
 
       <div class="field">
-        <label class="label" for="character">Character name <span class="optional">(optional)</span></label>
+        <label class="label" for="character"><span id="character-label">Character name</span> <span class="optional">(optional)</span></label>
         <div class="name-row">
           <input id="character" class="text-input" type="text" placeholder="Grim the goblin"
                  autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="60">
@@ -93,6 +97,7 @@
       </fieldset>
 
       <button id="generate" type="submit" class="primary">Generate</button>
+      <span id="adding-error" class="error-line" hidden></span>
     </form>
 
     <section class="card result" aria-live="polite">
@@ -109,7 +114,7 @@
       <h2 id="chooser-title">Pick a character</h2>
       <button id="chooser-close" type="button" class="button" aria-label="Close">✕</button>
     </div>
-    <p class="muted small">New pictures will be saved to the one you pick.</p>
+    <p class="muted small">The pictures will go to the one you pick.</p>
     <div id="chooser-list" class="choice-list"></div>
   </dialog>
 
@@ -125,6 +130,10 @@
   </dialog>
 
   <main id="view-library" class="view" hidden>
+    <nav class="subtabs" aria-label="Library part">
+      <a href="#library" class="subtab" data-place="characters">Characters</a>
+      <a href="#library/_staging" class="subtab" data-place="staging">Staging</a>
+    </nav>
     <section class="card">
       <a href="#library" id="library-back" class="link-button back-link" hidden>← All characters</a>
       <div class="library-head">
@@ -155,8 +164,22 @@
           <button id="select-all" type="button" class="button small-button">All</button>
         </div>
         <div class="select-row" id="select-actions">
+          <button id="select-approve" type="button" class="primary select-approve" hidden>Add to character</button>
           <button id="select-zip" type="button" class="button">Download zip</button>
           <button id="select-delete" type="button" class="button danger">Delete</button>
+        </div>
+        <!-- Staging: which character the chosen pictures go to. -->
+        <div id="approve-box" class="approve-box" hidden>
+          <label class="label" for="approve-name">Character (new or existing)</label>
+          <div class="name-row">
+            <input id="approve-name" class="text-input" type="text" placeholder="Grim the goblin"
+                   autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="60">
+            <button id="approve-pick" type="button" class="button">Pick</button>
+          </div>
+          <div class="actions">
+            <button id="approve-yes" type="button" class="primary">Add</button>
+            <button id="approve-no" type="button" class="button">Cancel</button>
+          </div>
         </div>
         <div class="select-row" id="delete-ask" hidden>
           <span id="delete-question" class="select-count"></span>
@@ -180,10 +203,28 @@
   </main>
 
   <main id="view-workflows" class="view" hidden>
-    <section class="card">
-      <h2>Workflows</h2>
-      <p class="muted">Nothing here yet. Coming soon.</p>
+    <section class="card flow-pick">
+      <div class="flow-pick-row">
+        <label class="field">
+          <span class="label">Workflow</span>
+          <select id="flow-choice" class="text-input"></select>
+        </label>
+        <button id="flow-new" type="button" class="button">New</button>
+      </div>
+      <div id="flow-new-box" class="flow-new" hidden>
+        <label class="field">
+          <span class="label">Name for the new workflow</span>
+          <input id="flow-new-name" class="text-input" type="text" maxlength="60" placeholder="Space dinosaurs"
+                 autocomplete="off" autocapitalize="words">
+        </label>
+        <span id="flow-new-error" class="error-line" hidden></span>
+        <div class="actions">
+          <button id="flow-new-make" type="button" class="primary">Make it</button>
+          <button id="flow-new-cancel" type="button" class="button">Cancel</button>
+        </div>
+      </div>
     </section>
+    <div id="flow"><p class="muted">Loading…</p></div>
   </main>
 
   <main id="view-settings" class="view" hidden>

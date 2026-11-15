@@ -11,32 +11,44 @@ const putBack = document.getElementById("theme-words-reset");
 
 let form = null;
 let filledFor = null; // the theme id the boxes show
+let version = 0; // so an answer that comes late can't undo a newer fill
 
 // Fill the boxes with the theme's own words (fresh from the server, so
 // changes made on the Theme tab show up).
 async function fill(theme) {
   if (!theme) return;
   filledFor = theme.id;
+  const mine = ++version;
   try {
     const res = await fetch("api/themes/details");
     const found = (await res.json()).find((t) => t.id === theme.id);
-    if (!found || filledFor !== theme.id) return; // another theme was picked meanwhile
-    form = {
-      before: textArea(found.prompt_before),
-      after: textArea(found.prompt_after),
-      negative: textArea(found.negative),
-    };
-    for (const area of Object.values(form)) area.rows = 2;
-    box.replaceChildren(
-      field("Words before your prompt", form.before),
-      field("Words after your prompt", form.after),
-      field("What to avoid", form.negative, "The safety words are always added too")
-    );
-    putBack.hidden = false;
+    if (found && mine === version) build(found); // else something newer was filled meanwhile
   } catch {
     form = null;
     box.innerHTML = `<p class="muted">Couldn't load this theme's words. The theme's own will be used.</p>`;
   }
+}
+
+function build(words) {
+  form = {
+    before: textArea(words.prompt_before),
+    after: textArea(words.prompt_after),
+    negative: textArea(words.negative),
+  };
+  for (const area of Object.values(form)) area.rows = 2;
+  box.replaceChildren(
+    field("Words before your prompt", form.before),
+    field("Words after your prompt", form.after),
+    field("What to avoid", form.negative, "The safety words are always added too")
+  );
+  putBack.hidden = false;
+}
+
+// Show these words for this theme (a workflow item being changed).
+export function setThemeWords(themeId, words) {
+  filledFor = themeId;
+  version++;
+  build(words);
 }
 
 // Advanced tab shown: fill in, unless it already shows this theme (keeps your changes).
@@ -54,6 +66,7 @@ export function themeWords() {
 whenThemeChanges((theme) => {
   form = null;
   filledFor = null;
+  version++;
   if (document.getElementById("view-create").dataset.mode === "advanced") fill(theme);
 });
 putBack.addEventListener("click", () => fill(chosenTheme()));

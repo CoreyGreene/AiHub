@@ -41,6 +41,13 @@ for where they go and how to write a theme.
 - **Themes:** one JSON file each in `server/theme/` (git-ignored, personal).
   Generic examples are in `server/theme/examples/`. The Theme tab can
   change them (Edit) and make new ones (New).
+- **Workflows:** `server/workflows.py`, one JSON file each in
+  `server/workflow/` (git-ignored, personal). A workflow is a list of
+  items; each is what the Advanced / Custom tab sends to Generate, plus a
+  name. Items are added and changed on the Create tab itself ("add mode",
+  `web/js/create.js`), so the form is always the same one. Start queues
+  every item; the pictures go to `outputs/staging/<group>/` (Library →
+  Staging), where you choose which to move to a character.
 - **Code lock:** `server/lock.py` + `web/lock.html`. A server option, off by
   default and not on the website: `"lock": true` and `"lock_code"` in
   `server/settings.local.json`, then restart. With it on, every route needs

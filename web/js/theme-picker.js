@@ -21,6 +21,12 @@ export function whenThemeChanges(fn) {
   onChange = fn;
 }
 
+// Choose a theme by its id (a workflow item being changed).
+export function pickTheme(id) {
+  const theme = themes.find((t) => t.id === id);
+  if (theme) choose(theme);
+}
+
 export function resetTheme() {
   if (themes.length) choose(themes[0]);
 }

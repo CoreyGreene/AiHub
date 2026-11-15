@@ -1,12 +1,22 @@
-// The Library tab: every saved character, shown with its first picture.
-// Tap one to open it (#library/<folder>) and see all of its pictures,
-// either as small pictures (two across, no words), full with details, or
-// by date: one card per day, tap it (#library/<folder>/<date>) for that
-// day's pictures. The tick button turns on choosing: tap pictures to pick
-// them, then download them as one zip or delete them.
+// The Library tab, in two parts. Characters: every saved character, shown
+// with its first picture. Tap one to open it (#library/<folder>) and see all
+// of its pictures, either as small pictures (two across, no words), full
+// with details, or by date: one card per day, tap it (#library/<folder>/<date>)
+// for that day's pictures. Staging (#library/_staging): the pictures
+// workflows made, by group; open one (#library/_staging/<folder>), choose the
+// good ones and add them to a character. ("_" is never in a folder name.)
+// The tick button turns on choosing: tap pictures to pick them, then
+// download them as one zip or delete them (or, in staging, keep them).
 
 import { startFrom } from "./create.js";
 import { openViewer } from "./viewer.js";
+import { pickCharacter } from "./character-picker.js";
+
+const STAGING = "_staging";
+let place = "characters"; // or "staging"
+const api = () => (place === "staging" ? "api/staging" : "api/characters");
+const listHash = () => (place === "staging" ? `#library/${STAGING}` : "#library");
+const groupHash = (folder) => `${listHash()}/${encodeURIComponent(folder)}`;
 
 const list = document.getElementById("library-list");
 const title = document.getElementById("library-title");
@@ -36,6 +46,9 @@ const selectCount = document.getElementById("select-count");
 const selectAll = document.getElementById("select-all");
 const selectZip = document.getElementById("select-zip");
 const selectDelete = document.getElementById("select-delete");
+const selectApprove = document.getElementById("select-approve");
+const approveBox = document.getElementById("approve-box");
+const approveName = document.getElementById("approve-name");
 const selectActions = document.getElementById("select-actions");
 const deleteAsk = document.getElementById("delete-ask");
 const deleteQuestion = document.getElementById("delete-question");
@@ -57,8 +70,9 @@ function showChosen() {
   const n = chosen.size;
   selectCount.textContent = n ? `${pictures(n)} chosen` : "Tap pictures to choose them";
   selectAll.textContent = n && n === shown.length ? "None" : "All";
-  selectZip.disabled = selectDelete.disabled = !n;
-  deleteAsk.hidden = true;
+  selectZip.disabled = selectDelete.disabled = selectApprove.disabled = !n;
+  selectApprove.hidden = place !== "staging";
+  deleteAsk.hidden = approveBox.hidden = true;
   selectActions.hidden = false;
   selectError.hidden = true;
 }
@@ -115,11 +129,44 @@ document.getElementById("delete-yes").addEventListener("click", async () => {
     selectError.hidden = false;
     return;
   }
-  // Nothing left of this day or character: go up a level.
-  const left = shown.length - ids.length;
-  if (left <= 0 && dateShown) location.hash = `#library/${encodeURIComponent(folderShown)}`;
-  else if (left <= 0 && shown.length) location.hash = "#library";
-  else showCharacter(folderShown, dateShown);
+  afterMoving(ids.length);
+});
+
+// Nothing left of this day or character (or staging group): go up a level.
+function afterMoving(gone, message = "") {
+  const left = shown.length - gone;
+  if (left <= 0 && dateShown) location.hash = groupHash(folderShown);
+  else if (left <= 0 && shown.length) location.hash = listHash();
+  else showCharacter(folderShown, dateShown, message);
+}
+
+// Staging: add the chosen pictures to a character (they leave staging).
+selectApprove.addEventListener("click", () => {
+  selectActions.hidden = true;
+  approveBox.hidden = false;
+  approveName.focus();
+});
+document.getElementById("approve-no").addEventListener("click", showChosen);
+document.getElementById("approve-pick").addEventListener("click", () => pickCharacter(approveName));
+document.getElementById("approve-yes").addEventListener("click", async () => {
+  const character = approveName.value.trim();
+  selectError.hidden = Boolean(character);
+  selectError.textContent = "Type a character name, or Pick one.";
+  if (!character) return;
+  const ids = [...chosen];
+  try {
+    const res = await fetch("api/staging/approve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids, character }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    afterMoving(ids.length, `Added ${pictures(data.moved)} to ${character}.`);
+  } catch (err) {
+    selectError.textContent = err.message || "Couldn't add them. Is the server running?";
+    selectError.hidden = false;
+  }
 });
 
 layoutButtons.addEventListener("click", (event) => {
@@ -130,13 +177,14 @@ layoutButtons.addEventListener("click", (event) => {
     localStorage.setItem(LAYOUT_KEY, layout);
   } catch {}
   // Inside one day, any choice goes back to the whole character.
-  if (dateShown) location.hash = `#library/${encodeURIComponent(folderShown)}`;
+  if (dateShown) location.hash = groupHash(folderShown);
   else showCharacter(folderShown);
 });
 
 function showLayout() {
   for (const b of layoutButtons.querySelectorAll("[data-layout]")) {
-    b.setAttribute("aria-pressed", b.dataset.layout === layout);
+    b.setAttribute("aria-pressed", b.dataset.layout === layoutHere());
+    b.hidden = place === "staging" && b.dataset.layout === "dates"; // staging: no dates
   }
 }
 
@@ -156,24 +204,37 @@ function dayName(day) {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
-export function loadLibrary(folder, date) {
+// Staging has no "by date" view: it shows as full pictures there.
+const layoutHere = () => (place === "staging" && layout === "dates" ? "full" : layout);
+
+// #library[/<folder>[/<date>]] or #library/_staging[/<folder>]
+export function loadLibrary(first, second) {
   window.scrollTo(0, 0);
+  place = first === STAGING ? "staging" : "characters";
+  const [folder, date] = place === "staging" ? [second, ""] : [first, second];
+  for (const tab of document.querySelectorAll("#view-library [data-place]")) {
+    if (tab.dataset.place === place) tab.setAttribute("aria-current", "page");
+    else tab.removeAttribute("aria-current");
+  }
   if (folder) showCharacter(decodeURIComponent(folder), date || "");
   else showAll();
 }
 
 async function showAll() {
   setSelecting(false);
-  title.textContent = "Library";
-  back.hidden = count.hidden = layoutButtons.hidden = true;
-  back.href = "#library";
-  back.textContent = "← All characters";
+  const staging = place === "staging";
+  title.textContent = staging ? "Staging" : "Library";
+  back.hidden = layoutButtons.hidden = true;
+  count.hidden = !staging;
+  count.textContent = "Pictures made by workflows. Open a group, choose the ones you like and add them to a character.";
   list.className = "library-grid";
   try {
-    const res = await fetch("api/characters");
+    const res = await fetch(api());
     const characters = await res.json();
     if (!characters.length) {
-      list.innerHTML = `<p class="muted">No characters yet. Make a picture, type a name and press Save.</p>`;
+      list.innerHTML = staging
+        ? `<p class="muted">Nothing here. Start a workflow on the Workflows tab; its pictures show up here.</p>`
+        : `<p class="muted">No characters yet. Make a picture, type a name and press Save.</p>`;
       return;
     }
     list.replaceChildren(...characters.map(card));
@@ -185,7 +246,7 @@ async function showAll() {
 function card(character) {
   const item = document.createElement("a");
   item.className = "character";
-  item.href = `#library/${encodeURIComponent(character.folder)}`;
+  item.href = groupHash(character.folder);
   item.innerHTML = `<img alt="" loading="lazy"><h3></h3><p class="muted"></p>`;
   item.querySelector("img").src = character.cover;
   item.querySelector("h3").textContent = character.name;
@@ -193,24 +254,25 @@ function card(character) {
   return item;
 }
 
-async function showCharacter(folder, date = "") {
+async function showCharacter(folder, date = "", message = "") {
   folderShown = folder;
   dateShown = date;
   setSelecting(false);
+  const layout = layoutHere();
   // Choosing works where pictures are shown, not on the list of days.
   selectToggle.hidden = layout === "dates" && !date;
   back.hidden = layoutButtons.hidden = false;
-  back.href = date ? `#library/${encodeURIComponent(folder)}` : "#library";
-  back.textContent = date ? "← All dates" : "← All characters";
+  back.href = date ? groupHash(folder) : listHash();
+  back.textContent = date ? "← All dates" : place === "staging" ? "← All of staging" : "← All characters";
   title.textContent = "…";
   count.hidden = true;
   showLayout();
   list.className = "character-pictures";
   list.innerHTML = `<p class="muted">Loading…</p>`;
   try {
-    const res = await fetch(`api/characters/${encodeURIComponent(folder)}`);
+    const res = await fetch(`${api()}/${encodeURIComponent(folder)}`);
     if (res.status === 404) {
-      location.hash = "#library"; // gone (its last pictures were deleted)
+      location.hash = listHash(); // gone (its last pictures were deleted or moved)
       return;
     }
     const data = await res.json();
@@ -230,7 +292,11 @@ async function showCharacter(folder, date = "") {
       list.replaceChildren(...days.map((day) => dayCard(folder, day)));
     } else {
       shown = data.pictures;
-      count.textContent = `${pictures(data.pictures.length)}. To add more, make a picture with the name ${data.name} and press Save.`;
+      count.textContent =
+        (message ? `${message} ` : "") +
+        (place === "staging"
+          ? `${pictures(data.pictures.length)} from a workflow. Tap the tick, choose the ones you like, then Add to character.`
+          : `${pictures(data.pictures.length)}. To add more, make a picture with the name ${data.name} and press Save.`);
       list.classList.toggle("thumbs", layout === "thumbs");
       list.replaceChildren(...data.pictures.map(pictureCard));
     }
@@ -255,7 +321,7 @@ function byDay(pics) {
 function dayCard(folder, { day, pics }) {
   const item = document.createElement("a");
   item.className = "character";
-  item.href = `#library/${encodeURIComponent(folder)}/${day}`;
+  item.href = `${groupHash(folder)}/${day}`;
   item.innerHTML = `<img alt="" loading="lazy"><h3></h3><p class="muted"></p>`;
   item.querySelector("img").src = pics[0].image;
   item.querySelector("h3").textContent = dayName(day);

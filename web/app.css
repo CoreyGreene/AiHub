@@ -768,3 +768,76 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
   }
 }
 .theme-card .actions { grid-template-columns: 1fr; margin-top: 8px; }
+
+/* Workflows: pick one, then its items as boxes joined by arrows (down on a
+   phone, across on a wide screen). */
+.flow-pick-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+.flow-pick-row .field[hidden], .flow-new[hidden], .flow-ask[hidden] { display: none; }
+.flow-pick-row .field { margin: 0; }
+.flow-pick select.text-input { appearance: auto; }
+.flow-new { display: grid; gap: 8px; margin-top: 12px; }
+.flow-pick, .flow-head, .flow-start { margin-bottom: 16px; }
+.flow-start { display: grid; gap: 8px; }
+.flow-start p { margin: 0; }
+.flow-start .error-line[hidden] { display: none; }
+.flow-head { display: grid; gap: 10px; }
+.flow-head .field { margin: 0; }
+.flow-ask { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.flow-ask p { grid-column: 1 / -1; margin: 0; }
+.flow { display: flex; flex-direction: column; align-items: stretch; margin-bottom: 16px; }
+.flow-box {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-width: 0;
+}
+.flow-box h3 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.flow-box p { margin: 0; }
+.flow-prompt { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.flow-actions { display: grid; grid-template-columns: 1fr auto auto 1fr; gap: 6px; margin-top: 6px; }
+.flow-actions .button { min-width: 44px; }
+.flow-add {
+  min-height: 64px;
+  place-items: center;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+  border-style: dashed;
+  cursor: pointer;
+}
+.flow-add:hover { color: var(--text); border-color: var(--accent); }
+.flow-run { font-size: 0.9rem; padding: 8px 10px; border-radius: 10px; background: var(--note-bg); overflow-wrap: anywhere; }
+.flow-run a { color: var(--text); font-weight: 600; }
+.flow-run.working { box-shadow: inset 3px 0 0 var(--accent); }
+.flow-run.failed, .flow-run.blocked, .flow-run.removed { color: #ff9b9b; }
+.flow-arrow { align-self: center; color: var(--muted); font-size: 1.5rem; line-height: 1; padding: 6px 0; }
+.flow-arrow::before { content: "↓"; }
+@media (min-width: 760px) {
+  .flow { flex-direction: row; flex-wrap: wrap; align-items: center; row-gap: 12px; }
+  .flow-box { width: 260px; align-self: stretch; }
+  .flow-arrow { padding: 0 10px; }
+  .flow-arrow::before { content: "→"; }
+}
+
+/* Create in "add to a workflow" mode. */
+.adding-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 14px; }
+.adding-bar[hidden] { display: none; }
+#view-create.adding [data-subview="standard"],
+#view-create.adding #pick-character,
+#view-create.adding .result { display: none; }
+@media (min-width: 760px) {
+  .flow-pick-row, .flow-new, .flow-head .field, .flow-ask { max-width: 480px; }
+  .flow-head .danger { justify-self: start; padding: 0 18px; }
+}
+
+/* Library → Staging: "Add to character" takes a whole row; then the name. */
+.select-row .select-approve { flex: 1 1 100%; }
+.select-row .select-approve[hidden], .approve-box[hidden] { display: none; }
+.approve-box { display: grid; gap: 8px; }
+#view-library .subtabs { margin-bottom: 12px; }
+.layout-toggle [hidden] { display: none; }
+#flow[hidden] { display: none; }
