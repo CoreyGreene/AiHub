@@ -97,11 +97,18 @@ class CustomChoice(BaseModel):
     scheduler: str
 
 
+class ThemeWords(BaseModel):
+    """The Advanced tab: the theme's words, changed for these videos only."""
+    prompt_before: str = ""
+    prompt_after: str = ""
+    negative: str = ""
+
+
 class GenerateRequest(BaseModel):
     theme: str = ""  # not used when custom is given
     prompt: str
     count: int = 1
-    options: dict = {}  # the Advanced tab's extra choices (see server/options.json)
+    words: ThemeWords | None = None  # Advanced: in place of the theme's own
     custom: CustomChoice | None = None
 
 
@@ -253,12 +260,6 @@ async def upload_file(kind: str, name: str, request: Request) -> dict:
     return {"file": path.name, **generation.choices()}
 
 
-@app.get("/api/options")
-def video_options() -> dict:
-    """The Advanced tab's extra choices: camera, motion, light and look."""
-    return generation.options()
-
-
 @app.post("/api/generate")
 def generate(req: GenerateRequest) -> dict:
     """Adds a video to the queue; the page then asks /api/jobs/{job} for progress."""
@@ -287,12 +288,12 @@ def generate(req: GenerateRequest) -> dict:
             "negative": _tidy(c.negative),
             **{key: getattr(c, key) for key in ("width", "height", "frames", "fps", "steps", "guidance", "scheduler")},
         }
+    elif req.words:
+        # The theme's words as changed on the Advanced tab (the file stays as it is).
+        w = req.words
+        theme = {**theme, "prompt": _prompt_template(w.prompt_before, w.prompt_after), "negative": _tidy(w.negative)}
     try:
-        chosen = generation.check_options(req.options)
-    except ValueError as err:
-        raise HTTPException(400, str(err))
-    try:
-        return {"job": jobs.submit(theme_id, theme, prompt, req.count, chosen)}
+        return {"job": jobs.submit(theme_id, theme, prompt, req.count)}
     except jobs.QueueFull as err:
         raise HTTPException(429, str(err))
 
@@ -379,6 +380,63 @@ def videos_zip(ids: str, name: str = "") -> Response:
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{zip_name}"'},
     )
+
+
+def _split_words(template: str) -> tuple[str, str]:
+    """A theme's "best quality, {prompt}, full body" -> the words before and
+    after your prompt."""
+    before, _, after = template.partition("{prompt}")
+    return before.strip(" ,"), after.strip(" ,")
+
+
+@app.get("/api/videos/{vid_id}/recipe")
+def video_recipe(vid_id: str) -> dict:
+    """Library → Copy settings: everything to make this video again on the
+    Custom tab (a new seed each time). Videos made before the full
+    settings were saved fill the gaps from their theme as it is now
+    ("complete": false)."""
+    info = videos.info(vid_id)
+    if info is None:
+        raise HTTPException(404, "That video isn't here any more.")
+    start = settings.get()["custom"]
+    theme = themes.get(info.get("theme", "")) or {}
+    template = info.get("words") or theme.get("prompt") or _prompt_template(start["prompt_before"], start["prompt_after"])
+    before, after = _split_words(template)
+    width, height = info.get("size") or [theme.get("width", start["width"]), theme.get("height", start["height"])]
+    frames = info.get("frames", theme.get("frames", start["frames"]))
+    pick = lambda key: info.get(key, theme.get(key, start[key]))  # noqa: E731
+    return {
+        "prompt": info.get("prompt", ""),
+        "character": info.get("character", ""),
+        "complete": all(key in info for key in ("words", "negative", "guidance", "scheduler")),
+        "custom": {
+            "model": info.get("model") or theme.get("model", ""),
+            "loras": info.get("loras", theme.get("loras", [])),
+            "prompt_before": before,
+            "prompt_after": after,
+            "negative": pick("negative"),
+            "width": width,
+            "height": height,
+            "frames": frames,
+            "fps": pick("fps"),
+            "steps": pick("steps"),
+            "guidance": pick("guidance"),
+            "scheduler": pick("scheduler"),
+        },
+    }
+
+
+class DeleteRequest(BaseModel):
+    ids: list[str]
+
+
+@app.post("/api/videos-delete")
+def delete_videos(req: DeleteRequest) -> dict:
+    """Library → Select → Delete: saved videos, gone for good (the page
+    asks "are you sure" first)."""
+    if not req.ids or len(req.ids) > 1000:
+        raise HTTPException(400, "Pick some videos first.")
+    return {"deleted": videos.delete_saved(req.ids)}
 
 
 class SaveRequest(BaseModel):

@@ -17,14 +17,20 @@ website, on the Theme tab:
   press Choose a file. It's put in the right folder and picked. Only
   `.safetensors` (`.ckpt` files can carry code that runs when loaded).
 
-**Not set up yet:** no video backend is written, so Generate answers "Not
-connected yet". Themes can still be made, changed and looked at.
-
 **Theme files stay on your machine.** They hold your own choices of model,
 LoRAs and prompt words, so `server/theme/*.json` is git-ignored. What's
 shared is this guide and the generic examples in `server/theme/examples/`.
 
 This file is for anyone setting up a theme, people and AI agents alike.
+
+## A model to start with
+
+**Wan 2.1 text-to-video 1.3B** (`Wan-AI/Wan2.1-T2V-1.3B-Diffusers` on
+Hugging Face, about 29 GB to download) is the smallest Wan and runs on a
+12 GB card with "Use 3060 settings" on. Download the whole repo into
+`server/aIModels/wan2.1-t2v-1.3b/` and name that folder in the theme's
+`model`. On an RTX 3060 a 2-second clip (33 frames, 20 steps) takes about
+4 minutes; a 5-second one (81 frames, 30 steps) about 15 to 20.
 
 ## Where the files go
 
@@ -102,7 +108,7 @@ Any key starting with `_` is a note and is ignored when making videos.
 
 | `backend` | Runs | State |
 | --- | --- | --- |
-| `diffusers-wan` | Wan 2.1 / 2.2 video models with PyTorch on CUDA, Apple (MPS) or CPU | planned (phase 3, on the Mac) |
+| `diffusers-wan` | Wan 2.1 / 2.2 text-to-video models (a diffusers-format folder) with PyTorch on CUDA, Apple (MPS) or CPU | works; tested with Wan 2.1 1.3B on a 12 GB card |
 
 More backends (MLX for the Mac, other video models) will be added in
 `server/backends/`; a theme picks one by name.

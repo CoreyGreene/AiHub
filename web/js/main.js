@@ -4,6 +4,7 @@
 import { startGpu } from "./gpu.js";
 import { loadThemes } from "./theme-picker.js";
 import { fillCustom } from "./custom.js";
+import { showThemeWords } from "./theme-words.js";
 import "./create.js";
 import "./character-picker.js";
 import { loadLibrary } from "./library.js";
@@ -11,7 +12,7 @@ import { loadSettings } from "./settings.js";
 import { startQueueList } from "./queue-list.js";
 import { loadThemeInfo } from "./theme-info.js";
 
-// Tabs: Create, Library, Theme, and the Settings gear. The address ends in
+// Tabs: Create, Library, Theme, Workflows, and the Settings gear. The address ends in
 // #create, #library and so on, so the phone's Back button works too.
 // #library/<folder> opens one character, #library/<folder>/<date> one day of it.
 const onShow = {
@@ -37,11 +38,12 @@ function showView() {
 }
 
 // Inside Create: Standard, Advanced and Custom share one form. Advanced adds
-// "How many videos" and the options, and shows the results as a grid to
-// pick from; Custom adds those but has no theme: you make your own.
+// "How many videos" and the theme's words to change, and shows the results
+// as a grid to pick from; Custom has no theme: you make your own.
 function showCreateMode(mode) {
   document.getElementById("view-create").dataset.mode = mode;
   if (mode === "custom") fillCustom();
+  if (mode === "advanced") showThemeWords();
   document.querySelectorAll("#view-create [data-subview]").forEach((el) => {
     if (el.dataset.subview === mode) el.setAttribute("aria-current", "page");
     else el.removeAttribute("aria-current");

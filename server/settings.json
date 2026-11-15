@@ -9,7 +9,7 @@
   "_device": "auto = cuda (NVIDIA), then mps (Mac), then cpu. Or name one. With no video packages installed yet, it is 'none'.",
   "device": "auto",
 
-  "_use_3060_settings": "For a 12 GB graphics card like the RTX 3060: parts of the model wait in normal memory until they're needed (CPU offloading), and frames are turned into pixels in tiles. Slower, but it fits. Not needed on the Mac. Switched on the Settings page, which saves it in settings.local.json.",
+  "_use_3060_settings": "For a 12 GB graphics card like the RTX 3060: the text reader is loaded in 4-bit (it's 23 GB as stored), and frames are turned into pixels in tiles, so it fits. Not needed on the Mac. Switched on the Settings page, which saves it in settings.local.json.",
   "use_3060_settings": false,
 
   "_custom": "Where the Custom tab starts (its own theme, no theme file behind it). The model is the first one in the models folder unless named here. frames: how many pictures the video has; at fps of them a second, 81 frames at 16 fps is about 5 seconds.",

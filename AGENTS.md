@@ -9,8 +9,9 @@ prompt, get a video. It's built for one person, used mostly from a phone.
 The server runs the video model on the same machine (an NVIDIA card, Apple
 Silicon or the CPU). A sister project of ImageAi, built the same way.
 
-**Not connected yet:** no video backend is written, so Generate answers "Not
-connected yet" (job status `not_ready`). Everything around it works.
+**Video model:** Wan through diffusers (`server/backends/diffusers_wan.py`),
+tested with Wan 2.1 1.3B on a 12 GB card. Until PyTorch is installed, jobs
+end as `not_ready` and the page says "Not connected yet".
 
 ## Run it
 

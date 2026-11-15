@@ -3,9 +3,10 @@
 // as a grid to pick from (pick-grid.js). All video work happens on the server.
 
 import { chosenTheme, resetTheme } from "./theme-picker.js";
-import { showGrid } from "./pick-grid.js";
-import { chosenOptions, loadOptions } from "./options.js";
-import { customValues } from "./custom.js";
+import { addVideos, finishGrid, gridProgress, startGrid } from "./pick-grid.js";
+import { openViewer } from "./viewer.js";
+import { themeWords } from "./theme-words.js";
+import { customValues, fillCustom } from "./custom.js";
 
 const els = {
   form: document.getElementById("make"),
@@ -24,7 +25,7 @@ const els = {
 const emptyResult = els.result.innerHTML; // "Your video will show up here."
 const POLL_MS = 700;
 
-// Advanced and Custom both make several videos, with the options.
+// Advanced and Custom both make several videos.
 function isAdvanced() {
   return els.view.dataset.mode !== "standard";
 }
@@ -70,7 +71,7 @@ async function onGenerate(event) {
 
   const advanced = isAdvanced();
   const count = advanced ? Number(els.count.value) : 1;
-  const options = advanced ? chosenOptions() : {};
+  const words = advanced && !isCustom ? themeWords() : null; // Advanced: the theme's words as changed
   const custom = isCustom ? customValues() : null;
   if (isCustom && !custom) return showNote("Custom isn't ready", "The model list didn't load. Reload the page.");
 
@@ -84,16 +85,21 @@ async function onGenerate(event) {
     const res = await fetch("api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ theme, prompt, count, options, custom }),
+      body: JSON.stringify({ theme, prompt, count, words, custom }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail);
-    const job = await follow(data.job);
-    if (job.status === "not_ready") showNote("Not connected yet", job.message);
+    const job = await follow(data.job, advanced);
+    if (advanced && job.videos.length) {
+      // The grid is already showing them; say how it ended, if it's news.
+      addVideos(job.videos);
+      const made = `${job.videos.length} of ${job.count} videos were made`;
+      if (job.status === "failed") finishGrid(job.blocked, `Something went wrong: ${job.message} (${made}.)`);
+      else finishGrid(job.blocked, job.stopped ? `Stopped: ${made}.` : "");
+    } else if (job.status === "not_ready") showNote("Not connected yet", job.message);
     else if (job.status === "blocked") showNote("Not shown", job.message);
     else if (job.status === "removed") showNote("Removed from the queue", job.message);
     else if (job.status === "failed") showNote("Something went wrong", job.message);
-    else if (advanced) showGrid(els.result, job.videos, job.blocked, startOver);
     else showVideo(job.videos[0]);
   } catch (err) {
     showNote("Couldn't make the video", err.message || "Check that the server is still running.");
@@ -104,13 +110,23 @@ async function onGenerate(event) {
 }
 
 // Ask the server how the job is going until it's finished; returns the job.
-async function follow(jobId) {
+// Several videos: the grid shows up with the first one, and each new one
+// is added as it's made.
+async function follow(jobId, grid) {
+  let started = false;
   for (;;) {
     const res = await fetch(`api/jobs/${jobId}`);
     const job = await res.json();
     if (!res.ok) throw new Error(job.detail);
+    if (grid && job.videos.length && !started) {
+      startGrid(els.result, startOver);
+      started = true;
+    }
     if (!["waiting", "working"].includes(job.status)) return job;
-    showProgress(...describe(job));
+    if (started) {
+      addVideos(job.videos);
+      gridProgress(...describe(job));
+    } else showProgress(...describe(job));
     await new Promise((r) => setTimeout(r, POLL_MS));
   }
 }
@@ -154,13 +170,14 @@ let saveButton = null;
 let savedTo = null; // character it was last saved to
 let saving = false;
 
-function showVideo({ video: id, file: url, poster }) {
-  videoId = id;
+function showVideo(video) {
+  videoId = video.video;
 
   // Plays straight away, muted and looping (phones only autoplay muted).
+  // The button beside the controls shows it big, on a dark screen.
   const player = document.createElement("video");
   player.className = "video";
-  Object.assign(player, { src: url, poster, controls: true, loop: true, muted: true, autoplay: true, playsInline: true });
+  Object.assign(player, { src: video.file, poster: video.poster, controls: true, loop: true, muted: true, autoplay: true, playsInline: true });
 
   saveButton = document.createElement("button");
   saveButton.type = "button";
@@ -171,9 +188,18 @@ function showVideo({ video: id, file: url, poster }) {
 
   const download = document.createElement("a");
   download.className = "button";
-  download.href = `${url}?download=1`;
+  download.href = `${video.file}?download=1`;
   download.download = "";
   download.textContent = "Download";
+
+  const big = document.createElement("button");
+  big.type = "button";
+  big.className = "button";
+  big.textContent = "See it big";
+  big.addEventListener("click", () => {
+    player.pause();
+    openViewer([video], 0);
+  });
 
   const reset = document.createElement("button");
   reset.type = "button";
@@ -182,8 +208,8 @@ function showVideo({ video: id, file: url, poster }) {
   reset.addEventListener("click", startOver);
 
   const actions = document.createElement("div");
-  actions.className = "actions";
-  actions.append(download, reset);
+  actions.className = "actions three";
+  actions.append(download, big, reset);
 
   const box = document.createElement("div");
   box.className = "done";
@@ -230,6 +256,24 @@ async function onSave() {
   }
 }
 
+// Library → Copy settings: the Custom tab, filled in with everything a
+// video was made with (prompt, model, LoRAs, words, size) and
+// its character, ready to tweak and Generate again.
+export function startFrom(recipe) {
+  els.prompt.value = recipe.prompt;
+  els.promptError.hidden = true;
+  els.character.value = recipe.character;
+  els.characterError.hidden = true;
+  const note = document.getElementById("copied-note");
+  const from = recipe.character ? `a video of ${recipe.character}` : "a saved video";
+  note.textContent =
+    `Settings copied from ${from}. Change anything you like, then Generate. Each new video still comes out a bit different.` +
+    (recipe.complete ? "" : " (This video is older, so its theme's words and settings are as they are now.)");
+  note.hidden = false;
+  fillCustom(true, recipe.custom);
+  location.hash = "#create/custom";
+}
+
 // Back to a clean page: first theme, empty prompt, no video.
 export function startOver() {
   resetTheme();
@@ -249,4 +293,3 @@ els.character.addEventListener("input", () => {
   updateSave();
 });
 
-loadOptions();

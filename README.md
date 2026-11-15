@@ -5,9 +5,10 @@ Generate. The video is made on this computer's graphics card and checked
 for nudity before it's shown (the site is safe for work). Give it a
 character name and Save to keep it in the Library.
 
-**Not connected yet.** The whole website works (themes, Custom, Advanced,
-Library, Settings, the queue, the code lock), but no video model is set up,
-so Generate answers "Not connected yet". Video making comes with the Mac.
+**Video models** run through diffusers; a small one (Wan 2.1 1.3B) works on
+a 12 GB card. Where to get it and how to make a theme for it:
+[server/theme/README.md](server/theme/README.md). Without a model or the
+video packages, Generate answers "Not connected yet".
 
 **Models aren't in git.** Put them in `server/aIModels/` and LoRAs in
 `server/lora/`. Themes are JSON files in `server/theme/` (also not in git:
@@ -47,16 +48,15 @@ phone), use `--host 127.0.0.1`.
 
 ```
 start.py              one way to start it (sets up .venv, then runs the server)
-requirements.txt      Python packages (the video ones are commented out for now)
+requirements.txt      Python packages
 server/               the Python side
   __main__.py         starts the web server, prints the addresses
   app.py              web routes: serves web/ and the /api calls
   settings.json       folders, device, safety (settings.local.json: this machine)
-  options.json        the Advanced tab's choices (camera, motion, light, loop)
   themes.py           reads the theme files in theme/
   jobs.py             the video queue
   generation.py       theme + prompt -> a checked video
-  backends/           ways of running a video model (none written yet)
+  backends/           ways of running a video model (diffusers_wan.py: Wan)
   safety.py           the nudity check, on frames through the video
   gpu.py              graphics card name and memory, for the top of the page
   videos.py           keeps videos in outputs/ (new ones, and saved per character)
@@ -89,11 +89,10 @@ Ground rules:
 | `POST /api/themes` | Make a new theme file (Theme tab → New) |
 | `GET /api/files/{kind}/{name}/check?size=` | Before adding a model or LoRA: is the name fine, is it new, is there room? `kind` is `model` or `lora` |
 | `PUT /api/files/{kind}/{name}` | Add a model or LoRA: the `.safetensors` file is the request body. Checked, then put in the models or LoRA folder |
-| `GET /api/options` | The Advanced tab's extra choices (from `server/options.json`) |
 | `POST /api/unlock` | The lock page sends the six-digit code (`{"code"}`); `{"open": true}` sets a 30-day cookie. While the code lock is on, every other route answers 401 `locked` without that cookie |
 | `GET /api/custom` | Where the Custom tab starts (`custom` in settings.json) |
-| `POST /api/generate` `{theme, prompt, count, options, custom}` | Queues `count` videos (default 1, up to `max_videos` in settings), answers `{"job"}`. `options`: the Advanced choices. `custom` (Custom tab, no theme): `{model, loras, prompt_before, prompt_after, negative, width, height, frames, fps, steps, guidance, scheduler}` |
-| `GET /api/jobs/{job}` | Progress: `status` waiting / working (with `number` of `count`, `stage`, `step`, `steps`) / done (with `videos`: `{video, file, poster}` each, and `blocked` = how many failed the safety check) / blocked / not_ready (no video model set up yet) / failed |
+| `POST /api/generate` `{theme, prompt, count, words, custom}` | Queues `count` videos (default 1, up to `max_videos` in settings), answers `{"job"}`. `words` (Advanced tab): `{prompt_before, prompt_after, negative}` used in place of the theme's own, for these videos only. `custom` (Custom tab, no theme): `{model, loras, prompt_before, prompt_after, negative, width, height, frames, fps, steps, guidance, scheduler}` |
+| `GET /api/jobs/{job}` | Progress: `status` waiting / working (with `number` of `count`, `stage`, `step`, `steps`) / done (with `videos`: `{video, file, poster}` each, and `blocked` = how many failed the safety check) / blocked / not_ready (video packages not installed) / failed |
 | `GET /api/queue` | Video jobs being made or waiting, in order |
 | `DELETE /api/queue/{job}` | Remove a job (a waiting one is dropped; the one being made stops after its current step). The queue holds at most `max_queue` jobs |
 | `GET /api/characters` | Saved characters, each with its first video's first frame |
@@ -103,4 +102,6 @@ Ground rules:
 | `GET /api/videos/{id}` | A video, `.mp4` (`?download=1` to save it as a file) |
 | `GET /api/videos/{id}/poster` | The video's first frame (`.jpg`) |
 | `GET /api/videos-zip?ids=a,b&name=…` | Several videos in one zip, named after the character if given (computer only; phones download one by one) |
+| `GET /api/videos/{id}/recipe` | Library → Copy settings: the prompt, character and every setting (model, LoRAs, words, size, frames, fps, steps, guidance, sampler) to make it again on the Custom tab. `complete` is false for older videos, whose missing settings come from their theme as it is now |
+| `POST /api/videos-delete` | Delete saved videos for good (`{"ids": [...]}`); a character with none left goes too. Only videos saved in the Library |
 | `POST /api/videos/{id}/save` `{character}` | Saves the video to that character |

@@ -25,6 +25,7 @@
     <a href="#create" class="tab" data-view="create">Create</a>
     <a href="#library" class="tab" data-view="library">Library</a>
     <a href="#theme" class="tab" data-view="theme">Theme</a>
+    <a href="#workflows" class="tab" data-view="workflows">Workflows</a>
   </nav>
 
   <main id="view-create" class="view">
@@ -69,6 +70,7 @@
 
       <fieldset id="custom-box" class="custom custom-only">
         <legend class="label">Your own theme</legend>
+        <p id="copied-note" class="note small" hidden></p>
         <p class="muted small">Pick the model and LoRAs and write the words around your prompt. Nothing is saved as a theme.</p>
         <div id="custom-fields"><p class="muted">Loading…</p></div>
         <button id="custom-reset" type="button" class="button small-button">Start again</button>
@@ -83,9 +85,11 @@
         </div>
       </div>
 
-      <fieldset id="video-options" class="options advanced-only" hidden>
-        <legend class="label">Options</legend>
-        <div id="option-choices"></div>
+      <fieldset id="theme-words" class="custom advanced-only not-custom">
+        <legend class="label">This theme's words</legend>
+        <p class="muted small">Change them for these videos. The theme itself isn't changed.</p>
+        <div id="theme-words-fields"><p class="muted">Loading…</p></div>
+        <button id="theme-words-reset" type="button" class="button small-button" hidden>Put back the theme's words</button>
       </fieldset>
 
       <button id="generate" type="submit" class="primary">Generate</button>
@@ -116,6 +120,7 @@
       <span id="viewer-count" class="muted"></span>
       <button id="viewer-next" type="button" class="button" aria-label="Next video">›</button>
       <button id="viewer-close" type="button" class="button">Close</button>
+      <button id="viewer-pick" type="button" class="button viewer-pick" aria-pressed="false" hidden>Pick this one</button>
     </div>
   </dialog>
 
@@ -124,7 +129,7 @@
       <a href="#library" id="library-back" class="link-button back-link" hidden>← All characters</a>
       <div class="library-head">
         <h2 id="library-title">Library</h2>
-        <div id="library-layout" class="layout-toggle" role="group" aria-label="How to show the videos" hidden>
+        <div id="library-layout" class="layout-toggle" role="group" aria-label="Library tools" hidden>
           <button type="button" class="icon-button" data-layout="thumbs" aria-label="Small videos">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
           </button>
@@ -134,11 +139,31 @@
           <button type="button" class="icon-button" data-layout="dates" aria-label="By date">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M7 2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2zM5 9v10h14V9z"/><rect x="7" y="11" width="4" height="4" rx="0.5"/></svg>
           </button>
+          <button id="select-toggle" type="button" class="icon-button select-toggle" aria-pressed="false" aria-label="Select videos">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7.5 12.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
         </div>
       </div>
       <p id="library-count" class="muted" hidden></p>
       <div id="library-list" class="library-grid">
         <p class="muted">Loading…</p>
+      </div>
+      <!-- Select mode: what to do with the chosen videos. -->
+      <div id="select-bar" class="select-bar" hidden>
+        <div class="select-row">
+          <span id="select-count" class="select-count">Tap videos to choose them</span>
+          <button id="select-all" type="button" class="button small-button">All</button>
+        </div>
+        <div class="select-row" id="select-actions">
+          <button id="select-zip" type="button" class="button">Download zip</button>
+          <button id="select-delete" type="button" class="button danger">Delete</button>
+        </div>
+        <div class="select-row" id="delete-ask" hidden>
+          <span id="delete-question" class="select-count"></span>
+          <button id="delete-yes" type="button" class="button danger">Yes, delete</button>
+          <button id="delete-no" type="button" class="button">Keep them</button>
+        </div>
+        <p id="select-error" class="error-line" hidden></p>
       </div>
     </section>
   </main>
@@ -154,13 +179,20 @@
     <div id="theme-new" class="theme-info" hidden></div>
   </main>
 
+  <main id="view-workflows" class="view" hidden>
+    <section class="card">
+      <h2>Workflows</h2>
+      <p class="muted">Nothing here yet. Coming soon.</p>
+    </section>
+  </main>
+
   <main id="view-settings" class="view" hidden>
     <section class="card">
       <h2>Settings</h2>
       <label class="switch-row">
         <span>
           <strong>Use 3060 settings</strong>
-          <span class="muted small">For the 12 GB RTX 3060 on the Linux PC: keeps parts of the model in normal memory until they're needed, so it fits. Much slower. Leave off on the Mac.</span>
+          <span class="muted small">For the 12 GB RTX 3060 on the Linux PC: loads the text reader in 4-bit and makes the pixels in tiles, so it fits. Leave off on the Mac.</span>
         </span>
         <input id="use-3060" type="checkbox" role="switch" disabled>
       </label>

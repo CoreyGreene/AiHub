@@ -63,6 +63,17 @@ def find(vid_id: str, suffix: str = ".mp4") -> Path | None:
     return None
 
 
+def info(vid_id: str) -> dict | None:
+    """The settings saved beside a video."""
+    video = find(vid_id)
+    if video is None:
+        return None
+    try:
+        return json.loads(video.with_suffix(".json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
 def is_saved(path: Path) -> bool:
     return path.parent.parent == _characters()
 
@@ -89,6 +100,28 @@ def save_to_character(vid_id: str, character: str) -> None:
     for path in (video, video.with_suffix(".jpg")):
         if path.parent != folder and path.is_file():
             shutil.move(path, folder / path.name)
+
+
+def delete_saved(vid_ids: list[str]) -> int:
+    """Delete saved videos (with their first frame and settings) for good.
+    A character left with no videos goes too. Returns how many were deleted."""
+    done = 0
+    for vid_id in vid_ids:
+        video = find(vid_id)
+        if video is None or not is_saved(video):
+            continue
+        for path in (video, video.with_suffix(".jpg"), video.with_suffix(".json")):
+            path.unlink(missing_ok=True)
+        done += 1
+        folder = video.parent
+        if not any(folder.glob("*.mp4")):
+            for leftover in [*folder.glob("*.json"), *folder.glob("*.jpg")]:
+                leftover.unlink()
+            try:
+                folder.rmdir()
+            except OSError:  # something else is in it (e.g. .DS_Store): leave it
+                pass
+    return done
 
 
 def _read_folder(folder: Path) -> list[dict]:

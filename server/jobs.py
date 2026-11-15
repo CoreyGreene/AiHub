@@ -29,7 +29,7 @@ class _Stopped(Exception):
     """Raised inside a video when its job was removed."""
 
 
-def submit(theme_id: str, theme: dict, prompt: str, count: int = 1, options: dict | None = None) -> str:
+def submit(theme_id: str, theme: dict, prompt: str, count: int = 1) -> str:
     global _worker
     job_id = uuid.uuid4().hex
     with _lock:
@@ -39,7 +39,7 @@ def submit(theme_id: str, theme: dict, prompt: str, count: int = 1, options: dic
             raise QueueFull(f"The queue is full ({most} jobs). Try again when some are done.")
         _jobs[job_id] = {
             "status": "waiting", "theme_id": theme_id, "theme": theme, "prompt": prompt,
-            "count": count, "options": options or {}, "number": 0, "videos": [], "blocked": 0, "stop": False,
+            "count": count, "number": 0, "videos": [], "blocked": 0, "stop": False,
         }
         if _worker is None:
             _worker = threading.Thread(target=_work, daemon=True)
@@ -55,7 +55,7 @@ def status(job_id: str) -> dict | None:
         job = _jobs.get(job_id)
         if job is None:
             return None
-        out = {k: v for k, v in job.items() if k not in ("theme", "prompt", "theme_id", "stop", "options")}
+        out = {k: v for k, v in job.items() if k not in ("theme", "prompt", "theme_id", "stop")}
         out["videos"] = list(job["videos"])
         if job["status"] == "waiting":
             out["ahead"] = sum(
@@ -140,7 +140,7 @@ def _work():
             for number in range(1, job["count"] + 1):
                 _update(job_id, number=number)
                 try:
-                    frames, details = generation.generate(job["theme"], job["prompt"], progress, job["options"])
+                    frames, details = generation.generate(job["theme"], job["prompt"], progress)
                 except generation.Blocked:
                     _update(job_id, blocked=job["blocked"] + 1)
                     continue

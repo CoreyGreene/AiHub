@@ -2,74 +2,20 @@
 // Tap one to open it (#library/<folder>) and see all of its videos,
 // either as small videos (two across, no words), full with details, or
 // by date: one card per day, tap it (#library/<folder>/<date>) for that
-// day's videos.
+// day's videos. The tick button turns on choosing: tap videos to pick
+// them, then download them as one zip or delete them.
+
+import { startFrom } from "./create.js";
+import { openViewer } from "./viewer.js";
 
 const list = document.getElementById("library-list");
 const title = document.getElementById("library-title");
 const count = document.getElementById("library-count");
 const back = document.getElementById("library-back");
 const layoutButtons = document.getElementById("library-layout");
-const viewer = document.getElementById("video-viewer");
-const viewerVideo = document.getElementById("viewer-video");
 
-// Tapping a video plays it on its own, centred on a dark screen. Swipe
-// left or right (or use the arrows) to go through the character's videos.
-let shown = []; // the character's videos
-let at = 0; // which one the viewer shows
-
-function openViewer(index) {
-  at = index;
-  showInViewer();
-  viewer.showModal();
-}
-
-function showInViewer() {
-  viewerVideo.poster = shown[at].poster;
-  viewerVideo.src = shown[at].file;
-  viewerVideo.play().catch(() => {}); // a phone may want a tap on Play first
-  document.getElementById("viewer-count").textContent = `${at + 1} of ${shown.length}`;
-  document.getElementById("viewer-prev").disabled = at === 0;
-  document.getElementById("viewer-next").disabled = at === shown.length - 1;
-}
-
-function step(by) {
-  const next = at + by;
-  if (next < 0 || next >= shown.length) return;
-  at = next;
-  showInViewer();
-}
-
-document.getElementById("viewer-prev").addEventListener("click", () => step(-1));
-document.getElementById("viewer-next").addEventListener("click", () => step(1));
-document.getElementById("viewer-close").addEventListener("click", () => viewer.close());
-// Tapping the dark area closes it (tapping the video is for its controls).
-viewer.addEventListener("click", (event) => {
-  if (event.target === viewer) viewer.close();
-});
-viewer.addEventListener("close", () => {
-  viewerVideo.pause();
-  viewerVideo.removeAttribute("src");
-  viewerVideo.load(); // stops it downloading
-});
-viewer.addEventListener("keydown", (event) => {
-  if (event.key === "ArrowLeft") step(-1);
-  if (event.key === "ArrowRight") step(1);
-});
-
-// A swipe: mostly sideways and at least 40px. Swipe left = next video.
-let touchStart = null;
-viewer.addEventListener("touchstart", (event) => {
-  const t = event.changedTouches[0];
-  touchStart = { x: t.clientX, y: t.clientY };
-}, { passive: true });
-viewer.addEventListener("touchend", (event) => {
-  if (!touchStart) return;
-  const t = event.changedTouches[0];
-  const dx = t.clientX - touchStart.x;
-  const dy = t.clientY - touchStart.y;
-  touchStart = null;
-  if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) step(dx < 0 ? 1 : -1);
-});
+// Tapping a video shows it big (viewer.js); swipe through the ones shown.
+let shown = []; // the videos on screen
 
 // The chosen layout is remembered on this phone (if the browser allows).
 const LAYOUT_KEY = "movieai.libraryLayout";
@@ -81,6 +27,100 @@ try {
 
 let folderShown = ""; // the character on screen
 let dateShown = ""; // the day on screen, or "" for all of them
+let nameShown = ""; // that character's name, for the zip file
+
+// Choosing videos (the tick button).
+const selectToggle = document.getElementById("select-toggle");
+const selectBar = document.getElementById("select-bar");
+const selectCount = document.getElementById("select-count");
+const selectAll = document.getElementById("select-all");
+const selectZip = document.getElementById("select-zip");
+const selectDelete = document.getElementById("select-delete");
+const selectActions = document.getElementById("select-actions");
+const deleteAsk = document.getElementById("delete-ask");
+const deleteQuestion = document.getElementById("delete-question");
+const selectError = document.getElementById("select-error");
+let selecting = false;
+const chosen = new Set(); // video ids
+
+function setSelecting(on) {
+  selecting = on;
+  chosen.clear();
+  selectToggle.setAttribute("aria-pressed", on);
+  list.classList.toggle("selecting", on);
+  for (const card of list.querySelectorAll(".saved-video.chosen")) card.classList.remove("chosen");
+  selectBar.hidden = !on;
+  showChosen();
+}
+
+function showChosen() {
+  const n = chosen.size;
+  selectCount.textContent = n ? `${videos(n)} chosen` : "Tap videos to choose them";
+  selectAll.textContent = n && n === shown.length ? "None" : "All";
+  selectZip.disabled = selectDelete.disabled = !n;
+  deleteAsk.hidden = true;
+  selectActions.hidden = false;
+  selectError.hidden = true;
+}
+
+function toggleChosen(pic, card) {
+  if (chosen.has(pic.id)) chosen.delete(pic.id);
+  else chosen.add(pic.id);
+  card.classList.toggle("chosen", chosen.has(pic.id));
+  card.querySelector(".saved-image").setAttribute("aria-pressed", chosen.has(pic.id));
+  showChosen();
+}
+
+selectToggle.addEventListener("click", () => setSelecting(!selecting));
+
+selectAll.addEventListener("click", () => {
+  const all = chosen.size !== shown.length;
+  chosen.clear();
+  if (all) shown.forEach((pic) => chosen.add(pic.id));
+  for (const card of list.querySelectorAll(".saved-video")) {
+    card.classList.toggle("chosen", all);
+    card.querySelector(".saved-image").setAttribute("aria-pressed", all);
+  }
+  showChosen();
+});
+
+selectZip.addEventListener("click", () => {
+  const link = document.createElement("a");
+  link.href = `api/videos-zip?ids=${[...chosen].join(",")}&name=${encodeURIComponent(nameShown)}`;
+  link.download = "";
+  document.body.append(link);
+  link.click();
+  link.remove();
+});
+
+// Delete asks first, in the bar itself.
+selectDelete.addEventListener("click", () => {
+  deleteQuestion.textContent = `Delete ${videos(chosen.size)} for good?`;
+  selectActions.hidden = true;
+  deleteAsk.hidden = false;
+});
+document.getElementById("delete-no").addEventListener("click", showChosen);
+document.getElementById("delete-yes").addEventListener("click", async () => {
+  const ids = [...chosen];
+  try {
+    const res = await fetch("api/videos-delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+    if (!res.ok) throw new Error();
+  } catch {
+    showChosen();
+    selectError.textContent = "Couldn't delete. Is the server running?";
+    selectError.hidden = false;
+    return;
+  }
+  // Nothing left of this day or character: go up a level.
+  const left = shown.length - ids.length;
+  if (left <= 0 && dateShown) location.hash = `#library/${encodeURIComponent(folderShown)}`;
+  else if (left <= 0 && shown.length) location.hash = "#library";
+  else showCharacter(folderShown, dateShown);
+});
 
 layoutButtons.addEventListener("click", (event) => {
   const button = event.target.closest("[data-layout]");
@@ -103,8 +143,8 @@ function showLayout() {
 const videos = (n) => `${n} video${n === 1 ? "" : "s"}`;
 
 // The day a video was made, on this phone's clock: "2026-11-14".
-function dayOf(vid) {
-  const d = new Date(vid.made);
+function dayOf(pic) {
+  const d = new Date(pic.made);
   if (isNaN(d)) return "unknown";
   const two = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
@@ -123,6 +163,7 @@ export function loadLibrary(folder, date) {
 }
 
 async function showAll() {
+  setSelecting(false);
   title.textContent = "Library";
   back.hidden = count.hidden = layoutButtons.hidden = true;
   back.href = "#library";
@@ -155,6 +196,9 @@ function card(character) {
 async function showCharacter(folder, date = "") {
   folderShown = folder;
   dateShown = date;
+  setSelecting(false);
+  // Choosing works where videos are shown, not on the list of days.
+  selectToggle.hidden = layout === "dates" && !date;
   back.hidden = layoutButtons.hidden = false;
   back.href = date ? `#library/${encodeURIComponent(folder)}` : "#library";
   back.textContent = date ? "← All dates" : "← All characters";
@@ -165,9 +209,13 @@ async function showCharacter(folder, date = "") {
   list.innerHTML = `<p class="muted">Loading…</p>`;
   try {
     const res = await fetch(`api/characters/${encodeURIComponent(folder)}`);
+    if (res.status === 404) {
+      location.hash = "#library"; // gone (its last videos were deleted)
+      return;
+    }
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail);
-    title.textContent = data.name;
+    title.textContent = nameShown = data.name;
     count.hidden = false;
     if (date) {
       // One day: small videos, the viewer goes through that day only.
@@ -223,6 +271,7 @@ function videoCard(pic, index) {
     <div class="saved-info">
       <p class="saved-prompt"></p>
       <p class="muted small saved-meta"></p>
+      <button type="button" class="button small-button saved-copy">Copy settings</button>
       <a class="button small-button" download>Download</a>
     </div>`;
   const link = item.querySelector(".saved-image");
@@ -230,7 +279,8 @@ function videoCard(pic, index) {
   link.setAttribute("aria-label", "Play");
   link.addEventListener("click", (event) => {
     event.preventDefault();
-    openViewer(index);
+    if (selecting) toggleChosen(pic, item);
+    else openViewer(shown, index);
   });
   item.querySelector("img").src = pic.poster;
   item.querySelector(".saved-prompt").textContent = pic.prompt;
@@ -238,5 +288,19 @@ function videoCard(pic, index) {
   const length = pic.seconds ? `${pic.seconds} s` : "";
   item.querySelector(".saved-meta").textContent = [pic.theme, length, made].filter(Boolean).join(" · ");
   item.querySelector("[download]").href = `${pic.file}?download=1`;
+  const copy = item.querySelector(".saved-copy");
+  copy.addEventListener("click", async () => {
+    copy.disabled = true;
+    try {
+      const res = await fetch(`api/videos/${pic.id}/recipe`);
+      const recipe = await res.json();
+      if (!res.ok) throw new Error(recipe.detail);
+      startFrom(recipe);
+    } catch (err) {
+      copy.textContent = err.message ? "Video not found" : "Couldn't copy. Try again";
+    } finally {
+      copy.disabled = false;
+    }
+  });
   return item;
 }
