@@ -403,6 +403,12 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
   gap: 14px;
 }
 .character-pictures > p { grid-column: 1 / -1; }
+.pager { grid-column: 1 / -1; display: grid; gap: 10px; }
+.pager-numbers { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px; }
+.pager-numbers .page-number { min-width: 40px; padding-inline: 6px; }
+.pager-numbers .page-number[aria-current] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.pager-arrows { display: flex; justify-content: space-between; gap: 8px; }
+.pager-arrows .button { flex: 1; max-width: 160px; white-space: nowrap; padding-inline: 10px; }
 .saved-picture {
   background: var(--bg);
   border: 1px solid var(--line);

@@ -104,7 +104,7 @@ Ground rules carried over from the last project:
 | `GET`/`POST /api/settings` | The "Use 3060 settings" switch (this machine only) |
 | `GET /api/pictures/{id}` | A picture (`?download=1` to save it as a file) |
 | `GET /api/pictures-zip?ids=a,b&name=…` | Several pictures in one zip, named after the character if given (computer only; phones download one by one) |
-| `GET /api/pictures/{id}/recipe` | Library → Copy settings: the prompt, character and every setting (model, LoRAs, words, size, steps, guidance, sampler) to make it again on the Custom tab. `complete` is false for older pictures, whose missing settings come from their theme as it is now |
+| `GET /api/pictures/{id}/recipe` | Library → Copy settings: the prompt, character, `theme` (its id if that theme is still there, else "") and `words` (the theme's words it was made with, or null) for the Advanced tab, and every setting (model, LoRAs, words, size, steps, guidance, sampler) as `custom`, for the Custom tab when there's no theme. `complete` is false for older pictures, whose missing settings come from their theme as it is now |
 | `POST /api/pictures-delete` | Delete saved or staged pictures for good (`{"ids": [...]}`); a character or staging group with none left goes too |
 | `POST /api/pictures/{id}/edit` `{prompt}` | Edit: change the picture by an instruction ("make the cloak red"); returns `{job}` like Generate, and the job's picture is a new one (the old one stays) |
 | `POST /api/pictures/{id}/save` `{character}` | Saves the picture to that character |

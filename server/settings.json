@@ -32,6 +32,10 @@
   "_max_pictures": "Most pictures one Generate can make (Advanced tab).",
   "max_pictures": 8,
 
+  "_page_size": "Library: how many pictures show at once, with page buttons for the rest. page_size for full pictures (one big picture with its details), thumbs_page_size for small pictures (also one day's pictures). 0 = all on one page.",
+  "page_size": 10,
+  "thumbs_page_size": 100,
+
   "_unload_after_minutes": "Let go of the model when no pictures have been made for this long, so the graphics card's memory is free. The next picture then takes a few seconds longer to start. 0 = let go as soon as the queue is empty.",
   "unload_after_minutes": 5,
 

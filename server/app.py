@@ -514,10 +514,12 @@ def _split_words(template: str) -> tuple[str, str]:
 
 @app.get("/api/pictures/{pic_id}/recipe")
 def picture_recipe(pic_id: str) -> dict:
-    """Library → Copy settings: everything to make this picture again on the
-    Custom tab (a new seed each time). Pictures made before the full
-    settings were saved fill the gaps from their theme as it is now
-    ("complete": false)."""
+    """Library → Copy settings: everything to make this picture again (a
+    new seed each time). "theme" is its theme's id when that theme is still
+    there (the page opens Advanced with it, and the picture's words when
+    saved); otherwise "" and the page uses "custom" on the Custom tab.
+    Pictures made before the full settings were saved fill the gaps from
+    their theme as it is now ("complete": false)."""
     info = pictures.info(pic_id)
     if info is None:
         raise HTTPException(404, "That picture isn't here any more.")
@@ -527,7 +529,10 @@ def picture_recipe(pic_id: str) -> dict:
     before, after = _split_words(template)
     width, height = info.get("size") or [theme.get("width", start["width"]), theme.get("height", start["height"])]
     pick = lambda key: info.get(key, theme.get(key, start[key]))  # noqa: E731
+    saved_words = "words" in info and "negative" in info
     return {
+        "theme": info.get("theme", "") if theme else "",
+        "words": {"prompt_before": before, "prompt_after": after, "negative": info["negative"]} if saved_words else None,
         "prompt": info.get("prompt", ""),
         "character": info.get("character", ""),
         "complete": all(key in info for key in ("words", "negative", "guidance", "scheduler")),
@@ -616,6 +621,8 @@ def get_settings() -> dict:
         "device": device,
         "device_name": DEVICE_NAMES.get(device, device),
         "max_pictures": settings.get()["max_pictures"],
+        "page_size": settings.get()["page_size"],
+        "thumbs_page_size": settings.get()["thumbs_page_size"],
     }
 
 

@@ -39,6 +39,15 @@ let folderShown = ""; // the character on screen
 let dateShown = ""; // the day on screen, or "" for all of them
 let nameShown = ""; // that character's name, for the zip file
 
+// Pictures come a page at a time (settings.json: page_size for full
+// pictures, thumbs_page_size for small ones; 0 = all at once).
+const pageSizes = fetch("api/settings")
+  .then((res) => res.json())
+  .then((data) => ({ full: data.page_size || 0, thumbs: data.thumbs_page_size || 0 }))
+  .catch(() => ({ full: 0, thumbs: 0 }));
+let pageShown = 0; // which page, from 0
+let pageFor = ""; // the folder and layout that page belongs to
+
 // Choosing pictures (the tick button).
 const selectToggle = document.getElementById("select-toggle");
 const selectBar = document.getElementById("select-bar");
@@ -222,6 +231,7 @@ export function loadLibrary(first, second) {
 
 async function showAll() {
   setSelecting(false);
+  pageFor = ""; // opening a character again starts at page 1
   const staging = place === "staging";
   title.textContent = staging ? "Staging" : "Library";
   back.hidden = layoutButtons.hidden = true;
@@ -280,31 +290,92 @@ async function showCharacter(folder, date = "", message = "") {
     title.textContent = nameShown = data.name;
     count.hidden = false;
     if (date) {
-      // One day: small pictures, the viewer goes through that day only.
-      shown = data.pictures.filter((pic) => dayOf(pic) === date);
-      count.textContent = `${pictures(shown.length)} on ${dayName(date)}.`;
+      // One day: small pictures, the viewer goes through that day's page only.
+      const day = data.pictures.filter((pic) => dayOf(pic) === date);
       list.className = "character-pictures thumbs";
-      list.replaceChildren(...shown.map(pictureCard));
+      startPage(`${folder}/${date}`, day, (await pageSizes).thumbs, `${pictures(day.length)} on ${dayName(date)}.`);
     } else if (layout === "dates") {
       list.className = "library-grid days";
       const days = byDay(data.pictures);
       count.textContent = `${pictures(data.pictures.length)} on ${days.length} day${days.length === 1 ? "" : "s"}. Tap a day to see its pictures.`;
       list.replaceChildren(...days.map((day) => dayCard(folder, day)));
     } else {
-      shown = data.pictures;
-      count.textContent =
+      const about =
         (message ? `${message} ` : "") +
         (place === "staging"
           ? `${pictures(data.pictures.length)} from a workflow. Tap the tick, choose the ones you like, then Add to character.`
           : `${pictures(data.pictures.length)}. To add more, make a picture with the name ${data.name} and press Save.`);
       list.classList.toggle("thumbs", layout === "thumbs");
-      list.replaceChildren(...data.pictures.map(pictureCard));
+      startPage(`${folder}/${layout}`, data.pictures, (await pageSizes)[layout], about);
     }
   } catch (err) {
     title.textContent = "Library";
     list.innerHTML = `<p class="muted"></p>`;
     list.firstChild.textContent = err.message || "Couldn't load this character. Is the server running?";
   }
+}
+
+// Another character, day or layout starts at page 1; after a delete, stay put.
+function startPage(key, all, size, about) {
+  key = `${place}/${key}`;
+  if (pageFor !== key) pageShown = 0;
+  pageFor = key;
+  showPage(all, size, about);
+}
+
+// One page of pictures (all of them when size is 0), with page buttons.
+function showPage(all, size, about) {
+  const pages = size ? Math.max(1, Math.ceil(all.length / size)) : 1;
+  pageShown = Math.min(pageShown, pages - 1);
+  const from = size * pageShown;
+  shown = size ? all.slice(from, from + size) : all;
+  count.textContent = pages > 1 ? `${about} Showing ${from + 1}–${from + shown.length}.` : about;
+  list.replaceChildren(...shown.map(pictureCard));
+  if (pages === 1) return;
+
+  const bar = document.createElement("nav");
+  bar.className = "pager";
+  bar.setAttribute("aria-label", "Pages");
+  const go = (to) => {
+    pageShown = to;
+    if (selecting) {
+      chosen.clear(); // choosing is per page
+      showChosen();
+    }
+    showPage(all, size, about);
+    list.scrollIntoView();
+  };
+  const button = (text, to, className = "button") => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = className;
+    b.textContent = text;
+    b.disabled = to < 0 || to >= pages;
+    b.addEventListener("click", () => go(to));
+    return b;
+  };
+  // A button per page: all of them when there are few, otherwise the
+  // first, the last and the ones next to this page, with … between (so
+  // it fits one line on a phone).
+  const numbers = document.createElement("div");
+  numbers.className = "pager-numbers";
+  let last = -1;
+  for (let n = 0; n < pages; n++) {
+    if (pages > 7 && n > 0 && n < pages - 1 && Math.abs(n - pageShown) > 1) continue;
+    if (n - last > 1) numbers.append(Object.assign(document.createElement("span"), { className: "muted", textContent: "…" }));
+    last = n;
+    const b = button(String(n + 1), n, "button page-number");
+    if (n === pageShown) {
+      b.setAttribute("aria-current", "page");
+      b.setAttribute("aria-label", `Page ${n + 1}, shown now`);
+    } else b.setAttribute("aria-label", `Page ${n + 1}`);
+    numbers.append(b);
+  }
+  const arrows = document.createElement("div");
+  arrows.className = "pager-arrows";
+  arrows.append(button("← Previous", pageShown - 1), button("Next →", pageShown + 1));
+  bar.append(numbers, arrows);
+  list.append(bar);
 }
 
 // The pictures grouped by day, newest day first.

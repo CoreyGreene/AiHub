@@ -332,8 +332,16 @@ export function startFrom(recipe) {
     `Settings copied from ${from}. Change anything you like, then Generate. Each new picture still comes out a bit different.` +
     (recipe.complete ? "" : " (This picture is older, so its theme's words and settings are as they are now.)");
   note.hidden = false;
-  fillCustom(true, recipe.custom);
-  location.hash = "#create/custom";
+  // On Advanced with its theme (and the words it was made with), or on
+  // Custom when that theme is gone or it was made there.
+  if (recipe.theme) {
+    pickTheme(recipe.theme);
+    if (recipe.words) setThemeWords(recipe.theme, recipe.words);
+    location.hash = "#create/advanced";
+  } else {
+    fillCustom(true, recipe.custom);
+    location.hash = "#create/custom";
+  }
 }
 
 // --- Add mode: the form makes a workflow item instead of pictures ---
