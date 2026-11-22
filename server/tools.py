@@ -156,6 +156,7 @@ def search(pattern: str, path: str = "") -> tuple[str, str]:
 
 NO_WRITE = {".git", ".venv", "node_modules", "__pycache__"}
 MAX_WRITE = 1_000_000
+RUNNABLE = {".command", ".sh", ".zsh", ".bash"}
 
 
 def _sha(data: bytes) -> str:
@@ -188,6 +189,9 @@ class Changes:
     def write(self, path: Path, text: str) -> str:
         entry = self._entry(path)
         path.write_text(text, encoding="utf-8")
+        # a script (a #! first line, or .command / .sh / .zsh) is marked runnable, so double-clicking it works
+        if text.startswith("#!") or path.suffix in RUNNABLE:
+            path.chmod(path.stat().st_mode | 0o111)
         entry["after"] = _sha(path.read_bytes())
         diff = difflib.unified_diff(entry["before"].splitlines(), text.splitlines(),
                                     "before" if entry["existed"] else "(new file)", path.name, lineterm="", n=2)

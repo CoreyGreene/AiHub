@@ -26,13 +26,17 @@ model's folder, a note, and any extra settings for mlx_lm's server. The first is
 - **Ask → Standard:** the model, your question, Ask (or ⌘ Enter). Asking again carries the conversation on; **New
   conversation** starts fresh. The answer shows its thinking (folded away), then the answer, then the model, time
   and speed. **Stop** stops it; what it wrote so far is kept.
-- **Thinking** (under Model): a model's thinking choices, from `thinking_levels` in `settings.json`. Gemma 4 and
-  Qwen3.5 have On and Off; a model with none hides it.
+- **Ask → Advanced:** the same, with more Thinking levels: Long (no limit), Medium (up to 4,000 thinking tokens),
+  Short (up to 1,000) and Off. Gemma 4 and Qwen3.5 only have thinking on or off, so the budgets are CodeAi's own:
+  when the thinking reaches the budget, CodeAi stops it and has the model answer from its notes (the answer says so).
+- **Thinking** (under Model): a model's thinking choices, from `thinking_levels` in `settings.json` (`where` says
+  which sub-tab shows each). Standard has On and Off; a model with none hides it.
 - **It can look at your files**, read only, in the `folders` listed in `settings.local.json` (Desktop, Documents,
   Downloads): list a folder, find files by name, read a file, search. "Looked at N things" in the answer shows
   what it read.
 - **Can change files** (a switch, off every time the page opens): for that question it may also make and change
-  text files in the same folders (never delete, never inside `.git` or `.venv`). Each file is copied to `backups/`
+  text files in the same folders (never delete, never inside `.git` or `.venv`). Scripts it writes (a `#!` first
+  line, or `.command`, `.sh`, `.zsh`) are marked runnable, so they can be double-clicked. Each file is copied to `backups/`
   first; the answer shows "Changed N files" with each change, and **Undo these changes** puts them all back (a
   file changed again since is left alone).
 - **History:** every conversation (one JSON file each in `history/`), newest first. Open one to carry it on.

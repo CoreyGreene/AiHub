@@ -10,12 +10,15 @@
   "_unload_after_minutes": "Let go of the model when nothing has been asked for this long, so its memory is free. The next question then waits while it loads (20-60 seconds). 0 = as soon as the queue is empty.",
   "unload_after_minutes": 10,
 
-  "_thinking_levels": "The Thinking choices a model can have. A model lists the ones it understands in its own \"thinking\" (first = the default); with none, the page hides the choice. template: what the model's chat template is given.",
+  "_thinking_levels": "The Thinking choices a model can have. A model lists the ones it understands in its own \"thinking\" (the first a tab shows = the default there); with none, the page hides the choice. template: what the model's chat template is given. where: which Ask tab shows it (standard, advanced, both). budget: the most thinking tokens before CodeAi stops the thinking and has it answer with what it has (0 or none = no limit). Short, Medium and Long are CodeAi's own: Gemma 4 and Qwen3.5 only have thinking on or off.",
   "thinking_levels": {
-    "on": {"label": "On: thinks first (better, slower)", "template": {"enable_thinking": true}},
-    "off": {"label": "Off: answers straight away", "template": {"enable_thinking": false}},
+    "on": {"label": "On: thinks first (better, slower)", "template": {"enable_thinking": true}, "where": "standard"},
+    "long": {"label": "Long: thinks as long as it likes", "template": {"enable_thinking": true}, "where": "advanced"},
+    "medium": {"label": "Medium: up to 4,000 thinking tokens (about 4 minutes)", "template": {"enable_thinking": true}, "budget": 4000, "where": "advanced"},
+    "short": {"label": "Short: up to 1,000 thinking tokens (about a minute)", "template": {"enable_thinking": true}, "budget": 1000, "where": "advanced"},
+    "off": {"label": "Off: answers straight away", "template": {"enable_thinking": false}, "where": "both"},
     "high": {"label": "High: thinks the most", "template": {"reasoning_effort": "high"}},
-    "medium": {"label": "Medium", "template": {"reasoning_effort": "medium"}},
+    "medium-effort": {"label": "Medium", "template": {"reasoning_effort": "medium"}},
     "low": {"label": "Low: thinks the least", "template": {"reasoning_effort": "low"}}
   },
 

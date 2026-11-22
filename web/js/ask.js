@@ -1,5 +1,6 @@
 // The Ask tab: pick a model, ask, and watch the answer being written. Asking again carries the conversation on;
 // "New conversation" starts a fresh one. The address is #ask/<conversation>, so History can open one here.
+// Standard and Advanced are the same form; Advanced adds more Thinking levels (#ask/advanced/<conversation>).
 
 import { render } from "./markdown.js";
 import { refreshStatus } from "./status.js";
@@ -24,6 +25,10 @@ let models = [];
 let conversation = "";   // the open conversation's id ("" = a new one)
 let job = "";            // the question being answered now
 let following = 0;       // bumps when we stop following, so an old poll loop ends
+let mode = "standard";   // the sub-tab: standard or advanced
+
+// The address for a conversation in this sub-tab.
+const address = (conv, inMode = mode) => `#ask${inMode === "advanced" ? "/advanced" : ""}${conv ? `/${conv}` : ""}`;
 
 // ---------- models ----------
 
@@ -44,15 +49,18 @@ export async function loadModels() {
   showNote();
 }
 
-// The model's note, and its Thinking choices (hidden for a model that has none). The choice is kept per model.
+// The model's note, and its Thinking choices for this sub-tab (hidden for a model that has none). The choice is
+// kept per model and sub-tab.
+const thinkingKey = () => `codeai-thinking-${mode}-${modelSelect.value}`;
+
 function showNote() {
   const m = models.find((x) => x.id === modelSelect.value);
   modelNote.textContent = m?.note || "";
-  const levels = m?.thinking || [];
+  const levels = (m?.thinking || []).filter((t) => t.where === "both" || t.where === mode);
   thinkingField.hidden = !levels.length;
   thinkingSelect.innerHTML = "";
   for (const t of levels) thinkingSelect.add(new Option(t.label, t.id));
-  const saved = localStorage.getItem(`codeai-thinking-${m?.id}`);
+  const saved = localStorage.getItem(thinkingKey());
   if (levels.some((t) => t.id === saved)) thinkingSelect.value = saved;
 }
 
@@ -62,7 +70,7 @@ modelSelect.addEventListener("change", () => {
 });
 
 thinkingSelect.addEventListener("change", () => {
-  localStorage.setItem(`codeai-thinking-${modelSelect.value}`, thinkingSelect.value);
+  localStorage.setItem(thinkingKey(), thinkingSelect.value);
 });
 
 // ---------- the conversation on screen ----------
@@ -216,7 +224,9 @@ function clearThread(text = "Your answer will show up here.") {
 function showConversationState() {
   newButton.hidden = !conversation;
   // the Ask tab goes back to this conversation (from History or Settings)
-  document.querySelector('.tab[data-view="ask"]').href = conversation ? `#ask/${conversation}` : "#ask";
+  document.querySelector('.tab[data-view="ask"]').href = address(conversation);
+  // switching sub-tab keeps the conversation
+  document.querySelectorAll("#view-ask [data-subview]").forEach((el) => (el.href = address(conversation, el.dataset.subview)));
   promptLabel.textContent = conversation ? "Ask a follow-up" : "Question";
 }
 
@@ -296,7 +306,7 @@ form.addEventListener("submit", async (event) => {
     title.textContent = text;
   }
   conversation = data.conversation;
-  history.replaceState(null, "", `#ask/${conversation}`);
+  history.replaceState(null, "", address(conversation));
   showConversationState();
   prompt.value = "";
   thread.append(questionEl(text, "you", canEdit.checked));
@@ -319,13 +329,28 @@ stopButton.addEventListener("click", async () => {
 });
 
 newButton.addEventListener("click", () => {
-  location.hash = "#ask";
+  location.hash = address("");
 });
 
 // ---------- opening a conversation (from History, or a reload) ----------
 
-export async function showAsk(convId) {
-  if ((convId || "") === conversation) return;
+function setMode(next) {
+  if (next === mode) return;
+  mode = next;
+  document.querySelectorAll("#view-ask [data-subview]").forEach((el) => {
+    if (el.dataset.subview === mode) el.setAttribute("aria-current", "page");
+    else el.removeAttribute("aria-current");
+  });
+  showNote();
+  showConversationState();
+}
+
+// parts: what follows #ask/ in the address: ["advanced", conversation] or [conversation].
+export async function showAsk(parts = []) {
+  const advanced = parts[0] === "advanced";
+  setMode(advanced ? "advanced" : "standard");
+  const convId = (advanced ? parts[1] : parts[0]) || "";
+  if (convId === conversation) return;
   following++;
   job = "";
   setBusy(false);

@@ -139,6 +139,8 @@ def _answer(job_id: str, job: dict):
         return
     m = settings.model(job["model"]) or {}
     template = settings.template(m, job["thinking_level"])
+    budget = settings.budget(m, job["thinking_level"])
+    thought = 0  # thinking tokens so far, for the budget
     messages = [{"role": "system", "content": tools.instructions(job["can_edit"])}] + _conversation(job["conversation"])
     definitions = tools.DEFINITIONS + (tools.EDIT_DEFINITIONS if job["can_edit"] else [])
     _update(job_id, status="thinking")
@@ -150,7 +152,8 @@ def _answer(job_id: str, job: dict):
         last = step == settings.get()["max_steps"]
         calls, said, first, latest = [], "", 0.0, 0.0
         # the last step has no tools, so it must answer with what it found
-        for kind, piece in models.stream(messages, template, job["stop"], None if last else definitions):
+        cut = (lambda: thought >= budget) if budget else (lambda: False)
+        for kind, piece in models.stream(messages, template, job["stop"], None if last else definitions, cut):
             if kind == "finish":
                 finish = piece
                 break
@@ -164,6 +167,7 @@ def _answer(job_id: str, job: dict):
             with _lock:
                 if kind == "thinking":
                     job["thinking"] += piece
+                    thought += 1
                 else:
                     said += piece
                     job["answer"] += piece
@@ -172,6 +176,17 @@ def _answer(job_id: str, job: dict):
                 job["seconds"] = round(now - started, 1)
                 job["per_second"] = round(count / (writing + now - first), 1) if writing + now - first > 0 else 0
         writing += latest - first
+        if finish == "budget":
+            # its thinking budget is used up: no more thinking for this question; it answers from its notes
+            budget = 0
+            template = settings.template(m, "off")
+            messages.append({"role": "user", "content": (
+                "(Time's up for thinking. Your thinking so far, as notes:)\n\n" + job["thinking"].strip() +
+                "\n\n(Now give your answer to the question above, using these notes. Don't think any more.)")})
+            _update(job_id, status="answering",
+                     message=f"Thinking stopped at its budget ({thought:,} tokens); it answered from its notes.")
+            finish = "stop"
+            continue
         if finish == "stopped" or not calls:
             break
         # it wants to look at something: what it said before (if anything) was it thinking out loud

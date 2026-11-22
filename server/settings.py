@@ -46,9 +46,18 @@ def model(model_id: str) -> dict | None:
 
 
 def thinking(m: dict) -> list[dict]:
-    """The Thinking choices this model has ([] = none): [{id, label}], the first is its default."""
+    """The Thinking choices this model has ([] = none): [{id, label, where}], where = "standard", "advanced" or
+    "both" (which Ask tab shows it). The first one a tab shows is its default there."""
     levels = get()["thinking_levels"]
-    return [{"id": t, "label": levels[t]["label"]} for t in m.get("thinking", []) if t in levels]
+    return [{"id": t, "label": levels[t]["label"], "where": levels[t].get("where", "both")}
+            for t in m.get("thinking", []) if t in levels]
+
+
+def budget(m: dict, level: str) -> int:
+    """The most thinking tokens this level allows (0 = no limit)."""
+    if level not in [t["id"] for t in thinking(m)]:
+        return 0
+    return int(get()["thinking_levels"][level].get("budget", 0))
 
 
 def template(m: dict, level: str) -> dict:

@@ -93,10 +93,11 @@ def ensure(model_id: str, on_stage=lambda stage: None) -> None:
     raise ModelError(f"{m['name']} didn't finish loading in 15 minutes.")
 
 
-def stream(messages: list[dict], template: dict, stop: threading.Event, tools: list | None = None):
+def stream(messages: list[dict], template: dict, stop: threading.Event, tools: list | None = None,
+           cut=lambda: False):
     """Ask the loaded model. Yields ("thinking", text), ("answer", text) and ("tool", call) pieces as they come,
     then ("finish", reason). template: settings for the model's chat template (its thinking level). Stops early
-    when `stop` is set."""
+    when `stop` is set (finish "stopped"), or when cut() says so (finish "budget": its thinking budget is used up)."""
     body = {
         "messages": messages,
         "max_tokens": settings.get()["max_tokens"],
@@ -117,6 +118,9 @@ def stream(messages: list[dict], template: dict, stop: threading.Event, tools: l
         for raw in response:
             if stop.is_set():
                 finish = "stopped"
+                break
+            if cut():
+                finish = "budget"
                 break
             line = raw.decode("utf-8", "replace").strip()
             if not line.startswith("data:"):
