@@ -4,8 +4,23 @@
 
 const escape = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+// The bits of math notation models like to use ($\rightarrow$, $\le$...), as the real symbols.
+const SYMBOLS = {
+  rightarrow: "→", to: "→", Rightarrow: "⇒", leftarrow: "←", Leftarrow: "⇐", leftrightarrow: "↔",
+  le: "≤", leq: "≤", ge: "≥", geq: "≥", ne: "≠", neq: "≠", times: "×", cdot: "·", approx: "≈", pm: "±",
+  infty: "∞", dots: "…", ldots: "…", cdots: "⋯", in: "∈", sum: "∑", sqrt: "√", deg: "°", circ: "°",
+};
+
+function symbols(s) {
+  // $\rightarrow$ on its own, and \rightarrow inside a $...$ bit
+  return s
+    .replace(/\$\s*\\([A-Za-z]+)\s*\$/g, (m, name) => SYMBOLS[name] ?? m)
+    .replace(/\$([^$\n]{1,80})\$/g, (m, inner) =>
+      /\\[A-Za-z]+/.test(inner) ? inner.replace(/\\([A-Za-z]+)\s?/g, (x, name) => (SYMBOLS[name] ? SYMBOLS[name] + " " : name + " ")).replace(/ +/g, " ").trim().replace(/[{}]/g, "") : m);
+}
+
 function inline(s) {
-  return escape(s)
+  return escape(symbols(s))
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>");
@@ -62,7 +77,9 @@ function blocks(text) {
         i++;
       }
       const tag = kind === bullet ? "ul" : "ol";
-      out.push(`<${tag}>${items.map((it) => `<li>${inline(it)}</li>`).join("")}</${tag}>`);
+      // a numbered list keeps its own numbers: "5." after a code window stays 5, not 1
+      const start = tag === "ol" ? parseInt(line.match(/\d+/)?.[0] || "1", 10) : 1;
+      out.push(`<${tag}${start > 1 ? ` start="${start}"` : ""}>${items.map((it) => `<li>${inline(it)}</li>`).join("")}</${tag}>`);
       continue;
     }
     const para = [];

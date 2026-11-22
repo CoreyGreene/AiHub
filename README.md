@@ -35,8 +35,10 @@ model's folder, a note, and any extra settings for mlx_lm's server. The first is
   Downloads): list a folder, find files by name, read a file, search. "Looked at N things" in the answer shows
   what it read.
 - **Can change files** (a switch, off every time the page opens): for that question it may also make and change
-  text files in the same folders (never delete, never inside `.git` or `.venv`). Scripts it writes (a `#!` first
-  line, or `.command`, `.sh`, `.zsh`) are marked runnable, so they can be double-clicked. Each file is copied to `backups/`
+  text files in the same folders (never delete, never inside `.git` or `.venv`). It can mark a file runnable
+  itself (`write_file` with `runnable: true`, or `make_runnable`), and scripts (a `#!` first line, or `.command`,
+  `.sh`, `.zsh`) are marked runnable anyway. For something to double-click, it writes a `.command` launcher (a
+  `.py` opens in an editor on a Mac). "Made runnable" shows in the answer's changes, and Undo takes it back. Each file is copied to `backups/`
   first; the answer shows "Changed N files" with each change, and **Undo these changes** puts them all back (a
   file changed again since is left alone).
 - **History:** every conversation (one JSON file each in `history/`), newest first. Open one to carry it on. **Delete all** (it asks first) clears them, except one still being answered.

@@ -182,7 +182,11 @@ function showChanges(el, a, live) {
   el.querySelector(".changes-label").textContent =
     `${a.undone ? "Undone: changed" : "Changed"} ${files.length} file${files.length > 1 ? "s" : ""}`;
   el.querySelector(".changes-list").innerHTML = files
-    .map((f) => render(`**${tilde(f.path)}**${f.existed ? "" : " (new)"}\n\n\`\`\`diff\n${f.diff || "(no change)"}\n\`\`\``))
+    .map((f) => {
+      const tags = [f.existed ? "" : "new", f.runnable ? "made runnable" : ""].filter(Boolean).join(", ");
+      const head = `**${tilde(f.path)}**${tags ? ` (${tags})` : ""}`;
+      return render(f.diff ? `${head}\n\n\`\`\`diff\n${f.diff}\n\`\`\`` : head);
+    })
     .join("");
   const undo = el.querySelector(".undo-button");
   undo.hidden = live || !!a.undone;

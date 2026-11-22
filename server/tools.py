@@ -186,23 +186,39 @@ class Changes:
         self.files.append(entry)
         return entry
 
-    def write(self, path: Path, text: str) -> str:
+    def write(self, path: Path, text: str, runnable: bool = False) -> str:
         entry = self._entry(path)
         path.write_text(text, encoding="utf-8")
-        # a script (a #! first line, or .command / .sh / .zsh) is marked runnable, so double-clicking it works
-        if text.startswith("#!") or path.suffix in RUNNABLE:
-            path.chmod(path.stat().st_mode | 0o111)
+        # asked for, or a script (a #! first line, or .command / .sh / .zsh): marked runnable
+        made = self._runnable(path, entry) if runnable or text.startswith("#!") or path.suffix in RUNNABLE else False
         entry["after"] = _sha(path.read_bytes())
         diff = difflib.unified_diff(entry["before"].splitlines(), text.splitlines(),
                                     "before" if entry["existed"] else "(new file)", path.name, lineterm="", n=2)
         entry["diff"] = "\n".join(list(diff)[2:])[:20000]
         added = sum(1 for l in entry["diff"].splitlines() if l.startswith("+"))
         removed = sum(1 for l in entry["diff"].splitlines() if l.startswith("-"))
-        return f"+{added} -{removed} lines"
+        return f"+{added} -{removed} lines" + (", made runnable" if made else "")
+
+    def make_runnable(self, path: Path) -> bool:
+        """Mark a file runnable (chmod +x). False if it already was."""
+        entry = self._entry(path)
+        made = self._runnable(path, entry)
+        entry["after"] = _sha(path.read_bytes())
+        entry.setdefault("diff", "")
+        return made
+
+    def _runnable(self, path: Path, entry: dict) -> bool:
+        mode = path.stat().st_mode
+        if mode & 0o111 == 0o111:
+            return False
+        path.chmod(mode | 0o111)
+        entry["runnable"] = True
+        return True
 
     def summary(self) -> list[dict]:
-        """What the page and History keep: path, new or changed, the diff, and what Undo needs."""
-        return [{k: f[k] for k in ("path", "existed", "backup", "after", "diff") if k in f} for f in self.files]
+        """What the page and History keep: path, new or changed, made runnable, the diff, and what Undo needs."""
+        keys = ("path", "existed", "backup", "after", "diff", "runnable")
+        return [{k: f[k] for k in keys if k in f} for f in self.files]
 
 
 def _check_writable(path: Path) -> None:
@@ -214,13 +230,21 @@ def _check_writable(path: Path) -> None:
         raise ToolError(f"{path} isn't a text file: it won't be changed.")
 
 
-def write_file(path: str, content: str, changes: Changes) -> tuple[str, str]:
+def write_file(path: str, content: str, changes: Changes, runnable: bool = False) -> tuple[str, str]:
     file = _resolve(path, new_ok=True)
     _check_writable(file)
     if len(content.encode()) > MAX_WRITE:
         raise ToolError("That's too big to write in one go (1 MB at most).")
-    what = changes.write(file, content)
+    what = changes.write(file, content, runnable in (True, "true", "True", 1))
     return f"Wrote {file} ({what}).", f"wrote it ({what})"
+
+
+def make_runnable(path: str, changes: Changes) -> tuple[str, str]:
+    file = _resolve(path)
+    _check_writable(file)
+    if changes.make_runnable(file):
+        return f"{file} is runnable now.", "made it runnable"
+    return f"{file} was already runnable.", "already runnable"
 
 
 def replace_in_file(path: str, old_text: str, new_text: str, changes: Changes) -> tuple[str, str]:
@@ -271,20 +295,25 @@ DEFINITIONS = [
           "(case doesn't matter).", {"pattern": {"type": "string"}, "path": _PATH}, ["pattern", "path"]),
 ]
 EDIT_DEFINITIONS = [
-    _tool("write_file", "Make a new text file, or replace a whole file's text. Read a file before replacing it.",
-          {"path": _PATH, "content": {"type": "string", "description": "The whole new text of the file"}},
+    _tool("write_file", "Make a new text file, or replace a whole file's text. Read a file before replacing it. "
+          "runnable: true marks it runnable (executable), for a script the user will run or double-click.",
+          {"path": _PATH, "content": {"type": "string", "description": "The whole new text of the file"},
+           "runnable": {"type": "boolean", "description": "Mark the file runnable (executable)"}},
           ["path", "content"]),
+    _tool("make_runnable", "Mark a file as runnable (executable, like chmod +x): a script or a .command file the "
+          "user can double-click. write_file can do it too, with runnable: true.", {"path": _PATH}, ["path"]),
     _tool("replace_in_file", "Change part of a text file: old_text (copied exactly from the file, found once) "
           "becomes new_text. Best for small changes.",
           {"path": _PATH, "old_text": {"type": "string"}, "new_text": {"type": "string"}},
           ["path", "old_text", "new_text"]),
 ]
 _RUN = {"list_files": list_files, "find_files": find_files, "read_file": read_file, "search": search}
-_EDIT = {"write_file": write_file, "replace_in_file": replace_in_file}
-_KNOWN = {"path", "name", "pattern", "start_line", "end_line", "content", "old_text", "new_text"}
+_EDIT = {"write_file": write_file, "replace_in_file": replace_in_file, "make_runnable": make_runnable}
+_KNOWN = {"path", "name", "pattern", "start_line", "end_line", "content", "old_text", "new_text", "runnable"}
 _ALIASES = {"folder": "path", "dir": "path", "directory": "path", "file": "path", "file_path": "path",
             "filename": "path", "query": "pattern", "regex": "pattern", "text": "content",
-            "old": "old_text", "new": "new_text", "old_string": "old_text", "new_string": "new_text"}
+            "old": "old_text", "new": "new_text", "old_string": "old_text", "new_string": "new_text",
+            "executable": "runnable"}
 
 
 def run(name: str, arguments: str, changes: Changes | None = None) -> tuple[str, str, bool]:
@@ -317,10 +346,18 @@ def instructions(can_edit: bool = False) -> str:
     allowed = "\n".join(f"- {f['name']}: {f['path']}" for f in folders()) or "- (none)"
     if can_edit:
         rights = (
-            "For this question you may also change files, with write_file and replace_in_file, inside the same "
-            "folders. Read a file before changing it, change only what the question needs, and prefer "
-            "replace_in_file for small changes. Nothing can be deleted. When you're done, say which files you "
-            "changed and what you changed in each."
+            "For this question you may also change files, with write_file, replace_in_file and make_runnable, "
+            "inside the same folders. Read a file before changing it, change only what the question needs, and "
+            "prefer replace_in_file for small changes. Nothing can be deleted. When you're done, say which files "
+            "you changed and what you changed in each.\n"
+            "Runnable files: you can mark a file runnable (executable) yourself: write_file with runnable: true, or "
+            "make_runnable for a file that's already there. Scripts with a #! first line, and .command, .sh and "
+            ".zsh files, are marked runnable anyway. On this Mac, double-clicking a .py file opens it in an editor, "
+            "so when the user wants something to run with a double-click, also write a .command file (#!/bin/bash, "
+            "then the command, e.g. cd to the script's folder and run python3 on it) and mark it runnable; that's "
+            "the file they double-click. Don't send them to Automator or the Terminal to do it. python3 on this Mac is "
+            "Python 3.12 (Homebrew, with tkinter for windows and pop-ups): use python3, never /usr/bin/python3 "
+            "(macOS's old 3.9)."
         )
     else:
         rights = ("You can't change, move or delete anything: if the question needs a change, show it (the code "
