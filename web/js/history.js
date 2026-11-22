@@ -2,6 +2,9 @@
 // page, no pop-ups).
 
 const list = document.getElementById("history-list");
+const deleteAll = document.getElementById("delete-all");
+const askAll = document.getElementById("delete-all-ask");
+const askAllText = document.getElementById("delete-all-text");
 
 function when(seconds) {
   return new Date(seconds * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
@@ -37,7 +40,10 @@ function askToDelete(el, c) {
     const res = await fetch(`api/history/${c.id}`, { method: "DELETE" });
     if (res.ok) {
       el.remove();
-      if (!list.children.length) list.innerHTML = `<p class="muted">No conversations yet.</p>`;
+      if (!list.querySelector(".history-row")) {
+        list.innerHTML = `<p class="muted">No conversations yet.</p>`;
+        deleteAll.hidden = true;
+      }
       return;
     }
     const error = box.querySelector(".error-line");
@@ -56,9 +62,38 @@ export async function loadHistory() {
     ]);
     const names = Object.fromEntries(models.models.map((m) => [m.id, m.name]));
     list.innerHTML = "";
+    askAll.hidden = true;
+    deleteAll.hidden = !convs.length;
     if (!convs.length) list.innerHTML = `<p class="muted">No conversations yet.</p>`;
     for (const c of convs) list.append(row(c, names));
   } catch {
     list.innerHTML = `<p class="muted">Can't reach the server.</p>`;
   }
 }
+
+// Delete all: asks first, in the page.
+deleteAll.addEventListener("click", () => {
+  const count = list.querySelectorAll(".history-row").length;
+  askAll.querySelectorAll("button").forEach((b) => (b.hidden = false));
+  askAllText.textContent = `Delete all ${count} conversation${count === 1 ? "" : "s"} for good? One still being answered is kept.`;
+  askAll.hidden = false;
+});
+
+document.getElementById("delete-all-no").addEventListener("click", () => (askAll.hidden = true));
+
+document.getElementById("delete-all-yes").addEventListener("click", async (event) => {
+  event.target.disabled = true;
+  const res = await fetch("api/history", { method: "DELETE" }).catch(() => null);
+  event.target.disabled = false;
+  if (!res?.ok) {
+    askAllText.textContent = "That didn't work. Is CodeAi still running?";
+    return;
+  }
+  const { kept } = await res.json();
+  await loadHistory();
+  if (kept) {
+    askAllText.textContent = `Kept ${kept}: it's still being answered.`;
+    askAll.hidden = false;
+    askAll.querySelectorAll("button").forEach((b) => (b.hidden = true));
+  }
+});

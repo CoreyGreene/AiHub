@@ -404,3 +404,8 @@ select.text-input { appearance: auto; }
 .diff-add { color: #8fdc9a; }
 .diff-del { color: #ff9b9b; }
 .diff-hunk { color: var(--muted); }
+
+/* History: its title with Delete all beside it. */
+.history-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.history-head h2 { margin: 0; }
+.delete-all-ask { margin-bottom: 12px; padding: 12px 14px; border: 1px solid #7a3a3a; border-radius: 10px; }

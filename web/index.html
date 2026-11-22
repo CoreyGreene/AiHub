@@ -78,7 +78,15 @@
 
   <main id="view-history" class="view" hidden>
     <div class="card">
-      <h2>Past conversations</h2>
+      <div class="history-head">
+        <h2>Past conversations</h2>
+        <button id="delete-all" type="button" class="button small-button danger" hidden>Delete all</button>
+      </div>
+      <div id="delete-all-ask" class="history-ask delete-all-ask" hidden>
+        <p id="delete-all-text"></p>
+        <button id="delete-all-yes" type="button" class="button small-button danger">Yes, delete them all</button>
+        <button id="delete-all-no" type="button" class="button small-button">Keep them</button>
+      </div>
       <div id="history-list" class="history-list"><p class="muted">Loading…</p></div>
     </div>
   </main>

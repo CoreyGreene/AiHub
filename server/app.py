@@ -119,6 +119,19 @@ async def history_one(conv_id: str) -> dict:
     return {**conv, "job": jobs.for_conversation(conv_id)}
 
 
+@app.delete("/api/history")
+async def history_delete_all() -> dict:
+    """Delete every conversation, except one still being answered (stop it first). Their file backups stay, so a
+    change can still be put back by hand from backups/."""
+    deleted = kept = 0
+    for c in history.listing():
+        if jobs.for_conversation(c["id"]):
+            kept += 1
+        elif history.delete(c["id"]):
+            deleted += 1
+    return {"deleted": deleted, "kept": kept}
+
+
 @app.delete("/api/history/{conv_id}")
 async def history_delete(conv_id: str) -> dict:
     if jobs.for_conversation(conv_id):

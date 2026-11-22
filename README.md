@@ -39,7 +39,7 @@ model's folder, a note, and any extra settings for mlx_lm's server. The first is
   line, or `.command`, `.sh`, `.zsh`) are marked runnable, so they can be double-clicked. Each file is copied to `backups/`
   first; the answer shows "Changed N files" with each change, and **Undo these changes** puts them all back (a
   file changed again since is left alone).
-- **History:** every conversation (one JSON file each in `history/`), newest first. Open one to carry it on.
+- **History:** every conversation (one JSON file each in `history/`), newest first. Open one to carry it on. **Delete all** (it asks first) clears them, except one still being answered.
 - **Settings (gear):** which model is loaded, a button to let it go, and the queue with a Stop for each question.
 - **The top line:** the model loaded, the GPU memory in use (whole Mac) and the model's share, and the queue.
 
@@ -73,6 +73,7 @@ The page uses it, and so will Claude (an MCP connector, next).
 | `GET /api/history` | Every conversation, newest first (no messages) |
 | `GET /api/history/{id}` | One conversation with its messages, and `job` if it's still being answered |
 | `DELETE /api/history/{id}` | Delete a conversation |
+| `DELETE /api/history` | Delete every conversation (one still being answered is kept): `{deleted, kept}` |
 | `POST /api/history/{id}/undo/{index}` | Put back the files answer number `index` changed |
 | `POST /api/model/unload` | Let go of the model now |
 
