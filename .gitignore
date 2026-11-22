@@ -1,0 +1,20 @@
+# Like ImageAi: nothing private, nothing big.
+.venv/
+__pycache__/
+*.pyc
+
+# Your conversations, the model's log and this machine's settings (model folders) stay on this machine.
+history/
+backups/
+logs/
+*.local.json
+.env
+*.log
+
+# Notes for this machine's own AI helper: kept local. AGENTS.md is the shared overview.
+CLAUDE.md
+.claude/
+
+.DS_Store
+.vscode/
+.idea/

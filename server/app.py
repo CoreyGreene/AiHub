@@ -1,0 +1,156 @@
+"""The web server: serves the page in web/ and a small JSON API under /api.
+
+The same API is for the page and, later, for Claude (an MCP connector that calls it): ask, follow the answer, see the
+queue, stop, and read past conversations.
+"""
+
+import time
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+
+from . import history, jobs, memory, models, settings, tools
+
+WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+# Changes on every server start: the page asks for app.css and main.js with it attached, so a restart always gets
+# fresh files, never old cached ones.
+STARTED = str(int(time.time()))
+
+app = FastAPI(title="CodeAi")
+
+
+@app.middleware("http")
+async def no_stale_page(request, call_next):
+    response = await call_next(request)
+    if not request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+@app.get("/", response_class=HTMLResponse)
+async def page() -> str:
+    return (WEB_DIR / "index.html").read_text(encoding="utf-8").replace("{{v}}", STARTED)
+
+
+@app.get("/api/status")
+async def status() -> dict:
+    """The line at the top: memory, the model in memory, and the queue."""
+    return {"memory": memory.status(), "model": models.loaded(), "queue": jobs.queue()}
+
+
+@app.get("/api/models")
+async def model_list() -> dict:
+    found = [{"id": m["id"], "name": m["name"], "note": m.get("note", ""), "thinking": settings.thinking(m)}
+             for m in settings.models()]
+    return {"models": found, "default": found[0]["id"] if found else None,
+            "folders": tools.folders()}
+
+
+class AskRequest(BaseModel):
+    prompt: str
+    model: str = ""
+    conversation: str = ""  # empty = a new conversation
+    source: str = "you"     # who's asking: "you" (the page) or "claude"
+    thinking: str = ""      # the model's thinking level (GET /api/models lists each model's); "" = its default
+    can_edit: bool = False  # may it change files for this question (backed up first; Undo puts them back)
+
+
+@app.post("/api/ask")
+async def ask(req: AskRequest) -> dict:
+    """Ask a question, in a new conversation or to carry one on. Answers {job, conversation} at once; follow the
+    answer with GET /api/jobs/{job}."""
+    prompt = req.prompt.strip()
+    if not prompt:
+        raise HTTPException(400, "Type a question first.")
+    model_id = req.model or (settings.models() or [{}])[0].get("id")
+    if not model_id or settings.model(model_id) is None:
+        raise HTTPException(400, "That model isn't on this computer.")
+    if req.conversation:
+        if history.get(req.conversation) is None:
+            raise HTTPException(404, "That conversation is gone.")
+        if jobs.for_conversation(req.conversation):
+            raise HTTPException(409, "It's still answering the last question in this conversation.")
+        conv_id = req.conversation
+    else:
+        conv_id = history.create(prompt, model_id)["id"]
+    source = "claude" if req.source == "claude" else "you"
+    history.add(conv_id, {"role": "user", "content": prompt, "from": source, "can_edit": req.can_edit,
+                          "time": time.time()})
+    try:
+        job_id = jobs.submit(conv_id, model_id, prompt, source, req.thinking, req.can_edit)
+    except jobs.QueueFull as err:
+        raise HTTPException(429, str(err))
+    return {"job": job_id, "conversation": conv_id}
+
+
+@app.get("/api/jobs/{job_id}")
+async def job(job_id: str) -> dict:
+    found = jobs.status(job_id)
+    if found is None:
+        raise HTTPException(404, "No such question (finished ones are forgotten after a while: see History).")
+    return found
+
+
+@app.get("/api/queue")
+async def queue() -> list:
+    return jobs.listing()
+
+
+@app.delete("/api/queue/{job_id}")
+async def stop(job_id: str) -> dict:
+    if not jobs.remove(job_id):
+        raise HTTPException(404, "That question isn't waiting or being answered.")
+    return {"stopped": True}
+
+
+@app.get("/api/history")
+async def history_list() -> list:
+    return history.listing()
+
+
+@app.get("/api/history/{conv_id}")
+async def history_one(conv_id: str) -> dict:
+    conv = history.get(conv_id)
+    if conv is None:
+        raise HTTPException(404, "That conversation is gone.")
+    return {**conv, "job": jobs.for_conversation(conv_id)}
+
+
+@app.delete("/api/history/{conv_id}")
+async def history_delete(conv_id: str) -> dict:
+    if jobs.for_conversation(conv_id):
+        raise HTTPException(409, "It's still answering in this conversation. Stop it first.")
+    if not history.delete(conv_id):
+        raise HTTPException(404, "That conversation is gone.")
+    return {"deleted": True}
+
+
+@app.post("/api/history/{conv_id}/undo/{index}")
+async def undo(conv_id: str, index: int) -> dict:
+    """Put back the files one answer changed (message number `index` in the conversation)."""
+    conv = history.get(conv_id)
+    if conv is None or not 0 <= index < len(conv["messages"]):
+        raise HTTPException(404, "That answer is gone.")
+    message = conv["messages"][index]
+    if not message.get("changes"):
+        raise HTTPException(400, "That answer didn't change any files.")
+    if message.get("undone"):
+        raise HTTPException(409, "Its changes were already undone.")
+    notes = tools.undo(message["changes"])
+    history.update_message(conv_id, index, undone=True, undo_notes=notes)
+    return {"undone": True, "notes": notes}
+
+
+@app.post("/api/model/unload")
+async def unload() -> dict:
+    """Let go of the model now (Settings), unless it's answering."""
+    if jobs.queue()["working"]:
+        raise HTTPException(409, "It's answering a question. Stop it first.")
+    models.unload()
+    return {"unloaded": True}
+
+
+app.mount("/", StaticFiles(directory=WEB_DIR), name="web")

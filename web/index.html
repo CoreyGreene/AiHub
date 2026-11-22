@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#16161d">
+  <title>CodeAi</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="app.css?v={{v}}">
+</head>
+<body>
+  <header class="top">
+    <h1>CodeAi</h1>
+    <div id="status" class="gpu">Memory: checking…</div>
+    <a href="#settings" class="gear" data-view="settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </a>
+  </header>
+
+  <nav class="tabs">
+    <a href="#ask" class="tab" data-view="ask">Ask</a>
+    <a href="#history" class="tab" data-view="history">History</a>
+  </nav>
+
+  <main id="view-ask" class="view">
+    <nav class="subtabs" aria-label="Ask mode">
+      <a href="#ask" class="subtab" data-subview="standard" aria-current="page">Standard</a>
+    </nav>
+
+    <div class="create-area">
+      <form id="ask-form" class="card" novalidate>
+        <label class="field">
+          <span class="label">Model</span>
+          <select id="model" class="text-input"><option>Loading…</option></select>
+          <span id="model-note" class="hint-line"></span>
+        </label>
+
+        <label class="field" id="thinking-field" hidden>
+          <span class="label">Thinking</span>
+          <select id="thinking" class="text-input"></select>
+        </label>
+
+        <label class="field">
+          <span class="label" id="prompt-label">Question</span>
+          <textarea id="prompt" rows="4" placeholder="How do I write a Python function that reads a JSON file?"></textarea>
+          <span id="prompt-error" class="error-line" hidden></span>
+          <span class="hint-line wide-only">⌘ Enter asks.</span>
+        </label>
+
+        <label class="switch-row edit-switch">
+          <span>
+            <strong>Can change files</strong>
+            <span class="muted small">Lets it make and change files in your folders. Each file is backed up first: Undo puts it back.</span>
+          </span>
+          <input id="can-edit" type="checkbox" role="switch">
+        </label>
+
+        <button id="ask-button" type="submit" class="primary">Ask</button>
+        <button id="new-button" type="button" class="button new-button" hidden>New conversation</button>
+      </form>
+
+      <section class="card result" aria-live="polite">
+        <div class="result-head">
+          <h2 id="result-title">Answer</h2>
+          <button id="stop-button" type="button" class="button small-button" hidden>Stop</button>
+        </div>
+        <div id="thread" class="thread">
+          <p class="empty muted">Your answer will show up here.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <main id="view-history" class="view" hidden>
+    <div class="card">
+      <h2>Past conversations</h2>
+      <div id="history-list" class="history-list"><p class="muted">Loading…</p></div>
+    </div>
+  </main>
+
+  <main id="view-settings" class="view" hidden>
+    <div class="card">
+      <h2>Model</h2>
+      <p id="model-state" class="muted">Checking…</p>
+      <button id="unload-button" type="button" class="button" hidden>Let go of the model (frees its memory)</button>
+      <p id="unload-error" class="error-line" hidden></p>
+    </div>
+    <div class="card">
+      <h2>Queue</h2>
+      <div id="queue-list"><p class="muted">Loading…</p></div>
+    </div>
+  </main>
+
+  <script type="module" src="js/main.js?v={{v}}"></script>
+</body>
+</html>

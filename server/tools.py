@@ -1,0 +1,331 @@
+"""What the model can look at: read-only tools over the folders settings.local.json allows ("folders").
+
+    list_files(path)                     a folder's files and folders
+    find_files(name, path)               files whose name matches (* and ? wildcards), anywhere under a folder
+    read_file(path, start_line, end_line)
+    search(pattern, path)                lines matching a regular expression, in text files under a folder
+
+With "Can change files" on (off by default), two more, each change backed up first so the answer can be undone:
+    write_file(path, content)            make a file, or replace one whole
+    replace_in_file(path, old_text, new_text)
+Nothing is ever deleted. A path must be inside an allowed folder (symlinks followed first, so a link can't lead out).
+"""
+
+import difflib
+import fnmatch
+import hashlib
+import json
+import shutil
+import uuid
+import os
+import re
+from pathlib import Path
+
+from . import settings
+
+SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", ".cache", "build", "DerivedData", ".Trash"}
+MAX_LIST, MAX_FOUND, MAX_MATCHES = 300, 200, 100
+MAX_LINES, MAX_BYTES, SEARCH_FILE_BYTES = 800, 200_000, 2_000_000
+
+
+class ToolError(Exception):
+    pass
+
+
+def folders() -> list[dict]:
+    """The allowed folders: [{name, path}], only those that exist."""
+    out = []
+    for f in settings.get().get("folders", []):
+        path = Path(f["path"]).expanduser().resolve()
+        if path.is_dir():
+            out.append({"name": f.get("name", path.name), "path": str(path)})
+    return out
+
+
+def _resolve(raw: str, new_ok: bool = False) -> Path:
+    roots = [Path(f["path"]) for f in folders()]
+    if not roots:
+        raise ToolError("No folders are allowed (settings.local.json: folders).")
+    raw = (raw or "").strip()
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        # a bare name like "Desktop" or "Desktop/notes.txt": one of the allowed folders by name
+        first, _, rest = raw.partition("/")
+        named = next((Path(f["path"]) for f in folders() if f["name"].lower() == first.lower()), None)
+        path = (named / rest) if named else roots[0] / raw
+    path = path.resolve()
+    if not any(path == r or r in path.parents for r in roots):
+        allowed = ", ".join(f["path"] for f in folders())
+        raise ToolError(f"{path} is outside the folders you may look at ({allowed}).")
+    if not path.exists():
+        if new_ok and path.parent.is_dir():
+            return path
+        raise ToolError(f"{path} doesn't exist." + (" Its folder doesn't either." if new_ok else ""))
+    return path
+
+
+def _size(n: int) -> str:
+    for unit in ("bytes", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            return f"{n:.0f} {unit}" if unit == "bytes" else f"{n:.1f} {unit}"
+        n /= 1024
+
+
+def list_files(path: str = "") -> tuple[str, str]:
+    folder = _resolve(path)
+    if not folder.is_dir():
+        raise ToolError(f"{folder} is a file, not a folder: use read_file.")
+    entries = sorted(folder.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+    entries = [p for p in entries if p.name != ".DS_Store"]
+    lines = []
+    for p in entries[:MAX_LIST]:
+        try:
+            lines.append(f"{p.name}/" if p.is_dir() else f"{p.name}  ({_size(p.stat().st_size)})")
+        except OSError:
+            lines.append(p.name)
+    more = f"\n... and {len(entries) - MAX_LIST} more" if len(entries) > MAX_LIST else ""
+    text = f"{folder}:\n" + ("\n".join(lines) or "(empty)") + more
+    return text, f"{len(entries)} items"
+
+
+def _walk(folder: Path):
+    for root, dirs, files in os.walk(folder):
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not d.startswith("."))
+        for name in sorted(files):
+            yield Path(root) / name
+
+
+def find_files(name: str, path: str = "") -> tuple[str, str]:
+    folder = _resolve(path)
+    pattern = name if any(c in name for c in "*?[") else f"*{name}*"
+    found = []
+    for p in _walk(folder):
+        if fnmatch.fnmatch(p.name.lower(), pattern.lower()):
+            found.append(str(p))
+            if len(found) >= MAX_FOUND:
+                break
+    more = f"\n(stopped at {MAX_FOUND})" if len(found) >= MAX_FOUND else ""
+    return ("\n".join(found) or f"No files named like '{name}' under {folder}.") + more, f"{len(found)} found"
+
+
+def _is_text(path: Path) -> bool:
+    with open(path, "rb") as f:
+        return b"\0" not in f.read(4096)
+
+
+def read_file(path: str, start_line: int = 1, end_line: int = 0) -> tuple[str, str]:
+    file = _resolve(path)
+    if file.is_dir():
+        raise ToolError(f"{file} is a folder: use list_files.")
+    if not _is_text(file):
+        raise ToolError(f"{file} isn't a text file ({_size(file.stat().st_size)}).")
+    lines = file.read_text(encoding="utf-8", errors="replace").splitlines()
+    start = max(int(start_line or 1), 1)
+    end = min(int(end_line or 0) or start + MAX_LINES - 1, start + MAX_LINES - 1, len(lines))
+    body = "\n".join(f"{n:>5}  {lines[n - 1]}" for n in range(start, end + 1))[:MAX_BYTES]
+    note = f"\n(lines {start}-{end} of {len(lines)}; ask for more with start_line)" if end < len(lines) or start > 1 else ""
+    return f"{file}:\n{body}{note}", f"{end - start + 1 if lines else 0} lines"
+
+
+def search(pattern: str, path: str = "") -> tuple[str, str]:
+    folder = _resolve(path)
+    try:
+        regex = re.compile(pattern, re.I)
+    except re.error as err:
+        raise ToolError(f"That pattern isn't a valid regular expression: {err}")
+    files = [folder] if folder.is_file() else _walk(folder)
+    matches = []
+    for p in files:
+        try:
+            if p.stat().st_size > SEARCH_FILE_BYTES or not _is_text(p):
+                continue
+            for n, line in enumerate(p.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+                if regex.search(line):
+                    matches.append(f"{p}:{n}: {line.strip()[:200]}")
+                    if len(matches) >= MAX_MATCHES:
+                        break
+        except OSError:
+            continue
+        if len(matches) >= MAX_MATCHES:
+            break
+    more = f"\n(stopped at {MAX_MATCHES})" if len(matches) >= MAX_MATCHES else ""
+    return ("\n".join(matches) or f"No lines match '{pattern}' under {folder}.") + more, f"{len(matches)} matches"
+
+
+# ---------- changing files (only with "Can change files" on) ----------
+
+NO_WRITE = {".git", ".venv", "node_modules", "__pycache__"}
+MAX_WRITE = 1_000_000
+
+
+def _sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+class Changes:
+    """The files one answer changed, each backed up first (in backups/<id>/), so the answer can be undone."""
+
+    def __init__(self):
+        self.id = uuid.uuid4().hex
+        self.files: list[dict] = []   # {path, existed, backup, after, diff}
+
+    def _entry(self, path: Path) -> dict:
+        """This file's record, made (and the file backed up) the first time this answer changes it."""
+        for f in self.files:
+            if f["path"] == str(path):
+                return f
+        folder = settings.folder("backups_dir") / self.id
+        folder.mkdir(parents=True, exist_ok=True)
+        entry = {"path": str(path), "existed": path.exists(), "backup": "", "before": ""}
+        if path.exists():
+            backup = folder / f"{len(self.files)}-{path.name}"
+            shutil.copy2(path, backup)
+            entry["backup"] = str(backup)
+            entry["before"] = path.read_text(encoding="utf-8", errors="replace")
+        self.files.append(entry)
+        return entry
+
+    def write(self, path: Path, text: str) -> str:
+        entry = self._entry(path)
+        path.write_text(text, encoding="utf-8")
+        entry["after"] = _sha(path.read_bytes())
+        diff = difflib.unified_diff(entry["before"].splitlines(), text.splitlines(),
+                                    "before" if entry["existed"] else "(new file)", path.name, lineterm="", n=2)
+        entry["diff"] = "\n".join(list(diff)[2:])[:20000]
+        added = sum(1 for l in entry["diff"].splitlines() if l.startswith("+"))
+        removed = sum(1 for l in entry["diff"].splitlines() if l.startswith("-"))
+        return f"+{added} -{removed} lines"
+
+    def summary(self) -> list[dict]:
+        """What the page and History keep: path, new or changed, the diff, and what Undo needs."""
+        return [{k: f[k] for k in ("path", "existed", "backup", "after", "diff") if k in f} for f in self.files]
+
+
+def _check_writable(path: Path) -> None:
+    if any(part in NO_WRITE for part in path.parts):
+        raise ToolError(f"{path} is inside a folder that's never changed ({', '.join(sorted(NO_WRITE))}).")
+    if path.is_dir():
+        raise ToolError(f"{path} is a folder.")
+    if path.exists() and not _is_text(path):
+        raise ToolError(f"{path} isn't a text file: it won't be changed.")
+
+
+def write_file(path: str, content: str, changes: Changes) -> tuple[str, str]:
+    file = _resolve(path, new_ok=True)
+    _check_writable(file)
+    if len(content.encode()) > MAX_WRITE:
+        raise ToolError("That's too big to write in one go (1 MB at most).")
+    what = changes.write(file, content)
+    return f"Wrote {file} ({what}).", f"wrote it ({what})"
+
+
+def replace_in_file(path: str, old_text: str, new_text: str, changes: Changes) -> tuple[str, str]:
+    file = _resolve(path)
+    _check_writable(file)
+    text = file.read_text(encoding="utf-8")
+    count = text.count(old_text) if old_text else 0
+    if count == 0:
+        raise ToolError(f"old_text isn't in {file} exactly as given (spaces and line breaks count). Read the file and copy it exactly.")
+    if count > 1:
+        raise ToolError(f"old_text is in {file} {count} times: include more lines around it so it's only once.")
+    what = changes.write(file, text.replace(old_text, new_text, 1))
+    return f"Changed {file} ({what}).", f"changed it ({what})"
+
+
+def undo(files: list[dict]) -> list[str]:
+    """Put an answer's files back as they were. A file changed again since is left alone (and said so)."""
+    notes = []
+    for f in reversed(files):
+        path = Path(f["path"])
+        now = path.read_bytes() if path.exists() else None
+        if now is not None and f.get("after") and _sha(now) != f["after"]:
+            notes.append(f"{path} was changed again since, so it was left as it is.")
+            continue
+        if f["existed"]:
+            shutil.copy2(f["backup"], path)
+            notes.append(f"{path} is back as it was.")
+        elif now is not None:
+            path.unlink()
+            notes.append(f"{path} was new, so it was removed.")
+    return notes
+
+
+def _tool(name, description, properties, required):
+    return {"type": "function", "function": {"name": name, "description": description, "parameters": {
+        "type": "object", "properties": properties, "required": required}}}
+
+
+_PATH = {"type": "string", "description": "A full path (~ is fine) inside an allowed folder"}
+
+DEFINITIONS = [
+    _tool("list_files", "List the files and folders in a folder.", {"path": _PATH}, ["path"]),
+    _tool("find_files", "Find files by name anywhere under a folder. * and ? work as wildcards.",
+          {"name": {"type": "string"}, "path": _PATH}, ["name", "path"]),
+    _tool("read_file", "Read a text file, with line numbers (800 lines at a time).",
+          {"path": _PATH, "start_line": {"type": "integer"}, "end_line": {"type": "integer"}}, ["path"]),
+    _tool("search", "Search text files under a folder (or one file) for lines matching a regular expression "
+          "(case doesn't matter).", {"pattern": {"type": "string"}, "path": _PATH}, ["pattern", "path"]),
+]
+EDIT_DEFINITIONS = [
+    _tool("write_file", "Make a new text file, or replace a whole file's text. Read a file before replacing it.",
+          {"path": _PATH, "content": {"type": "string", "description": "The whole new text of the file"}},
+          ["path", "content"]),
+    _tool("replace_in_file", "Change part of a text file: old_text (copied exactly from the file, found once) "
+          "becomes new_text. Best for small changes.",
+          {"path": _PATH, "old_text": {"type": "string"}, "new_text": {"type": "string"}},
+          ["path", "old_text", "new_text"]),
+]
+_RUN = {"list_files": list_files, "find_files": find_files, "read_file": read_file, "search": search}
+_EDIT = {"write_file": write_file, "replace_in_file": replace_in_file}
+_KNOWN = {"path", "name", "pattern", "start_line", "end_line", "content", "old_text", "new_text"}
+_ALIASES = {"folder": "path", "dir": "path", "directory": "path", "file": "path", "file_path": "path",
+            "filename": "path", "query": "pattern", "regex": "pattern", "text": "content",
+            "old": "old_text", "new": "new_text", "old_string": "old_text", "new_string": "new_text"}
+
+
+def run(name: str, arguments: str, changes: Changes | None = None) -> tuple[str, str, bool]:
+    """Run a tool the model asked for: (result for the model, a short summary for the page, ok). changes: this
+    answer's Changes when it may change files, else None."""
+    try:
+        args = json.loads(arguments or "{}") if isinstance(arguments, str) else dict(arguments or {})
+        allowed = {**_RUN, **(_EDIT if changes else {})}
+        if name in _EDIT and not changes:
+            raise ToolError("Changing files is switched off for this question: say what you would change instead.")
+        if name not in allowed:
+            raise ToolError(f"There's no tool called {name}. The tools: {', '.join(allowed)}.")
+        # small models sometimes name an argument differently ("folder" for "path"): read it the way it was meant
+        args = {_ALIASES.get(k, k): v for k, v in args.items()}
+        args = {k: v for k, v in args.items() if k in _KNOWN}
+        if name in _EDIT:
+            args["changes"] = changes
+        text, summary = allowed[name](**args)
+        return text, summary, True
+    except ToolError as err:
+        return f"Error: {err}", str(err), False
+    except (TypeError, ValueError) as err:
+        return f"Error: those arguments don't fit {name} ({err}).", "wrong arguments", False
+    except OSError as err:
+        return f"Error: {err.strerror or err}", err.strerror or str(err), False
+
+
+def instructions(can_edit: bool = False) -> str:
+    """What the model is told about itself and the folders, at the start of every question."""
+    allowed = "\n".join(f"- {f['name']}: {f['path']}" for f in folders()) or "- (none)"
+    if can_edit:
+        rights = (
+            "For this question you may also change files, with write_file and replace_in_file, inside the same "
+            "folders. Read a file before changing it, change only what the question needs, and prefer "
+            "replace_in_file for small changes. Nothing can be deleted. When you're done, say which files you "
+            "changed and what you changed in each."
+        )
+    else:
+        rights = ("You can't change, move or delete anything: if the question needs a change, show it (the code "
+                  "or the new text) and say where it goes.")
+    return (
+        "You are a helpful coding assistant running locally on the user's Mac. You can look at files on this Mac "
+        "with your tools (list_files, find_files, read_file, search), but only inside these folders:\n"
+        f"{allowed}\n"
+        f"{rights} When a question is about the user's files or projects, look first instead of guessing or "
+        "telling them to do it themselves; say which files you looked at. When you write code, put it in a fenced "
+        "code block with its language."
+    )

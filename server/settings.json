@@ -1,0 +1,43 @@
+{
+  "_about": "How CodeAi runs. To change something on this machine only, put just those keys in server/settings.local.json; it is never committed. The model list lives there too, since it holds this machine's folders.",
+
+  "_models": "The models you can pick, first = the default. Each: id (short, no spaces), name (shown on the page), path (the model's folder; ~ is fine), note (shown under the picker), thinking (which thinking_levels it has), server_args (extra settings for mlx_lm's server, e.g. [\"--kv-bits\", \"8\"]).",
+  "models": [],
+
+  "_model_port": "The model runs in its own program (mlx_lm's server) on this port, on this computer only.",
+  "model_port": 8201,
+
+  "_unload_after_minutes": "Let go of the model when nothing has been asked for this long, so its memory is free. The next question then waits while it loads (20-60 seconds). 0 = as soon as the queue is empty.",
+  "unload_after_minutes": 10,
+
+  "_thinking_levels": "The Thinking choices a model can have. A model lists the ones it understands in its own \"thinking\" (first = the default); with none, the page hides the choice. template: what the model's chat template is given.",
+  "thinking_levels": {
+    "on": {"label": "On: thinks first (better, slower)", "template": {"enable_thinking": true}},
+    "off": {"label": "Off: answers straight away", "template": {"enable_thinking": false}},
+    "high": {"label": "High: thinks the most", "template": {"reasoning_effort": "high"}},
+    "medium": {"label": "Medium", "template": {"reasoning_effort": "medium"}},
+    "low": {"label": "Low: thinks the least", "template": {"reasoning_effort": "low"}}
+  },
+
+  "_folders": "Folders the model may look at (read only), each {name, path}. Set in settings.local.json, since they're this machine's paths.",
+  "folders": [],
+
+  "_max_steps": "Most times the model may use a tool (look at a folder, read a file...) for one question.",
+  "max_steps": 30,
+
+  "_max_tokens": "Longest answer, thinking included, in tokens.",
+  "max_tokens": 32000,
+
+  "_memory": "prompt_cache_size: past conversations the model server keeps ready (each takes memory; the model tests showed 10 can grow to over 100 GB). cache_gb: MLX's cache of freed memory.",
+  "prompt_cache_size": 2,
+  "cache_gb": 4,
+
+  "_max_queue": "Most questions waiting or being answered at once.",
+  "max_queue": 100,
+
+  "_backups_dir": "A copy of every file the model changes, taken just before, so its answer can be undone.",
+  "backups_dir": "backups",
+
+  "history_dir": "history",
+  "logs_dir": "logs"
+}

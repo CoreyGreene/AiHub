@@ -1,0 +1,406 @@
+/* Mobile first, like ImageAi (most of this file is ImageAi's own styles, so the two look the same). */
+
+:root {
+  --bg: #16161d;
+  --card: #20202a;
+  --line: #34343f;
+  --text: #ececf1;
+  --muted: #9a9aa8;
+  --accent: #7c6cff;
+  --accent-text: #ffffff;
+  --note-bg: #2a2740;
+  --radius: 14px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  padding: 0 16px calc(24px + env(safe-area-inset-bottom));
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0 4px;
+}
+h1 { margin: 0; font-size: 1.4rem; }
+h2 { margin: 0 0 12px; font-size: 1rem; color: var(--muted); font-weight: 600; }
+
+/* Graphics card line. Phone: its own row under the title. Desktop: between
+   the title and the gear. */
+.top { flex-wrap: wrap; column-gap: 16px; }
+.gpu {
+  order: 3;
+  flex-basis: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px 10px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding-bottom: 4px;
+}
+.gpu-name { grid-column: 1 / -1; color: var(--text); font-weight: 600; }
+.gpu-meter {
+  position: relative;
+  width: 90px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+}
+.gpu-meter span { position: absolute; inset: 0 auto 0 0; border-radius: 4px; }
+.gpu-meter .used { background: #6b6880; }
+.gpu-meter .mine { background: var(--accent); }
+.gpu-queue {
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+}
+.gpu-queue.busy { border-color: var(--accent); color: var(--text); }
+
+/* Settings gear, top right. */
+.gear {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-right: -12px;
+  color: var(--muted);
+  border-radius: 10px;
+}
+.gear:hover, .gear[aria-current] { color: var(--text); }
+
+/* Create / Library tabs. */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.tab {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+}
+.tab:hover { color: var(--text); }
+.tab[aria-current] { color: var(--text); border-bottom-color: var(--accent); }
+
+main { display: grid; gap: 16px; }
+main[hidden] { display: none; }
+
+/* Standard / Advanced / Custom inside Create (and Edit / New inside Theme):
+   a smaller switch, so it reads as part of the tab rather than another row
+   of main tabs. */
+.subtabs {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.subtab {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  border-radius: 8px;
+}
+.subtab:hover { color: var(--text); }
+.subtab[aria-current] { color: var(--text); background: var(--note-bg); }
+
+.create-area { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.create-area > * { min-width: 0; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.muted { color: var(--muted); margin: 0; }
+
+.hint-line { margin: 6px 0 0; min-height: 1.2em; font-size: 0.85rem; color: var(--muted); }
+
+.field { display: block; margin-bottom: 16px; }
+.label { display: block; font-weight: 600; margin-bottom: 8px; }
+.text-input { min-height: 48px; }
+.optional { font-weight: 400; color: var(--muted); }
+.error-line { display: block; margin-top: 6px; font-size: 0.9rem; color: #ff9b9b; }
+.error-line[hidden] { display: none; }
+
+textarea,
+.text-input {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  font-size: 16px; /* 16px stops iPhone from zooming in on focus */
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+textarea:focus,
+.text-input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+button.primary {
+  width: 100%;
+  min-height: 48px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--accent-text);
+  background: var(--accent);
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+button.primary:disabled { opacity: 0.6; cursor: default; }
+
+.result-box {
+  min-height: 200px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.note {
+  background: var(--note-bg);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 0;
+}
+.note strong { display: block; margin-bottom: 4px; }
+
+/* Waiting for a picture: a spinning ring. */
+.working { display: grid; justify-items: center; gap: 14px; color: var(--muted); }
+.working p { margin: 0; }
+.spinner {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 15%, var(--accent));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.5s; } }
+
+/* The finished picture with its Download button. */
+.done { display: grid; gap: 12px; width: 100%; }
+.picture { display: block; width: 100%; height: auto; border-radius: 8px; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.actions.three { grid-template-columns: 1fr 1fr 1fr; }
+.edit-box { display: grid; gap: 8px; }
+.edit-box[hidden] { display: none; }
+.button {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--text);
+  background: none;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.button:hover { border-color: var(--accent); }
+
+/* Progress bar under the spinner while drawing. */
+.working { width: min(100%, 320px); }
+.bar { width: 100%; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bar[hidden] { display: none; }
+.bar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.4s; }
+
+.small { font-size: 0.85rem; }
+.small-button { min-height: 40px; font-size: 0.9rem; padding: 0 16px; }
+.button.danger { color: #ffb3b3; border-color: #7a3a3a; }
+.button.danger:hover { border-color: #ff8080; }
+.button:disabled { opacity: 0.5; cursor: default; }
+select.text-input { appearance: auto; }
+.new-button { width: 100%; margin-top: 10px; }
+.new-button[hidden], [hidden] { display: none !important; }
+.wide-only { display: none; }
+
+/* ---------- CodeAi: the conversation ---------- */
+
+.result { display: flex; flex-direction: column; min-width: 0; }
+.result-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; margin-bottom: 8px; }
+.result-head h2 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thread { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; min-width: 0; }
+.thread .empty { padding: 40px 0; text-align: center; }
+
+/* Your question: a quiet box on the right. */
+.question {
+  justify-self: end;
+  max-width: 85%;
+  background: var(--note-bg);
+  border-radius: 12px 12px 4px 12px;
+  padding: 10px 14px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.question .from { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 2px; }
+
+/* The answer: full width, written like a page. */
+.answer { min-width: 0; overflow-wrap: anywhere; }
+.answer > :first-child { margin-top: 0; }
+.answer > :last-child { margin-bottom: 0; }
+.answer p, .answer ul, .answer ol { margin: 0 0 10px; }
+.answer ul, .answer ol { padding-left: 22px; }
+.answer h3, .answer h4 { margin: 14px 0 6px; font-size: 1rem; }
+.answer code {
+  font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+.answer.failed { color: #ff9b9b; }
+.answer-meta { margin-top: 6px; font-size: 0.8rem; color: var(--muted); }
+.answer-meta .note-line { display: block; color: #e8c37a; }
+
+/* The code window: its language and a Copy button on top. */
+.code {
+  margin: 0 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0f0f14;
+}
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  background: #1a1a22;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.code-head .button { min-height: 32px; padding: 0 12px; font-size: 0.8rem; border-radius: 7px; }
+.code pre { margin: 0; padding: 12px 14px; overflow-x: auto; }
+.code pre code {
+  font: 0.88rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: none;
+  border: 0;
+  padding: 0;
+  white-space: pre;
+  color: #e4e4ee;
+}
+
+/* Thinking: folded away, open it to read. */
+.thinking { font-size: 0.85rem; color: var(--muted); }
+.thinking summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; gap: 8px; }
+.thinking-text { white-space: pre-wrap; max-height: 300px; overflow-y: auto; padding: 8px 12px; border-left: 2px solid var(--line); margin: 4px 0 0; }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.25; } }
+.waiting-line { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.waiting-line .spinner { width: 22px; height: 22px; }
+
+/* History: one row per conversation. */
+.history-list { display: grid; gap: 8px; }
+.history-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.history-row:hover { border-color: var(--accent); }
+.history-open { color: var(--text); text-decoration: none; min-width: 0; }
+.history-open strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-open span { font-size: 0.85rem; color: var(--muted); }
+.history-actions { display: flex; gap: 6px; }
+.history-ask { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.history-ask p { margin: 0; flex: 1 1 100%; }
+
+/* Settings: the queue. */
+.queue-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.queue-row:first-child { border-top: 0; }
+.queue-row p { margin: 0; overflow-wrap: anywhere; }
+#view-settings .card > .button { width: 100%; margin-top: 12px; }
+
+@media (min-width: 800px) {
+  body { padding: 0 32px 32px; }
+  .subtabs { width: 480px; }
+  .gpu { order: 0; flex: 1; flex-basis: auto; justify-content: end; padding: 0; }
+  .gpu-name { grid-column: auto; }
+  .gpu { grid-template-columns: auto auto auto auto; }
+  .gpu-queue { grid-column: auto; }
+  .create-area { grid-template-columns: minmax(340px, 2fr) minmax(0, 3fr); align-items: start; gap: 24px; }
+  .create-area textarea { min-height: 200px; }
+  .create-area > form { position: sticky; top: 16px; }
+  .result { min-height: calc(100vh - 230px); }
+  .wide-only { display: block; }
+}
+
+/* Tables in answers: scroll sideways on a phone rather than squash. */
+.table-wrap { overflow-x: auto; margin: 0 0 12px; }
+.answer table { border-collapse: collapse; font-size: 0.9rem; }
+.answer th, .answer td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+.answer th { background: #1a1a22; }
+
+/* What it looked at (files, folders, searches). */
+.steps-list { margin: 4px 0 0; padding: 6px 12px 6px 30px; border-left: 2px solid var(--line); max-height: 260px; overflow-y: auto; }
+.steps-list li { overflow-wrap: anywhere; }
+.steps-list .step-failed { color: #e8c37a; }
+/* A small arrow so the folded parts look openable. */
+.thinking summary { list-style: none; }
+.thinking summary::-webkit-details-marker { display: none; }
+.thinking summary::before { content: "▸"; font-size: 0.8em; transition: transform 0.15s; }
+.thinking[open] > summary::before { transform: rotate(90deg); }
+
+/* The "Can change files" switch (ImageAi's switch). */
+.switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; cursor: pointer; margin-bottom: 12px; }
+.switch-row > span > * { display: block; }
+.switch-row input {
+  appearance: none; flex: none; width: 52px; height: 32px; margin: 0; border-radius: 16px;
+  background: var(--line); position: relative; cursor: pointer; transition: background 0.2s;
+}
+.switch-row input::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--text); transition: transform 0.2s;
+}
+.switch-row input:checked { background: var(--accent); }
+.switch-row input:checked::after { transform: translateX(20px); }
+.switch-row input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The files an answer changed. */
+.changes { margin-top: 10px; padding: 10px 12px; border: 1px solid #5a4a2a; border-radius: 10px; background: #221f18; }
+.changes .changes-label { color: #e8c37a; font-weight: 600; }
+.changes-list { margin-top: 8px; font-size: 0.9rem; }
+.changes-list p { margin: 8px 0 4px; }
+.changes-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
+.diff-add { color: #8fdc9a; }
+.diff-del { color: #ff9b9b; }
+.diff-hunk { color: var(--muted); }
