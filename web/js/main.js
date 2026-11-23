@@ -3,13 +3,15 @@
 import { startStatus } from "./status.js";
 import { loadModels, showAsk } from "./ask.js";
 import { loadHistory } from "./history.js";
+import { showBulk } from "./bulk.js";
 import { loadSettings } from "./settings.js";
 
 // Tabs: Ask, History, and the Settings gear. The address ends in #ask, #history and so on, so the phone's Back
 // button works too. #ask/<conversation> opens one conversation in Ask; #ask/advanced and
-// #ask/advanced/<conversation> are the same in Ask's Advanced sub-tab.
+// #ask/advanced/<conversation> are the same in Ask's Advanced sub-tab. #bulk/<run> opens one bulk run.
 const onShow = {
   ask: (parts) => showAsk(parts),
+  bulk: (parts) => showBulk(parts),
   history: loadHistory,
   settings: loadSettings,
 };

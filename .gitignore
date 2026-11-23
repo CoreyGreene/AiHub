@@ -5,7 +5,9 @@ __pycache__/
 
 # Your conversations, the model's log and this machine's settings (model folders) stay on this machine.
 history/
+bulk/
 backups/
+test-runs/
 logs/
 *.local.json
 .env

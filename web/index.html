@@ -23,6 +23,7 @@
 
   <nav class="tabs">
     <a href="#ask" class="tab" data-view="ask">Ask</a>
+    <a href="#bulk" class="tab" data-view="bulk">Bulk</a>
     <a href="#history" class="tab" data-view="history">History</a>
   </nav>
 
@@ -74,6 +75,82 @@
         </div>
       </section>
     </div>
+  </main>
+
+  <main id="view-bulk" class="view" hidden>
+    <div id="bulk-start-area" class="create-area">
+      <form id="bulk-form" class="card" novalidate>
+        <h2>New bulk run</h2>
+        <p class="muted small bulk-intro">One prompt over a list of items. The bulk file holds both: the prompt (with
+          {field} for each item's parts) and the items. Each item is asked on its own, with a fresh memory, so the
+          500th is as careful as the first.</p>
+        <div class="field">
+          <span class="label">Bulk file (JSON)</span>
+          <div class="bulk-file-row">
+            <label class="button small-button file-button">Choose a JSON file<input id="bulk-file" type="file" accept=".json,application/json" hidden></label>
+            <button id="bulk-example" type="button" class="button small-button">Show an example</button>
+          </div>
+          <textarea id="bulk-items" rows="10" class="mono" placeholder='{"prompt": "Read {file} and say in one line what it does.", "items": [{"file": "a.yarn"}]}'></textarea>
+          <span id="bulk-items-note" class="hint-line"></span>
+          <span class="hint-line">examples/ in the CodeAi folder has more, and its README lists everything a file can say.</span>
+        </div>
+        <p class="muted small">Pick the folder it works in. The file's model and thinking fill in the rest; change them here if you like.</p>
+        <label class="field">
+          <span class="label">Folder</span>
+          <input id="bulk-folder" class="text-input" list="bulk-folders" placeholder="~/Documents/repos/3dspacegame/dialogue" autocomplete="off">
+          <datalist id="bulk-folders"></datalist>
+          <span class="hint-line">It looks only in this folder (inside your allowed ones).</span>
+        </label>
+        <label class="field">
+          <span class="label">Model</span>
+          <select id="bulk-model" class="text-input"></select>
+        </label>
+        <label class="field" id="bulk-thinking-field" hidden>
+          <span class="label">Thinking</span>
+          <select id="bulk-thinking" class="text-input"></select>
+        </label>
+        <label class="switch-row edit-switch">
+          <span>
+            <strong>Can change files</strong>
+            <span class="muted small">Each file is backed up first: every item can be undone, or the whole run.</span>
+          </span>
+          <input id="bulk-can-edit" type="checkbox" role="switch" checked>
+        </label>
+        <span id="bulk-error" class="error-line" hidden></span>
+        <button id="bulk-start" type="submit" class="primary">Start</button>
+      </form>
+
+      <section class="card">
+        <h2>Runs</h2>
+        <div id="bulk-runs" class="history-list"><p class="muted">Loading…</p></div>
+      </section>
+    </div>
+
+    <section id="bulk-run" class="card" hidden>
+      <a href="#bulk" class="back-link">← All runs</a>
+      <div class="result-head">
+        <h2 id="run-title"></h2>
+        <span id="run-status" class="chip"></span>
+      </div>
+      <div class="progress"><div id="run-bar" class="progress-bar"></div></div>
+      <p id="run-counts" class="muted small"></p>
+      <div class="run-actions">
+        <button id="run-stop" type="button" class="button small-button" hidden>Stop</button>
+        <button id="run-carry-on" type="button" class="button small-button" hidden>Carry on</button>
+        <button id="run-redo" type="button" class="button small-button" hidden>Try the failed ones again</button>
+        <button id="run-download" type="button" class="button small-button">Download results</button>
+        <button id="run-undo" type="button" class="button small-button danger" hidden>Undo the whole run</button>
+        <button id="run-delete" type="button" class="button small-button danger" hidden>Delete</button>
+      </div>
+      <div id="run-ask" class="history-ask" hidden>
+        <p id="run-ask-text"></p>
+        <button id="run-ask-yes" type="button" class="button small-button danger"></button>
+        <button id="run-ask-no" type="button" class="button small-button">Cancel</button>
+      </div>
+      <p id="run-error" class="error-line" hidden></p>
+      <div class="run-filter" id="run-filter"></div>
+      <ol id="run-items" class="run-items"></ol>
+    </section>
   </main>
 
   <main id="view-history" class="view" hidden>

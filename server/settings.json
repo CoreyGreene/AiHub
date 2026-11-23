@@ -41,6 +41,9 @@
   "_backups_dir": "A copy of every file the model changes, taken just before, so its answer can be undone.",
   "backups_dir": "backups",
 
+  "_bulk": "The Bulk tab's saved runs (bulk.py). Everything about a bulk job (its prompt, checks, review) is in the bulk file you give it, not here: see examples/.",
+  "bulk_dir": "bulk",
+
   "history_dir": "history",
   "logs_dir": "logs"
 }

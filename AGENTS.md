@@ -24,6 +24,11 @@ python3 start.py            # makes .venv, installs requirements, starts on port
   model at a time; stopping it gives all its memory back. Answers stream from its OpenAI-style API.
 - **Queue:** `server/jobs.py`, one worker, one question at a time. The page asks for progress (the answer so far)
   every 400 ms. The model is let go after `unload_after_minutes` with nothing asked.
+- **Bulk:** `server/bulk.py`. A run queues its items one at a time as jobs with their own fresh messages, the
+  run's folder as the tools' only folder (`tools.scoped`), and an `on_done` hook in place of History. Everything
+  about a job (prompt, search, checks, review) comes from the bulk file: keep the code free of any one kind of job
+  (no field names, file formats or task names in it). `CHECKS` are generic tests a file can combine; a failed one,
+  or a review that says FAIL, undoes the item and retries it with the reason. Runs live in `bulk/` (git-ignored).
 - **History:** `server/history.py`, one JSON file per conversation in `history/` (git-ignored).
 - **Settings:** `server/settings.json` (shared) and `server/settings.local.json` (this machine: the model list).
 

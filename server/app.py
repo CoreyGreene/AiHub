@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import history, jobs, memory, models, settings, tools
+from . import bulk, history, jobs, memory, models, settings, tools
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 # Changes on every server start: the page asks for app.css and main.js with it attached, so a restart always gets
@@ -155,6 +155,72 @@ async def undo(conv_id: str, index: int) -> dict:
     notes = tools.undo(message["changes"])
     history.update_message(conv_id, index, undone=True, undo_notes=notes)
     return {"undone": True, "notes": notes}
+
+
+# ---------- Bulk: one task over a list of items, each with a fresh memory ----------
+
+class BulkRequest(BaseModel):
+    file: dict               # the bulk file: {prompt, items, ...} (bulk.py says what it can hold)
+    folder: str = ""         # these win over the file's own, when given
+    model: str = ""
+    thinking: str = ""
+    can_change_files: bool | None = None
+    name: str = ""
+    source: str = "you"
+
+
+def _bulk(fn, *args, **kwargs):
+    try:
+        return fn(*args, **kwargs)
+    except bulk.BulkError as err:
+        raise HTTPException(400, str(err))
+
+
+@app.get("/api/bulk")
+async def bulk_list() -> list:
+    return bulk.listing()
+
+
+@app.post("/api/bulk")
+async def bulk_start(req: BulkRequest) -> dict:
+    """Start a run from a bulk file. The request's folder, model, thinking and can_change_files win over the file's."""
+    return _bulk(bulk.start, req.file, req.folder, req.model, req.thinking, req.can_change_files, req.name,
+                 "claude" if req.source == "claude" else "you")
+
+
+@app.get("/api/bulk/{run_id}")
+async def bulk_one(run_id: str) -> dict:
+    run = bulk.get(run_id)
+    if run is None:
+        raise HTTPException(404, "That run is gone.")
+    return run
+
+
+@app.post("/api/bulk/{run_id}/stop")
+async def bulk_stop(run_id: str) -> dict:
+    return _bulk(bulk.stop, run_id)
+
+
+@app.post("/api/bulk/{run_id}/carry-on")
+async def bulk_carry_on(run_id: str, redo: bool = False) -> dict:
+    return _bulk(bulk.carry_on, run_id, redo)
+
+
+@app.post("/api/bulk/{run_id}/undo")
+async def bulk_undo_all(run_id: str) -> dict:
+    return _bulk(bulk.undo_all, run_id)
+
+
+@app.post("/api/bulk/{run_id}/undo/{n}")
+async def bulk_undo(run_id: str, n: int) -> dict:
+    return {"notes": _bulk(bulk.undo_item, run_id, n)}
+
+
+@app.delete("/api/bulk/{run_id}")
+async def bulk_delete(run_id: str) -> dict:
+    if not _bulk(bulk.delete, run_id):
+        raise HTTPException(404, "That run is gone.")
+    return {"deleted": True}
 
 
 @app.post("/api/model/unload")

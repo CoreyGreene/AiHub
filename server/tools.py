@@ -16,7 +16,9 @@ import fnmatch
 import hashlib
 import json
 import shutil
+import threading
 import uuid
+from contextlib import contextmanager
 import os
 import re
 from pathlib import Path
@@ -32,8 +34,30 @@ class ToolError(Exception):
     pass
 
 
+_scope = threading.local()
+
+
+@contextmanager
+def scoped(paths: list[str] | None):
+    """While a bulk job works, its tools see only its own folder (inside the allowed ones), on this thread only."""
+    _scope.folders = [{"name": Path(p).name, "path": str(Path(p).expanduser().resolve())} for p in paths] if paths else None
+    try:
+        yield
+    finally:
+        _scope.folders = None
+
+
+def inside_allowed(raw: str) -> Path | None:
+    """raw as a folder inside one of the allowed folders, or None."""
+    path = Path(raw or "").expanduser().resolve()
+    roots = [Path(f["path"]) for f in folders()]
+    return path if path.is_dir() and any(path == r or r in path.parents for r in roots) else None
+
+
 def folders() -> list[dict]:
-    """The allowed folders: [{name, path}], only those that exist."""
+    """The allowed folders: [{name, path}], only those that exist (a bulk job's own folder while it works)."""
+    if getattr(_scope, "folders", None):
+        return _scope.folders
     out = []
     for f in settings.get().get("folders", []):
         path = Path(f["path"]).expanduser().resolve()
@@ -252,8 +276,25 @@ def replace_in_file(path: str, old_text: str, new_text: str, changes: Changes) -
     _check_writable(file)
     text = file.read_text(encoding="utf-8")
     count = text.count(old_text) if old_text else 0
+    if count == 0 and old_text.strip() and "\n" not in old_text.strip():
+        # one line, right but for the spaces at its start or end (models often get an indent wrong): if exactly one
+        # line of the file matches it that way, change that line, keeping the file's own indent
+        lines = text.split("\n")
+        hits = [n for n, line in enumerate(lines) if line.strip() == old_text.strip()]
+        if len(hits) == 1 and "\n" not in new_text.strip():
+            line = lines[hits[0]]
+            lines[hits[0]] = line[: len(line) - len(line.lstrip())] + new_text.strip()
+            what = changes.write(file, "\n".join(lines))
+            return (f"Changed {file} line {hits[0] + 1} ({what}). Your old_text's indent was off, so the line kept "
+                    "the file's own indent.", f"changed line {hits[0] + 1} ({what}; indent kept)")
     if count == 0:
-        raise ToolError(f"old_text isn't in {file} exactly as given (spaces and line breaks count). Read the file and copy it exactly.")
+        close = difflib.get_close_matches(old_text.strip(), [l.strip() for l in text.splitlines()], n=1, cutoff=0.6)
+        hint = ""
+        if close:
+            n = next(i for i, l in enumerate(text.splitlines(), 1) if l.strip() == close[0])
+            hint = f" The closest line is line {n}, exactly: {text.splitlines()[n - 1]!r}"
+        raise ToolError(f"old_text isn't in {file} exactly as given (spaces and line breaks count).{hint} "
+                        "Copy it exactly from the file.")
     if count > 1:
         raise ToolError(f"old_text is in {file} {count} times: include more lines around it so it's only once.")
     what = changes.write(file, text.replace(old_text, new_text, 1))

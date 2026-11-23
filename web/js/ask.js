@@ -148,7 +148,7 @@ function fillAnswer(el, a, live) {
 // What it looked at: one line per tool it used ("Read ~/Desktop/notes.txt: 40 lines").
 const VERB = { list_files: "Listed", find_files: "Looked for", read_file: "Read", search: "Searched" };
 
-function stepText(s) {
+export function stepText(s) {
   const a = s.arguments || {};
   const where = (a.path || "").replace(/^\/Users\/[^/]+/, "~");
   if (s.tool === "find_files") return `Looked for "${a.name}" in ${where}`;

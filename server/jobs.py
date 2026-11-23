@@ -3,6 +3,9 @@ over MCP later) then asks for its progress, and sees the answer grow as it's wri
 
 One worker answers one question at a time (one model in memory); the rest wait in order. A job can be stopped: a
 waiting one is dropped, the one being answered stops where it is, and what it wrote so far is kept.
+
+A bulk item (bulk.py) is a job too, with no conversation: it brings its own fresh messages (so nothing from the item
+before it), the one folder its tools may see, and on_done, called with its result instead of saving it in History.
 """
 
 import json
@@ -28,9 +31,13 @@ class QueueFull(Exception):
     pass
 
 
-def submit(conv_id: str, model_id: str, prompt: str, source: str = "you", thinking_level: str = "",
-           can_edit: bool = False) -> str:
-    """Queue a question in a conversation (the question is already saved in it)."""
+HIDDEN = ("stop", "changes", "messages", "on_done", "folders")  # kept off the page
+
+
+def submit(conv_id: str | None, model_id: str, prompt: str, source: str = "you", thinking_level: str = "",
+           can_edit: bool = False, bulk: dict | None = None) -> str:
+    """Queue a question in a conversation (the question is already saved in it). bulk: a bulk item's
+    {run, index, messages, folders, on_done} instead of a conversation."""
     global _worker
     job_id = uuid.uuid4().hex
     with _lock:
@@ -43,7 +50,9 @@ def submit(conv_id: str, model_id: str, prompt: str, source: str = "you", thinki
             "thinking_level": thinking_level, "can_edit": can_edit, "changes": tools.Changes() if can_edit else None,
             "steps": [], "thinking": "", "answer": "", "tokens": 0, "seconds": 0, "per_second": 0, "message": "",
             "stop": threading.Event(), "queued": time.time(),
+            "run": None, "index": None, "messages": None, "folders": None, "on_done": None, "max_steps": 0,
         }
+        _jobs[job_id].update(bulk or {})
         if _worker is None:
             _worker = threading.Thread(target=_work, daemon=True)
             _worker.start()
@@ -57,7 +66,7 @@ def status(job_id: str) -> dict | None:
         job = _jobs.get(job_id)
         if job is None:
             return None
-        out = {k: v for k, v in job.items() if k not in ("stop", "changes")}
+        out = {k: v for k, v in job.items() if k not in HIDDEN}
         out["changes"] = job["changes"].summary() if job["changes"] else []
         out["stopping"] = job["stop"].is_set()
         out["steps"] = list(job["steps"])
@@ -84,7 +93,7 @@ def listing() -> list[dict]:
     with _lock:
         return [
             {"id": k, "status": j["status"], "model": j["model"], "prompt": j["prompt"], "source": j["source"],
-             "can_edit": j["can_edit"],
+             "can_edit": j["can_edit"], "run": j["run"], "index": j["index"],
              "conversation": j["conversation"], "stopping": j["stop"].is_set()}
             for k, j in sorted(_jobs.items(), key=lambda kj: kj[1]["queued"]) if j["status"] in ACTIVE
         ]
@@ -123,7 +132,8 @@ def _work():
         if job["status"] != "waiting":  # stopped while it waited
             continue
         try:
-            _answer(job_id, job)
+            with tools.scoped(job["folders"]):
+                _answer(job_id, job)
         except Exception as err:  # shown to the user; the full error goes to the console
             traceback.print_exc()
             text = str(err).splitlines()[0] if str(err) else type(err).__name__
@@ -141,15 +151,17 @@ def _answer(job_id: str, job: dict):
     template = settings.template(m, job["thinking_level"])
     budget = settings.budget(m, job["thinking_level"])
     thought = 0  # thinking tokens so far, for the budget
-    messages = [{"role": "system", "content": tools.instructions(job["can_edit"])}] + _conversation(job["conversation"])
+    messages = [{"role": "system", "content": tools.instructions(job["can_edit"])}]
+    messages += job["messages"] if job["messages"] is not None else _conversation(job["conversation"])
     definitions = tools.DEFINITIONS + (tools.EDIT_DEFINITIONS if job["can_edit"] else [])
     _update(job_id, status="thinking")
     started = time.time()
     count = 0
     writing = 0.0  # seconds spent writing (not loading, not running tools), for the speed
     finish = "stop"
-    for step in range(settings.get()["max_steps"] + 1):
-        last = step == settings.get()["max_steps"]
+    most = job.get("max_steps") or settings.get()["max_steps"]  # a bulk task can allow fewer
+    for step in range(most + 1):
+        last = step == most
         calls, said, first, latest = [], "", 0.0, 0.0
         # the last step has no tools, so it must answer with what it found
         cut = (lambda: thought >= budget) if budget else (lambda: False)
@@ -200,6 +212,9 @@ def _answer(job_id: str, job: dict):
             name = call["function"]["name"]
             arguments = call["function"].get("arguments") or "{}"
             result, summary, ok = tools.run(name, arguments, job["changes"])
+            if not ok and any(s["tool"] == name and s["arguments"] == _short(arguments) and not s["ok"] for s in job["steps"]):
+                # the same call failed before: say so plainly, or a small model can try it again and again
+                result += " (You tried exactly this before and it failed the same way: do something different.)"
             with _lock:
                 job["steps"].append({"tool": name, "arguments": _short(arguments), "summary": summary, "ok": ok})
             messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "name": name, "content": result})
@@ -240,6 +255,12 @@ def _short(arguments: str) -> dict:
 
 def _save_answer(job: dict, status: str, error: str = ""):
     m = settings.model(job["model"]) or {}
+    if job["on_done"]:  # a bulk item: its run keeps the result
+        try:
+            job["on_done"](job, status, error)
+        except Exception:
+            traceback.print_exc()
+        return
     history.add(job["conversation"], {
         "role": "assistant", "content": job["answer"] or error, "thinking": job["thinking"], "status": status,
         "steps": job["steps"], "thinking_level": job["thinking_level"], "can_edit": job["can_edit"],

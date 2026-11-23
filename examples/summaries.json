@@ -1,0 +1,11 @@
+{
+  "name": "One-line summaries of the Dune conversations",
+  "thinking": "off",
+  "can_change_files": false,
+  "prompt": "Read {file} in {folder}. In one sentence, say who talks in it and what happens. Don't change anything.",
+  "items": [
+    {"file": "dune/lugnut.yarn"},
+    {"file": "dune/snik.yarn"},
+    {"file": "dune/race.yarn"}
+  ]
+}
