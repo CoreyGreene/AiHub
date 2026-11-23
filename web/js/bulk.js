@@ -61,11 +61,11 @@ async function loadForm() {
   showThinking();
 }
 
-// Thinking: the model's Standard choices.
+// Thinking: all the model's choices (a bulk file may ask for Short or Medium, which Ask keeps on its Advanced tab).
 function showThinking(wanted) {
   const keep = wanted || thinkingSelect.value;
   const m = models.find((x) => x.id === modelSelect.value);
-  const levels = (m?.thinking || []).filter((t) => t.where === "both" || t.where === "standard");
+  const levels = m?.thinking || [];
   thinkingField.hidden = !levels.length;
   thinkingSelect.innerHTML = "";
   for (const t of levels) thinkingSelect.add(new Option(t.label, t.id));
