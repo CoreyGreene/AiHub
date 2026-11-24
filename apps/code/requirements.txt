@@ -1,0 +1,5 @@
+fastapi>=0.115
+uvicorn>=0.30
+
+# The language models, on Apple's GPU. The same version the model tests used.
+mlx-lm==0.32.2
