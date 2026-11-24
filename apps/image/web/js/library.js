@@ -8,7 +8,7 @@
 // The tick button turns on choosing: tap pictures to pick them, then
 // download them as one zip or delete them (or, in staging, keep them).
 
-import { startFrom } from "./create.js";
+import { editFrom, startFrom } from "./create.js";
 import { openViewer } from "./viewer.js";
 import { pickCharacter } from "./character-picker.js";
 
@@ -461,6 +461,7 @@ function pictureCard(pic, index) {
       <p class="saved-prompt"></p>
       <p class="muted small saved-meta"></p>
       <button type="button" class="button small-button saved-copy">Copy settings</button>
+      <button type="button" class="button small-button saved-edit">Edit</button>
       <a class="button small-button" download>Download</a>
     </div>`;
   const link = item.querySelector(".saved-image");
@@ -475,6 +476,10 @@ function pictureCard(pic, index) {
   const made = pic.made ? new Date(pic.made).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
   item.querySelector(".saved-meta").textContent = [pic.theme, made].filter(Boolean).join(" · ");
   item.querySelector("[download]").href = `${pic.image}?download=1`;
+  // Saved to this character when kept; staging groups aren't characters.
+  item.querySelector(".saved-edit").addEventListener("click", () =>
+    editFrom({ ...pic, character: place === "staging" ? "" : nameShown }),
+  );
   const copy = item.querySelector(".saved-copy");
   copy.addEventListener("click", async () => {
     copy.disabled = true;

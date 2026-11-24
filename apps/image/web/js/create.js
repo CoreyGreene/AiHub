@@ -344,6 +344,26 @@ export function startFrom(recipe) {
   }
 }
 
+// Library → Edit: the saved picture on Create, its Edit box open, and the
+// name filled in so the edited one can be saved to the same character.
+// The edit is a new picture (in New); the saved one isn't changed.
+export function editFrom(pic) {
+  if (isAdding()) setAddMode(null);
+  els.character.value = pic.character || "";
+  els.characterError.hidden = true;
+  showImage(pic.id, pic.image);
+  savedTo = pic.character || null; // it's already theirs: no Save until it's edited
+  updateSave();
+  const box = els.result.querySelector(".edit-box");
+  box.hidden = false;
+  if (!location.hash.startsWith("#create")) location.hash = "#create";
+  // After the tab has switched (the hash change shows it).
+  setTimeout(() => {
+    box.scrollIntoView({ block: "end" });
+    box.querySelector("textarea").focus({ preventScroll: true });
+  }, 50);
+}
+
 // --- Add mode: the form makes a workflow item instead of pictures ---
 // (workflows.js turns it on). Standard is hidden: an item has a count.
 
