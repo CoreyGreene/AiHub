@@ -84,7 +84,7 @@ h2 { margin: 0 0 12px; font-size: 1rem; color: var(--muted); font-weight: 600; }
 /* Create / Library tabs. */
 .tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   margin-bottom: 16px;
   border-bottom: 1px solid var(--line);
 }
@@ -439,3 +439,69 @@ select.text-input { appearance: auto; }
 .run-item .fields dt { color: var(--muted); }
 .run-item .fields dd { margin: 0; overflow-wrap: anywhere; }
 .run-item .item-meta { color: var(--muted); font-size: 0.85rem; margin-top: 8px; }
+
+/* the folder / file picker (picker.js) */
+.picked-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.picked-path { font-size: 0.9rem; overflow-wrap: anywhere; }
+#bulk-file-name { display: block; margin-bottom: 8px; }
+#bulk-folder-shown { flex: 1; min-width: 0; }
+.picker {
+  width: min(560px, calc(100vw - 24px));
+  max-height: min(640px, calc(100vh - 48px));
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.picker[open] { display: flex; flex-direction: column; gap: 10px; }
+.picker::backdrop { background: rgba(0, 0, 0, 0.6); }
+.picker-head, .picker-where { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.picker-where { justify-content: flex-start; }
+.picker-list {
+  overflow-y: auto;
+  min-height: 160px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+}
+.picker-row {
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  padding: 10px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+.picker-row:hover { background: var(--note-bg); }
+.picker-row.is-folder::before { content: "📁  "; }
+.picker-row.is-file::before { content: "📄  "; }
+.picker-row.is-file { color: var(--accent); }
+.picker-list .muted { padding: 12px; margin: 0; }
+.step-choice { display: grid; gap: 2px; }
+.step-choice strong { color: var(--text); }
+#pipe-add { justify-self: start; }
+#picker-up, #picker-close { white-space: nowrap; flex: none; }
+
+/* Saved list (Bulk tab) and the Pipelines tab */
+.saved-row { margin-bottom: 4px; }
+.saved-row select { flex: 1; min-width: 0; }
+.pipe-left, .pipe-right { display: grid; gap: 16px; min-width: 0; align-content: start; }
+.pipe-steps, .pipe-run-steps { margin: 0 0 8px; padding: 0; list-style: none; display: grid; gap: 6px; }
+.pipe-steps li {
+  display: flex; gap: 6px; align-items: center;
+  border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px;
+}
+.pipe-steps li .what { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.pipe-steps li .n, .pipe-run-steps .n { color: var(--muted); min-width: 1.6em; }
+.pipe-steps li button { padding: 4px 8px; min-width: 0; }
+.pipe-steps:empty::before { content: "No steps yet."; color: var(--muted); font-size: 0.9rem; }
+.pipe-run-steps li { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; }
+.pipe-run-steps .step-head { display: flex; gap: 10px; align-items: baseline; }
+.pipe-run-steps .step-head strong { flex: 1; min-width: 0; }
+.pipe-run-steps .arrow { color: var(--muted); text-align: center; border: 0; padding: 0; }
+.saved-entry { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.saved-entry .history-open { flex: 1; min-width: 0; }

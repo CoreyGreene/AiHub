@@ -44,8 +44,11 @@ model's folder, a note, and any extra settings for mlx_lm's server. The first is
 - **Bulk:** one prompt over a long list of items, such as "change these 300 lines of dialogue". Everything about
   the job is in a **bulk file** you give it (JSON): the prompt, the items, and optionally the checks and a review.
   CodeAi has no knowledge of any one kind of job, so a new kind of bulk job is a new file, never a code change.
-  Choose or paste the file, pick the folder it works in (it looks only there), check the model and Thinking (the
-  file fills them in), and press **Start**. Each item is asked **on its own, with a fresh memory**: the model sees the prompt filled
+  **Open a bulk file** (a picker over your allowed folders on this Mac, phone included) or **Paste JSON**, then
+  **Choose folder** for the folder it works in (it looks only there), check the model and Thinking (the file fills
+  them in), and press **Start**. **Choose output** (optional) picks a folder that gets a copy of every file the run
+  changes, in the same subfolders, kept up to date as it goes (an undone item's file is taken back out). A finished
+  run can do the same later with **Copy changed files to…**. Each item is asked **on its own, with a fresh memory**: the model sees the prompt filled
   in with that one item, never the items before it, so the 500th is as quick and careful as the first and a slip in
   one can't spill into the next. Items go into the queue one at a time, so a question you ask meanwhile waits for one
   item at most.
@@ -57,8 +60,8 @@ model's folder, a note, and any extra settings for mlx_lm's server. The first is
     right lines.
   - **checks:** CodeAi's own tests of what an item changed: `changed`, `lines` (how many, changed in place), `had`
     and `has` (a changed line held / now has some text, exactly or most of its words), `kept` (what a regex matches
-    stays the same, e.g. a speaker's name or #tags), `lacks` (no changed line matches a regex). **review:** a second prompt, asked fresh with the change in
-    front of it, that answers PASS or FAIL. A failed check or review undoes the item and tries it once more with the
+    stays the same, e.g. a speaker's name or #tags), `lacks` (no changed line matches a regex). **review:** a second
+    prompt, asked fresh with the change in front of it, that answers PASS or FAIL. A failed check or review undoes the item and tries it once more with the
     reason; still wrong, it's undone and marked "failed check".
   - The dialogue examples: `dialogue-replace.json` swaps lines for exact new words (thinking off, about 20 s a line);
     `dialogue-rework.json` takes a rough idea and has Gemma make the line read right in the character's voice
@@ -67,6 +70,18 @@ model's folder, a note, and any extra settings for mlx_lm's server. The first is
     with filters by status, **Undo this item**, **Stop**, **Carry on**, **Try the failed ones again**, **Undo the
     whole run** and **Download results**. Runs are kept in `bulk/` (one JSON each), saved after every item; one
     going when CodeAi stopped shows as paused, and Carry on picks it up.
+  - **With an output folder the originals are never touched:** the run works on a copy of its folder (in
+    `bulk/work/<run>`, up to `bulk_copy_limit_mb`), and the output folder gets what it changed.
+  - **Saved list:** **Save to list** keeps the bulk file in CodeAi (`saved/`, git-ignored, under its `name`);
+    **Load a saved one** opens it again. Saved bulk files are what pipelines are made of.
+- **Pipelines:** saved bulk files chained. Build one (a name, then **Add step** for each saved bulk file, in order,
+  ↑ ↓ to reorder) and **Save pipeline** (`saved/pipelines/`). To run it pick the pipeline, the **Input folder** and
+  an **Output folder**, and optionally a model and thinking for every step (else each bulk file's own). Step 1 works
+  on a copy of the input folder and puts the files it changed in `<output>/1-<step>`; step 2 works on that folder
+  and puts what it changed in `<output>/2-<step>`; and so on: each step looks only at the step before's output. The
+  originals are never touched. Each step is an ordinary bulk run (**Open this step's run** shows every item, its
+  diffs and undo); a stopped step stops the pipeline, and **Carry on** picks it up. Runs are kept in
+  `pipeline-runs/` (git-ignored).
 - **History:** every conversation (one JSON file each in `history/`), newest first. Open one to carry it on. **Delete all** (it asks first) clears them, except one still being answered.
 - **Settings (gear):** which model is loaded, a button to let it go, and the queue with a Stop for each question.
 - **The top line:** the model loaded, the GPU memory in use (whole Mac) and the model's share, and the queue.
@@ -79,6 +94,8 @@ server/
   app.py              web routes: serves web/ and the /api calls
   jobs.py             the question queue: one answered at a time
   bulk.py             bulk runs: a file's prompt over its items, a fresh memory each, checked
+  saved.py            the Saved list: bulk files and pipelines kept to run again
+  pipelines.py        pipelines: saved bulk files chained, each step on the one before's output
   models.py           loads a model (its own program), asks it, lets it go
   model_server.py     mlx_lm's server with MLX's memory cache capped
   history.py          conversations, one JSON file each
@@ -104,11 +121,20 @@ The page uses it, and so will Claude (an MCP connector, next).
 | `DELETE /api/history/{id}` | Delete a conversation |
 | `DELETE /api/history` | Delete every conversation (one still being answered is kept): `{deleted, kept}` |
 | `POST /api/history/{id}/undo/{index}` | Put back the files answer number `index` changed |
+| `GET /api/browse?path=&ext=.json` | The page's picker: the folders (and `ext` files) in a folder inside the allowed ones; no path = the allowed folders |
+| `GET /api/bulk/file?path=` | A bulk file's text (a .json inside the allowed folders) |
+| `POST /api/bulk/{run}/output` `{path}` | Copy a run's changed files into a folder now, and keep it up to date |
 | `GET /api/bulk` | Every bulk run, newest first, with counts by status |
-| `POST /api/bulk` `{file, folder, model, thinking, can_change_files, name, source}` | Start a run from a bulk file (`{prompt, items, ...}`); the other fields, when given, win over the file's |
+| `POST /api/bulk` `{file, folder, model, thinking, can_change_files, name, output, source}` | Start a run from a bulk file (`{prompt, items, ...}`); the other fields, when given, win over the file's |
 | `GET /api/bulk/{run}` | One run with every item: `status` waiting / working / reviewing / done / failed / unchanged / error / stopped / undone, `check`, `review`, `answer`, `steps`, `changes` |
 | `POST /api/bulk/{run}/stop`, `/carry-on` (`?redo=true` retries failed ones), `/undo`, `/undo/{n}` | Stop it, start it again, undo all of it or one item |
 | `DELETE /api/bulk/{run}` | Delete a run's record (its files stay as they are) |
+| `GET /api/saved/{bulk,pipeline}` | The Saved list: bulk files or pipelines |
+| `GET`, `DELETE /api/saved/{kind}/{name}` | One saved file's text; delete it |
+| `POST /api/saved/{kind}` `{name, text}` | Save one (a bulk file that could run; a pipeline whose steps are saved). Same name replaces |
+| `GET /api/pipelines`, `GET /api/pipelines/{run}` | Pipeline runs; one with each step's run, counts and folders |
+| `POST /api/pipelines` `{pipeline, input, output, model, thinking}` | Run a saved pipeline |
+| `POST /api/pipelines/{run}/stop`, `/carry-on`; `DELETE /api/pipelines/{run}` | Stop, carry on, delete the record |
 | `POST /api/model/unload` | Let go of the model now |
 
 ## Claude's connector (MCP)
@@ -127,6 +153,9 @@ queue as yours and show "Claude asked" on the page.
 | `codeai_bulk_start` | Start a bulk run from a bulk `file` (the JSON, or a path to it); `folder`, `model`, `thinking` win over the file's |
 | `codeai_bulk_status` | A run's progress and its problem items, waiting up to `wait_seconds`; with no run, the recent runs |
 | `codeai_bulk_stop` | Stop a run |
+| `codeai_saved` | The saved bulk files and pipelines |
+| `codeai_pipeline_start` | Run a saved pipeline (`pipeline`, `input`, `output`) |
+| `codeai_pipeline_status` | A pipeline run's progress, step by step, waiting up to `wait_seconds` |
 
 Added to Claude Code for every project in `~/.claude.json` (`mcpServers.codeai`: this folder's `.venv/bin/python`
 running `connector/codeai_mcp.py`). New sessions pick it up.

@@ -29,6 +29,9 @@ python3 start.py            # makes .venv, installs requirements, starts on port
   about a job (prompt, search, checks, review) comes from the bulk file: keep the code free of any one kind of job
   (no field names, file formats or task names in it). `CHECKS` are generic tests a file can combine; a failed one,
   or a review that says FAIL, undoes the item and retries it with the reason. Runs live in `bulk/` (git-ignored).
+- **Saved and Pipelines:** `server/saved.py` keeps bulk files and pipelines (`saved/`, git-ignored).
+  `server/pipelines.py` runs a pipeline as one bulk run per step, each with an output folder (so it works on a copy:
+  originals untouched) and the step before's output as its folder; `bulk.on_finish` tells it when a step's run ends.
 - **History:** `server/history.py`, one JSON file per conversation in `history/` (git-ignored).
 - **Settings:** `server/settings.json` (shared) and `server/settings.local.json` (this machine: the model list).
 

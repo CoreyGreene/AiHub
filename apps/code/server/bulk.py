@@ -29,6 +29,7 @@ going when CodeAi stopped shows as paused, and Carry on picks it up at the next 
 
 import json
 import re
+import shutil
 import threading
 import time
 import uuid
@@ -46,6 +47,19 @@ FIELD = re.compile(r"\{(\w+)\}")
 
 class BulkError(Exception):
     pass
+
+
+_listeners = []  # called (in their own thread) with a run's summary when it finishes or stops: pipelines.py
+
+
+def on_finish(fn):
+    _listeners.append(fn)
+
+
+def _finished(run: dict):
+    info = summary(run)
+    for fn in _listeners:
+        threading.Thread(target=fn, args=(info,), daemon=True).start()
 
 
 # ---------- the bulk file ----------
@@ -263,6 +277,17 @@ def _read_file(file: dict) -> dict:
             "retries": int(file.get("retries", 1)), "max_steps": int(file.get("max_steps", BULK_MAX_STEPS))}
 
 
+def check_file(file) -> int:
+    """Raise BulkError if this isn't a bulk file that could run; else how many items it has."""
+    spec = _read_file(file)
+    items = read_items(file["items"])
+    for n, item in enumerate(items, 1):
+        missing = [f for f in spec["required"] if not str(item.get(f, "")).strip()]
+        if missing:
+            raise BulkError(f"Item {n} has no {' or '.join(missing)}.")
+    return len(items)
+
+
 # ---------- runs ----------
 
 def _path(run_id: str) -> Path:
@@ -305,8 +330,8 @@ def _counts(run: dict) -> dict:
 
 
 def summary(run: dict) -> dict:
-    keys = ("id", "name", "model", "folder", "status", "created", "finished", "thinking", "can_edit", "seconds",
-            "current", "job")
+    keys = ("id", "name", "model", "folder", "source_folder", "status", "created", "finished", "thinking", "can_edit", "seconds",
+            "current", "job", "output", "output_error")
     out = {k: run.get(k) for k in keys}
     out["total"] = len(run["items"])
     out["counts"] = _counts(run)
@@ -328,7 +353,7 @@ def get(run_id: str) -> dict | None:
 
 
 def start(file: dict, folder: str = "", model_id: str = "", thinking: str = "", can_edit: bool | None = None,
-          name: str = "", source: str = "you") -> dict:
+          name: str = "", source: str = "you", output: str = "") -> dict:
     """Start a run from a bulk file. folder, model, thinking and can_edit, when given, win over the file's; name is
     used when the file has none (the page sends the file's own name: becky-fixes.json -> becky-fixes)."""
     with _lock:
@@ -351,10 +376,14 @@ def start(file: dict, folder: str = "", model_id: str = "", thinking: str = "", 
         raise BulkError(f"There's no model called {model_id} on this computer.")
     if can_edit is None:
         can_edit = bool(file.get("can_change_files", True))
+    output = _output_folder(output, str(where)) if output else ""
+    run_id = uuid.uuid4().hex[:12]
+    # with an output folder the originals are left alone: it works on a copy, and the output gets what it changed
+    work = _work_copy(where, run_id) if output else where
     run = {
-        "id": uuid.uuid4().hex[:12], "name": str(file.get("name") or "").strip() or name.strip() or f"Bulk run ({len(items)})",
-        **spec, "model": model_id, "folder": str(where), "thinking": thinking or str(file.get("thinking") or ""),
-        "can_edit": can_edit, "source": source, "status": "running", "created": time.time(), "finished": None,
+        "id": run_id, "name": str(file.get("name") or "").strip() or name.strip() or f"Bulk run ({len(items)})",
+        **spec, "model": model_id, "folder": str(work), "source_folder": str(where), "thinking": thinking or str(file.get("thinking") or ""),
+        "can_edit": can_edit, "output": output, "copied": [], "source": source, "status": "running", "created": time.time(), "finished": None,
         "seconds": 0, "current": None, "job": None,
         "items": [{"n": n, "fields": item, "status": "waiting", "tries": 0, "answer": "", "thinking": "",
                    "steps": [], "changes": [], "check": "", "review": "", "seconds": 0, "tokens": 0, "undone": False}
@@ -413,6 +442,7 @@ def _next(run: dict, retry_reason: str = ""):
     if item is None:
         run.update(status="done", finished=time.time(), current=None, job=None)
         _save(run)
+        _finished(run)
         return
     item["status"] = "working"
     item["tries"] += 1
@@ -489,12 +519,83 @@ def _done(run_id: str, n: int, job: dict, status: str, error: str):
                         item.update(status="done", review="Not reviewed (the queue was full).")
                 else:
                     item["status"] = "done"
+        _sync_output(run)
         if run["status"] == "stopping":
             run.update(status="stopped", current=None, job=None)
             _save(run)
+            _finished(run)
             return
         _next(run, retry)
         _save(run)
+
+
+# ---------- the output folder: a copy of every file the run changed ----------
+
+def _work_copy(source: Path, run_id: str) -> Path:
+    """A copy of the folder for a run to work on (bulk/work/<run>), so the originals are never touched."""
+    skip = set(tools.SKIP_DIRS)
+    size = 0
+    for p in source.rglob("*"):
+        if p.is_file() and not any(part in skip or part.startswith(".") for part in p.relative_to(source).parts):
+            size += p.stat().st_size
+    limit = int(settings.get().get("bulk_copy_limit_mb", 2000)) * 1_000_000
+    if size > limit:
+        raise BulkError(f"That folder is {size / 1e9:.1f} GB: too big to copy for a run with an output folder "
+                        f"(bulk_copy_limit_mb in settings). Pick a smaller folder.")
+    dest = settings.folder("bulk_dir") / "work" / run_id
+    shutil.copytree(source, dest, ignore=lambda d, names: [n for n in names if n in skip or n.startswith(".")])
+    return dest
+
+
+def _output_folder(raw: str, folder: str) -> str:
+    out = tools.inside_allowed(raw)
+    if out is None:
+        raise BulkError("Pick an output folder inside your allowed folders.")
+    work = Path(folder)
+    if out == work or work in out.parents:
+        raise BulkError("The output folder can't be inside the folder it works in (it would see its own copies).")
+    return str(out)
+
+
+def _sync_output(run: dict):
+    """Keep the output folder a copy of every file the run changed and kept (done items), at the same place under it
+    as under the run's folder (its working copy, when it has one). A file whose changes were all undone is taken back out. Holds _lock."""
+    if not run.get("output"):
+        return
+    work, out = Path(run["folder"]), Path(run["output"])
+    live = {f["path"] for i in run["items"] if i["status"] == "done" and not i["undone"] for f in i["changes"]}
+
+    def target(path: str) -> Path:
+        p = Path(path)
+        return out / (p.relative_to(work) if work in p.parents else p.name)
+
+    try:
+        for path in sorted(live):
+            if Path(path).is_file():
+                t = target(path)
+                t.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(path, t)
+        for path in set(run.get("copied", [])) - live:
+            target(path).unlink(missing_ok=True)
+    except OSError as err:  # a full disk, a folder that went away: say so, don't stop the run
+        run["output_error"] = f"Couldn't copy to the output folder: {err}"
+        return
+    run["copied"] = sorted(live)
+    run["output_error"] = ""
+
+
+def set_output(run_id: str, raw: str) -> dict:
+    """Choose (or change) a run's output folder and copy its changed files there now."""
+    with _lock:
+        _load_all()
+        run = _runs.get(run_id)
+        if run is None:
+            raise BulkError("That run is gone.")
+        run["output"] = _output_folder(raw, run.get("source_folder") or run["folder"])
+        run["copied"] = []
+        _sync_output(run)
+        _save(run)
+        return {"output": run["output"], "copied": len(run["copied"])}
 
 
 def stop(run_id: str) -> dict:
@@ -516,6 +617,8 @@ def stop(run_id: str) -> dict:
         elif run["status"] in ("running", "paused"):
             run.update(status="stopped", current=None, job=None)
         _save(run)
+        if run["status"] == "stopped":
+            _finished(run)
         return summary(run)
 
 
@@ -552,6 +655,7 @@ def undo_item(run_id: str, n: int) -> list[str]:
             raise BulkError("It's being worked on. Stop the run first.")
         notes = tools.undo(item["changes"])
         item.update(undone=True, undo_notes=notes, status="undone")
+        _sync_output(run)
         _save(run)
         return notes
 
@@ -571,6 +675,7 @@ def undo_all(run_id: str) -> dict:
                 notes += tools.undo(item["changes"])
                 item.update(undone=True, status="undone")
                 undone += 1
+        _sync_output(run)
         _save(run)
         return {"undone": undone, "notes": notes}
 
@@ -585,4 +690,7 @@ def delete(run_id: str) -> bool:
             raise BulkError("Stop the run first.")
         del _runs[run_id]
         _path(run_id).unlink(missing_ok=True)
+        work = settings.folder("bulk_dir") / "work" / run_id
+        if work.is_dir() and Path(run["folder"]) == work:
+            shutil.rmtree(work, ignore_errors=True)
         return True

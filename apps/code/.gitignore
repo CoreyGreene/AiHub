@@ -20,3 +20,5 @@ CLAUDE.md
 .DS_Store
 .vscode/
 .idea/
+saved/
+pipeline-runs/

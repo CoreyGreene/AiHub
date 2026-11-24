@@ -24,6 +24,7 @@
   <nav class="tabs">
     <a href="#ask" class="tab" data-view="ask">Ask</a>
     <a href="#bulk" class="tab" data-view="bulk">Bulk</a>
+    <a href="#pipelines" class="tab" data-view="pipelines">Pipelines</a>
     <a href="#history" class="tab" data-view="history">History</a>
   </nav>
 
@@ -87,20 +88,39 @@
         <div class="field">
           <span class="label">Bulk file (JSON)</span>
           <div class="bulk-file-row">
-            <label class="button small-button file-button">Choose a JSON file<input id="bulk-file" type="file" accept=".json,application/json" hidden></label>
+            <button id="bulk-open" type="button" class="button small-button">Open a bulk file</button>
+            <button id="bulk-paste" type="button" class="button small-button">Paste JSON</button>
             <button id="bulk-example" type="button" class="button small-button">Show an example</button>
           </div>
-          <textarea id="bulk-items" rows="10" class="mono" placeholder='{"prompt": "Read {file} and say in one line what it does.", "items": [{"file": "a.yarn"}]}'></textarea>
+          <div class="picked-row saved-row">
+            <select id="bulk-saved" class="text-input"><option value="">Load a saved one…</option></select>
+            <button id="bulk-save" type="button" class="button small-button">Save to list</button>
+          </div>
+          <span id="bulk-save-note" class="hint-line"></span>
+          <span id="bulk-file-name" class="picked-path" hidden></span>
+          <textarea id="bulk-items" rows="10" class="mono" hidden placeholder='{"prompt": "Read {file} and say in one line what it does.", "items": [{"file": "a.yarn"}]}'></textarea>
           <span id="bulk-items-note" class="hint-line"></span>
-          <span class="hint-line">examples/ in the CodeAi folder has more, and its README lists everything a file can say.</span>
+          <span class="hint-line">examples/ in the CodeAi folder has some, and its README lists everything a file can say.</span>
         </div>
-        <p class="muted small">Pick the folder it works in. The file's model and thinking fill in the rest; change them here if you like.</p>
-        <label class="field">
+        <div class="field">
           <span class="label">Folder</span>
-          <input id="bulk-folder" class="text-input" list="bulk-folders" placeholder="~/Documents/repos/3dspacegame/dialogue" autocomplete="off">
-          <datalist id="bulk-folders"></datalist>
-          <span class="hint-line">It looks only in this folder (inside your allowed ones).</span>
-        </label>
+          <div class="picked-row">
+            <span id="bulk-folder-shown" class="picked-path muted">No folder yet</span>
+            <button id="bulk-folder-choose" type="button" class="button small-button">Choose folder</button>
+          </div>
+          <input id="bulk-folder" type="hidden">
+          <span class="hint-line">It looks only in this folder. The file's model and thinking fill in the rest; change them here if you like.</span>
+        </div>
+        <div class="field">
+          <span class="label">Output folder (optional)</span>
+          <div class="picked-row">
+            <span id="bulk-output-shown" class="picked-path muted">None: files are changed where they are</span>
+            <button id="bulk-output-choose" type="button" class="button small-button">Choose output</button>
+            <button id="bulk-output-clear" type="button" class="button small-button" hidden>Clear</button>
+          </div>
+          <input id="bulk-output" type="hidden">
+          <span class="hint-line">With an output folder, the originals are never touched: it works on a copy, and every file it changes goes here, in the same subfolders, as it goes.</span>
+        </div>
         <label class="field">
           <span class="label">Model</span>
           <select id="bulk-model" class="text-input"></select>
@@ -134,11 +154,13 @@
       </div>
       <div class="progress"><div id="run-bar" class="progress-bar"></div></div>
       <p id="run-counts" class="muted small"></p>
+      <p id="run-output" class="muted small" hidden></p>
       <div class="run-actions">
         <button id="run-stop" type="button" class="button small-button" hidden>Stop</button>
         <button id="run-carry-on" type="button" class="button small-button" hidden>Carry on</button>
         <button id="run-redo" type="button" class="button small-button" hidden>Try the failed ones again</button>
         <button id="run-download" type="button" class="button small-button">Download results</button>
+        <button id="run-copy" type="button" class="button small-button">Copy changed files to…</button>
         <button id="run-undo" type="button" class="button small-button danger" hidden>Undo the whole run</button>
         <button id="run-delete" type="button" class="button small-button danger" hidden>Delete</button>
       </div>
@@ -150,6 +172,96 @@
       <p id="run-error" class="error-line" hidden></p>
       <div class="run-filter" id="run-filter"></div>
       <ol id="run-items" class="run-items"></ol>
+    </section>
+  </main>
+
+  <main id="view-pipelines" class="view" hidden>
+    <div id="pipe-start-area" class="create-area">
+      <div class="pipe-left">
+        <form id="pipe-run-form" class="card" novalidate>
+          <h2>Run a pipeline</h2>
+          <p class="muted small">Saved bulk files, one after another: each step works on the files the step before
+            changed. The originals are never touched; every step's changed files go in its own folder under the output.</p>
+          <label class="field">
+            <span class="label">Pipeline</span>
+            <select id="pipe-pick" class="text-input"></select>
+            <span id="pipe-pick-steps" class="hint-line"></span>
+          </label>
+          <div class="field">
+            <span class="label">Input folder</span>
+            <div class="picked-row">
+              <span id="pipe-input-shown" class="picked-path muted">No folder yet</span>
+              <button id="pipe-input-choose" type="button" class="button small-button">Choose folder</button>
+            </div>
+            <span class="hint-line">Step 1 works on a copy of this folder.</span>
+          </div>
+          <div class="field">
+            <span class="label">Output folder</span>
+            <div class="picked-row">
+              <span id="pipe-output-shown" class="picked-path muted">No folder yet</span>
+              <button id="pipe-output-choose" type="button" class="button small-button">Choose output</button>
+            </div>
+            <span class="hint-line">Each step's changed files go in a folder of their own here: 1-…, 2-…; the last one is the result.</span>
+          </div>
+          <label class="field">
+            <span class="label">Model</span>
+            <select id="pipe-model" class="text-input"></select>
+          </label>
+          <label class="field">
+            <span class="label">Thinking</span>
+            <select id="pipe-thinking" class="text-input"></select>
+          </label>
+          <span id="pipe-run-error" class="error-line" hidden></span>
+          <button id="pipe-start" type="submit" class="primary">Start</button>
+        </form>
+
+        <section class="card">
+          <h2 id="pipe-build-title">New pipeline</h2>
+          <label class="field">
+            <span class="label">Name</span>
+            <input id="pipe-name" class="text-input" placeholder="Rename, then polish" autocomplete="off">
+          </label>
+          <div class="field">
+            <span class="label">Steps</span>
+            <ol id="pipe-steps" class="pipe-steps"></ol>
+            <button id="pipe-add" type="button" class="button">+ Add step</button>
+            <span class="hint-line">Steps are bulk files from the Saved list (Save to list, on the Bulk tab).</span>
+          </div>
+          <span id="pipe-build-note" class="hint-line"></span>
+          <div class="picked-row">
+            <button id="pipe-save" type="button" class="primary">Save pipeline</button>
+            <button id="pipe-new" type="button" class="button small-button">Start a new one</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="pipe-right">
+        <section class="card">
+          <h2>Pipeline runs</h2>
+          <div id="pipe-runs" class="history-list"><p class="muted">Loading…</p></div>
+        </section>
+        <section class="card">
+          <h2>Saved pipelines</h2>
+          <div id="pipe-saved" class="history-list"></div>
+        </section>
+        <section class="card">
+          <h2>Saved bulk files</h2>
+          <div id="bulk-saved-list" class="history-list"></div>
+        </section>
+      </div>
+    </div>
+
+    <section id="pipe-run" class="card" hidden>
+      <a href="#pipelines" class="back-link">← All pipelines</a>
+      <div class="result-head"><h2 id="pipe-run-title"></h2><span id="pipe-run-status" class="chip"></span></div>
+      <p id="pipe-run-where" class="muted small"></p>
+      <div class="run-actions">
+        <button id="pipe-run-stop" type="button" class="button small-button">Stop</button>
+        <button id="pipe-run-carry-on" type="button" class="button small-button">Carry on</button>
+        <button id="pipe-run-delete" type="button" class="button small-button danger">Delete</button>
+      </div>
+      <p id="pipe-run-error-line" class="error-line" hidden></p>
+      <ol id="pipe-run-steps" class="pipe-run-steps"></ol>
     </section>
   </main>
 
@@ -182,5 +294,26 @@
   </main>
 
   <script type="module" src="js/main.js?v={{v}}"></script>
+  <dialog id="picker" class="picker">
+    <div class="picker-head">
+      <strong id="picker-title">Choose a folder</strong>
+      <button id="picker-close" type="button" class="button small-button">Cancel</button>
+    </div>
+    <div class="picker-where">
+      <button id="picker-up" type="button" class="button small-button">↑ Up</button>
+      <span id="picker-path" class="picked-path"></span>
+    </div>
+    <div id="picker-list" class="picker-list"></div>
+    <span id="picker-error" class="error-line" hidden></span>
+    <button id="picker-use" type="button" class="primary">Use this folder</button>
+  </dialog>
+  <dialog id="step-pick" class="picker">
+    <div class="picker-head">
+      <strong>Add a step</strong>
+      <button id="step-pick-close" type="button" class="button small-button">Cancel</button>
+    </div>
+    <span class="hint-line">Pick a saved bulk file. It runs on the files the step before changed.</span>
+    <div id="step-pick-list" class="picker-list"></div>
+  </dialog>
 </body>
 </html>

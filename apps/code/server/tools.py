@@ -66,6 +66,32 @@ def folders() -> list[dict]:
     return out
 
 
+def browse(raw: str = "", ext: str = "") -> dict:
+    """For the page's folder picker: the folders (and, with ext like ".json", those files) in a folder inside the
+    allowed ones. No folder: the allowed folders themselves. up: the folder above, or "" at the top."""
+    if not raw:
+        return {"path": "", "name": "Your folders", "up": None,
+                "folders": [{"name": f["name"], "path": f["path"]} for f in folders()], "files": []}
+    path = inside_allowed(raw)
+    if path is None:
+        raise ToolError("That folder isn't inside your allowed ones.")
+    roots = [Path(f["path"]) for f in folders()]
+    up = "" if path in roots else str(path.parent)
+    subs, files = [], []
+    try:
+        entries = sorted(path.iterdir(), key=lambda e: e.name.lower())
+    except OSError as err:
+        raise ToolError(f"Can't open {path}: {err.strerror}.")
+    for e in entries:
+        if e.name.startswith(".") or e.name in SKIP_DIRS:
+            continue
+        if e.is_dir():
+            subs.append({"name": e.name, "path": str(e)})
+        elif ext and e.suffix.lower() == ext.lower() and e.is_file():
+            files.append({"name": e.name, "path": str(e)})
+    return {"path": str(path), "name": path.name, "up": up, "folders": subs, "files": files}
+
+
 def _resolve(raw: str, new_ok: bool = False) -> Path:
     roots = [Path(f["path"]) for f in folders()]
     if not roots:

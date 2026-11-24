@@ -4,6 +4,7 @@
 import { render } from "./markdown.js";
 import { stepText } from "./ask.js";
 import { refreshStatus } from "./status.js";
+import { pick } from "./picker.js";
 
 const $ = (id) => document.getElementById(id);
 const startArea = $("bulk-start-area");
@@ -55,9 +56,8 @@ async function loadForm() {
   models = m.models;
   modelSelect.innerHTML = "";
   for (const model of models) modelSelect.add(new Option(model.name, model.id));
-  $("bulk-folders").innerHTML = m.folders.map((f) => `<option value="${tilde(f.path)}">`).join("");
   modelSelect.value = m.default;
-  folderInput.value = localStorage.getItem("codeai-bulk-folder") || "";
+  setFolder(localStorage.getItem("codeai-bulk-folder") || "");
   showThinking();
 }
 
@@ -113,7 +113,7 @@ function readFile(fill = false) {
   itemsNote.textContent = `${data.name || fileName ? `${data.name || fileName}: ` : ""}${parts.join(" · ")}.` +
     (warn.length ? ` Not given: ${warn.join(", ")}. Fine if they're optional; otherwise check the items.` : "");
   if (fill) {
-    if (data.folder) folderInput.value = data.folder;
+    if (data.folder) setFolder(data.folder);
     if (data.model && models.some((x) => x.id === data.model)) modelSelect.value = data.model;
     showThinking(data.thinking);
     canEdit.checked = data.can_change_files !== false;
@@ -123,20 +123,102 @@ function readFile(fill = false) {
 
 modelSelect.addEventListener("change", () => showThinking());
 itemsBox.addEventListener("input", () => readFile());
-itemsBox.addEventListener("paste", () => {
-  fileName = "";
-  setTimeout(() => readFile(true));
+itemsBox.addEventListener("paste", () => setTimeout(() => readFile(true)));
+// the folder it works in: chosen with the picker, shown as a path
+function setFolder(path) {
+  folderInput.value = path || "";
+  $("bulk-folder-shown").textContent = path ? tilde(path) : "No folder yet";
+  $("bulk-folder-shown").classList.toggle("muted", !path);
+}
+
+function showFileName(text) {
+  $("bulk-file-name").textContent = text;
+  $("bulk-file-name").hidden = !text;
+}
+
+// the output folder: optional; a copy of every changed file goes there
+function setOutput(path) {
+  $("bulk-output").value = path || "";
+  $("bulk-output-shown").textContent = path ? tilde(path) : "None: files are changed where they are";
+  $("bulk-output-shown").classList.toggle("muted", !path);
+  $("bulk-output-clear").hidden = !path;
+}
+$("bulk-output-choose").addEventListener("click", async () => {
+  const path = await pick({ mode: "folder", start: $("bulk-output").value, title: "Choose the output folder" });
+  if (path) setOutput(path);
 });
-$("bulk-file").addEventListener("change", async (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-  itemsBox.value = await file.text();
-  fileName = file.name.replace(/\.json$/i, "");
-  event.target.value = "";
+$("bulk-output-clear").addEventListener("click", () => setOutput(""));
+
+$("bulk-folder-choose").addEventListener("click", async () => {
+  const path = await pick({ mode: "folder", start: folderInput.value });
+  if (path) setFolder(path);
+});
+
+// a bulk file from this Mac's folders, read by the server
+$("bulk-open").addEventListener("click", async () => {
+  const path = await pick({ mode: "json" });
+  if (!path) return;
+  showError("");
+  const res = await fetch(`api/bulk/file?path=${encodeURIComponent(path)}`).catch(() => null);
+  if (!res?.ok) return showError(res ? (await res.json()).detail : "Can't reach CodeAi.");
+  const file = await res.json();
+  itemsBox.value = file.text;
+  itemsBox.hidden = false;
+  fileName = file.name;
+  showFileName(tilde(file.path));
   readFile(true);
 });
+
+// ---------- the Saved list: bulk files kept in CodeAi, to run again or chain on the Pipelines tab ----------
+
+export async function loadSavedSelect() {
+  const list = await fetch("api/saved/bulk").then((r) => r.json()).catch(() => []);
+  const sel = $("bulk-saved");
+  sel.innerHTML = `<option value="">${list.length ? "Load a saved one…" : "Nothing saved yet"}</option>`;
+  for (const b of list) sel.add(new Option(`${b.name} (${b.items} item${b.items === 1 ? "" : "s"})`, b.id));
+}
+
+$("bulk-saved").addEventListener("change", async (event) => {
+  const id = event.target.value;
+  if (!id) return;
+  const res = await fetch(`api/saved/bulk/${id}`).catch(() => null);
+  event.target.value = "";
+  if (!res?.ok) return showError(res ? (await res.json()).detail : "Can't reach CodeAi.");
+  itemsBox.value = (await res.json()).text;
+  itemsBox.hidden = false;
+  fileName = id;
+  showFileName(`Saved: ${id}`);
+  readFile(true);
+});
+
+$("bulk-save").addEventListener("click", async () => {
+  const note = $("bulk-save-note");
+  const data = readFile();
+  if (data === null) return (note.textContent = "Open, paste or write a bulk file first.");
+  const name = data.name || fileName;
+  if (!name) return (note.textContent = 'Give it a name first: "name": "..." at the top of the file.');
+  const res = await fetch("api/saved/bulk", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, text: itemsBox.value }),
+  }).catch(() => null);
+  if (!res?.ok) return (note.textContent = res ? (await res.json()).detail : "Can't reach CodeAi.");
+  const out = await res.json();
+  note.textContent = `Saved as "${out.id}"${out.replaced ? " (it replaced the one saved before)" : ""}.`;
+  loadSavedSelect();
+});
+
+$("bulk-paste").addEventListener("click", () => {
+  itemsBox.value = "";
+  itemsBox.hidden = false;
+  fileName = "";
+  showFileName("");
+  readFile();
+  itemsBox.focus();
+});
+
 $("bulk-example").addEventListener("click", () => {
   fileName = "";
+  itemsBox.hidden = false;
+  showFileName("");
   itemsBox.value = JSON.stringify(EXAMPLE, null, 2);
   readFile(true);
 });
@@ -152,6 +234,7 @@ form.addEventListener("submit", async (event) => {
   const body = {
     file: data, folder: folderInput.value.trim(), model: modelSelect.value,
     thinking: thinkingField.hidden ? "" : thinkingSelect.value, can_change_files: canEdit.checked, name: fileName,
+    output: $("bulk-output").value,
   };
   const res = await fetch("api/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => null);
   button.disabled = false;
@@ -159,7 +242,9 @@ form.addEventListener("submit", async (event) => {
   localStorage.setItem("codeai-bulk-folder", folderInput.value.trim());
   const run = await res.json();
   itemsBox.value = "";
+  itemsBox.hidden = true;
   fileName = "";
+  showFileName("");
   readFile();
   refreshStatus();
   location.hash = `#bulk/${run.id}`;
@@ -200,6 +285,11 @@ async function loadRuns() {
 }
 
 // ---------- one run ----------
+
+// a run with an output folder works on a copy in bulk/work: show its files where they came from
+const onCopy = (run) => run.source_folder && run.source_folder !== run.folder;
+const shownPath = (path, run) =>
+  onCopy(run) && path.startsWith(run.folder) ? `${tilde(run.source_folder)}${path.slice(run.folder.length)} (copy)` : tilde(path);
 
 function itemTitle(item) {
   return Object.values(item.fields).join(" · ");
@@ -252,7 +342,7 @@ function fillItem(el, item, run) {
     stepsBox.querySelector("ol").append(li);
   }
   body.querySelector(".changes-list").innerHTML = (item.changes || [])
-    .map((f) => render(`**${tilde(f.path)}**${item.undone ? " (undone)" : ""}\n\n\`\`\`diff\n${f.diff || ""}\n\`\`\``))
+    .map((f) => render(`**${shownPath(f.path, run)}**${item.undone ? " (undone)" : ""}\n\n\`\`\`diff\n${f.diff || ""}\n\`\`\``))
     .join("");
   const undo = body.querySelector(".undo-button");
   undo.hidden = !(item.changes || []).length || item.undone || ["working", "reviewing"].includes(item.status);
@@ -281,7 +371,7 @@ function showRun(run) {
   for (const i of run.items) counts[i.status] = (counts[i.status] || 0) + 1;
   const each = finished ? ` · about ${minutes(run.seconds / finished)} an item` : "";
   $("run-counts").textContent = `${finished} of ${total} · ${countsText({ counts })} · ${minutes(run.seconds)} so far${each} · ` +
-    `${tilde(run.folder)}, ${models.find((m) => m.id === run.model)?.name || run.model}` +
+    `${tilde(run.source_folder || run.folder)}${onCopy(run) ? " (on a copy: the originals aren't touched)" : ""}, ${models.find((m) => m.id === run.model)?.name || run.model}` +
     `${run.thinking ? `, thinking ${run.thinking}` : ""}`;
   const going = ["running", "stopping"].includes(run.status);
   $("run-stop").hidden = run.status !== "running";
@@ -289,6 +379,11 @@ function showRun(run) {
   $("run-redo").hidden = going || !run.items.some((i) => ["failed", "unchanged", "error"].includes(i.status));
   $("run-undo").hidden = going || !run.items.some((i) => (i.changes || []).length && !i.undone);
   $("run-delete").hidden = going;
+  const copied = (run.copied || []).length;
+  $("run-output").hidden = !run.output;
+  $("run-output").textContent = run.output_error ||
+    `Changed files are copied to ${tilde(run.output)} (${copied} file${copied === 1 ? "" : "s"} so far).`;
+  $("run-copy").hidden = !run.items.some((i) => (i.changes || []).length);
 
   // filter buttons: All, and one per status the run has
   const bar = $("run-filter");
@@ -364,6 +459,22 @@ $("run-undo").addEventListener("click", () =>
 $("run-delete").addEventListener("click", () =>
   confirmIt("Delete this run's record? Files it changed stay as they are (their backups stay in backups/).", "Yes, delete it",
     () => act("", () => (location.hash = "#bulk"))));
+$("run-copy").addEventListener("click", async () => {
+  const run = await fetch(`api/bulk/${openRun}`).then((r) => r.json());
+  const path = await pick({ mode: "folder", start: run.output, title: "Copy the changed files to" });
+  if (!path) return;
+  const res = await fetch(`api/bulk/${openRun}/output`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path }),
+  }).catch(() => null);
+  if (!res?.ok) {
+    $("run-error").textContent = res ? (await res.json()).detail : "Can't reach CodeAi.";
+    $("run-error").hidden = false;
+    return;
+  }
+  $("run-error").hidden = true;
+  polling++;
+  poll(openRun, polling);
+});
 $("run-download").addEventListener("click", async () => {
   const run = await fetch(`api/bulk/${openRun}`).then((r) => r.json());
   const out = run.items.map((i) => ({ ...i.fields, status: i.status, check: i.check, review: i.review, answer: i.answer }));
@@ -375,6 +486,7 @@ $("run-download").addEventListener("click", async () => {
 
 export async function showBulk(parts = []) {
   await loadForm();
+  loadSavedSelect();
   openRun = parts[0] || "";
   polling++;
   startArea.hidden = !!openRun;

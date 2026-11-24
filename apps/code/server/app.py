@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import bulk, history, jobs, memory, models, settings, tools
+from . import bulk, history, jobs, memory, models, pipelines, saved, settings, tools
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 # Changes on every server start: the page asks for app.css and main.js with it attached, so a restart always gets
@@ -165,6 +165,7 @@ class BulkRequest(BaseModel):
     model: str = ""
     thinking: str = ""
     can_change_files: bool | None = None
+    output: str = ""         # a folder to copy every changed file into (optional)
     name: str = ""
     source: str = "you"
 
@@ -185,7 +186,128 @@ async def bulk_list() -> list:
 async def bulk_start(req: BulkRequest) -> dict:
     """Start a run from a bulk file. The request's folder, model, thinking and can_change_files win over the file's."""
     return _bulk(bulk.start, req.file, req.folder, req.model, req.thinking, req.can_change_files, req.name,
-                 "claude" if req.source == "claude" else "you")
+                 "claude" if req.source == "claude" else "you", req.output)
+
+
+class OutputRequest(BaseModel):
+    path: str
+
+
+@app.post("/api/bulk/{run_id}/output")
+async def bulk_output(run_id: str, req: OutputRequest) -> dict:
+    """Copy a run's changed files into a folder (and keep doing so as it goes)."""
+    return _bulk(bulk.set_output, run_id, req.path)
+
+
+@app.get("/api/browse")
+async def browse(path: str = "", ext: str = "") -> dict:
+    """The page's folder picker: folders (and ext files, e.g. .json) inside the allowed folders."""
+    try:
+        return tools.browse(path, ext)
+    except tools.ToolError as err:
+        raise HTTPException(400, str(err))
+
+
+@app.get("/api/bulk/file")
+async def bulk_file(path: str) -> dict:
+    """A bulk file's text, from inside the allowed folders (the page's Open a bulk file)."""
+    file = Path(path).expanduser().resolve()
+    if file.suffix.lower() != ".json" or not file.is_file() or tools.inside_allowed(str(file.parent)) is None:
+        raise HTTPException(400, "Pick a .json file inside your allowed folders.")
+    if file.stat().st_size > 5_000_000:
+        raise HTTPException(400, "That file is over 5 MB: too big for a bulk file.")
+    return {"name": file.stem, "path": str(file), "text": file.read_text(encoding="utf-8", errors="replace")}
+
+
+# ---------- the Saved list: bulk files and pipelines kept to run again ----------
+
+class SaveRequest(BaseModel):
+    name: str
+    text: str
+
+
+def _saved(fn, *args):
+    try:
+        return fn(*args)
+    except (saved.SavedError, bulk.BulkError, pipelines.PipelineError) as err:
+        raise HTTPException(400, str(err))
+
+
+def _kind(kind: str) -> str:
+    if kind not in ("bulk", "pipeline"):
+        raise HTTPException(404, "There's nothing like that saved.")
+    return kind
+
+
+@app.get("/api/saved/{kind}")
+async def saved_list(kind: str) -> list:
+    return saved.listing(_kind(kind))
+
+
+@app.get("/api/saved/{kind}/{name}")
+async def saved_get(kind: str, name: str) -> dict:
+    return _saved(saved.get, _kind(kind), name)
+
+
+@app.post("/api/saved/{kind}")
+async def saved_save(kind: str, req: SaveRequest) -> dict:
+    """Save a bulk file (it must be one that could run) or a pipeline (its steps must be saved bulk files)."""
+    check = bulk.check_file if _kind(kind) == "bulk" else pipelines.check
+    return _saved(saved.save, kind, req.name, req.text, check)
+
+
+@app.delete("/api/saved/{kind}/{name}")
+async def saved_delete(kind: str, name: str) -> dict:
+    if not _saved(saved.delete, _kind(kind), name):
+        raise HTTPException(404, "That's already gone.")
+    return {"deleted": True}
+
+
+# ---------- Pipelines: saved bulk files chained, each step on the one before's output ----------
+
+class PipelineRequest(BaseModel):
+    pipeline: str            # a saved pipeline's id (GET /api/saved/pipeline)
+    input: str               # the folder step 1 works on (a copy: the originals aren't touched)
+    output: str              # each step's changed files go in <output>/<n>-<step>
+    model: str = ""          # empty = each bulk file's own
+    thinking: str = ""
+    source: str = "you"
+
+
+@app.get("/api/pipelines")
+async def pipeline_list() -> list:
+    return pipelines.listing()
+
+
+@app.post("/api/pipelines")
+async def pipeline_start(req: PipelineRequest) -> dict:
+    return _saved(pipelines.start, req.pipeline, req.input, req.output, req.model, req.thinking,
+                  "claude" if req.source == "claude" else "you")
+
+
+@app.get("/api/pipelines/{run_id}")
+async def pipeline_one(run_id: str) -> dict:
+    run = pipelines.get(run_id)
+    if run is None:
+        raise HTTPException(404, "That pipeline run is gone.")
+    return run
+
+
+@app.post("/api/pipelines/{run_id}/stop")
+async def pipeline_stop(run_id: str) -> dict:
+    return _saved(pipelines.stop, run_id)
+
+
+@app.post("/api/pipelines/{run_id}/carry-on")
+async def pipeline_carry_on(run_id: str) -> dict:
+    return _saved(pipelines.carry_on, run_id)
+
+
+@app.delete("/api/pipelines/{run_id}")
+async def pipeline_delete(run_id: str) -> dict:
+    if not _saved(pipelines.delete, run_id):
+        raise HTTPException(404, "That's already gone.")
+    return {"deleted": True}
 
 
 @app.get("/api/bulk/{run_id}")
