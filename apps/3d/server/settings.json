@@ -1,0 +1,16 @@
+{
+  "_about": "MeshAi settings shared by every machine. Put this machine's own paths in server/settings.local.json (git-ignored); it is laid over this file.",
+  "trellis_dir": "../trellis-mac",
+  "_trellis_dir": "The TRELLIS.2 Mac port (github.com/shivampkumar/trellis-mac), set up with its own .venv and a local-model/ folder. Relative to this project's folder, or a full path.",
+  "library_dir": "library",
+  "logs_dir": "logs",
+  "max_queue": 500,
+  "idle_minutes": 10,
+  "_idle_minutes": "TRELLIS uses about 18 GB while loaded. After this many minutes with nothing to do it is let go; the next job loads it again (about a minute).",
+  "texture_size": 1024,
+  "pipeline_type": "512",
+  "_pipeline_type": "512 is the one that works reliably on a Mac (1024 crashed for others).",
+  "max_versions": 8,
+  "folders": [],
+  "_folders": "Folders the Bulk tab may look in: [{\"name\": \"Desktop\", \"path\": \"~/Desktop\"}]. Set them in settings.local.json."
+}

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#16161d">
+  <title>MeshAi</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="app.css">
+  <script type="module" src="vendor/model-viewer.min.js"></script>
+</head>
+<body>
+  <header class="top">
+    <h1>MeshAi</h1>
+    <span id="status" class="status">Checking…</span>
+  </header>
+
+  <nav class="tabs">
+    <a href="#make" class="tab" data-view="make">Make</a>
+    <a href="#library" class="tab" data-view="library">Library</a>
+    <a href="#bulk" class="tab" data-view="bulk">Bulk</a>
+    <a href="#queue" class="tab" data-view="queue">Queue <span id="queue-count" class="count" hidden></span></a>
+  </nav>
+
+  <p id="problem" class="note warn" hidden></p>
+
+  <!-- Make: one picture in, versions of a 3D model out. -->
+  <main id="view-make" class="view" hidden>
+    <section class="card">
+      <h2>Picture</h2>
+      <label class="drop" id="drop">
+        <input id="make-file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+        <img id="make-preview" alt="" hidden>
+        <span id="make-drop-text">Tap to choose a picture, or drop one here.<br>
+          <span class="muted small">One object on a plain background works best.</span></span>
+      </label>
+      <label class="field">
+        <span class="label">Name</span>
+        <input id="make-name" class="text-input" type="text" maxlength="60" placeholder="Item Fridge" autocomplete="off">
+        <span class="muted small field-help">The same name as a model in the Library adds versions to it.</span>
+      </label>
+      <label class="field">
+        <span class="label">Versions</span>
+        <input id="make-versions" class="text-input narrow" type="number" min="1" max="8" value="1" inputmode="numeric">
+        <span class="muted small field-help">Each version starts from a different random seed. About a minute each.</span>
+      </label>
+      <p id="make-error" class="error-line" hidden></p>
+      <button id="make-go" type="button" class="primary">Make 3D model</button>
+    </section>
+    <section id="make-progress" class="card" hidden>
+      <h2>Making</h2>
+      <div id="make-jobs" class="job-list"></div>
+      <a id="make-open" class="button" hidden>Open in the Library</a>
+    </section>
+  </main>
+
+  <!-- Library: every model; open one to see it in 3D. -->
+  <main id="view-library" class="view" hidden>
+    <section class="card" id="library-list-card">
+      <div class="head-row">
+        <h2>Library</h2>
+        <input id="library-search" class="text-input search" type="search" placeholder="Search" aria-label="Search by name" autocomplete="off">
+      </div>
+      <div id="library-list" class="library-grid"><p class="muted">Loading…</p></div>
+    </section>
+
+    <section class="card" id="model-card" hidden>
+      <a href="#library" class="link-button">← All models</a>
+      <div class="head-row">
+        <h2 id="model-name" class="model-name"></h2>
+        <button id="model-rename" type="button" class="button small-button">Rename</button>
+      </div>
+      <div id="rename-box" class="inline-form" hidden>
+        <input id="rename-input" class="text-input" type="text" maxlength="60">
+        <button id="rename-save" type="button" class="button small-button">Save</button>
+      </div>
+      <div class="viewer-box">
+        <model-viewer id="viewer" camera-controls touch-action="pan-y" shadow-intensity="0.6" exposure="1"
+                      environment-image="neutral" interaction-prompt="none" auto-rotate auto-rotate-delay="2500"></model-viewer>
+        <div id="viewer-note" class="viewer-note" hidden></div>
+      </div>
+      <div id="version-list" class="versions" role="radiogroup" aria-label="Versions"></div>
+      <div id="version-info" class="muted small"></div>
+      <div class="actions">
+        <a id="version-download" class="button" download>Download GLB</a>
+        <button id="version-delete" type="button" class="button danger">Delete version</button>
+      </div>
+      <details class="more">
+        <summary>Make more versions</summary>
+        <div class="more-body">
+          <div class="pick-pictures" id="more-pictures"></div>
+          <div class="inline-form">
+            <input id="more-count" class="text-input narrow" type="number" min="1" max="8" value="1" inputmode="numeric" aria-label="How many">
+            <button id="more-go" type="button" class="button">Make more</button>
+          </div>
+        </div>
+      </details>
+      <p id="model-error" class="error-line" hidden></p>
+      <button id="model-delete" type="button" class="button danger wide">Delete this model</button>
+    </section>
+  </main>
+
+  <!-- Bulk: a model for every picture in a folder. -->
+  <main id="view-bulk" class="view" hidden>
+    <section class="card">
+      <h2>Folder</h2>
+      <div class="picker-where">
+        <button id="bulk-up" type="button" class="button small-button" disabled>↑ Up</button>
+        <span id="bulk-path" class="picked-path">Your folders</span>
+      </div>
+      <div id="bulk-folders" class="folder-list"></div>
+      <p id="bulk-about" class="muted"></p>
+      <div id="bulk-sample" class="sample"></div>
+      <label class="field">
+        <span class="label">Versions of each</span>
+        <input id="bulk-versions" class="text-input narrow" type="number" min="1" max="8" value="1" inputmode="numeric">
+      </label>
+      <label class="check"><input id="bulk-skip" type="checkbox" checked> Skip pictures already in the Library (by name)</label>
+      <p class="muted small">Each picture becomes a model named after its file: <code>item_fridge.png</code> → “item fridge”.</p>
+      <p id="bulk-error" class="error-line" hidden></p>
+      <button id="bulk-go" type="button" class="primary" disabled>Make all</button>
+    </section>
+    <section id="bulk-run" class="card" hidden>
+      <h2>This run</h2>
+      <p id="bulk-line"></p>
+      <div class="bar"><span id="bulk-bar"></span></div>
+      <button id="bulk-stop" type="button" class="button danger">Stop the rest</button>
+    </section>
+  </main>
+
+  <!-- Queue: what's being made and what's waiting. -->
+  <main id="view-queue" class="view" hidden>
+    <section class="card">
+      <h2>Queue</h2>
+      <div id="queue-list" class="job-list"><p class="muted">Loading…</p></div>
+    </section>
+  </main>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
