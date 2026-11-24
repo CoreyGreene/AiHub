@@ -1,0 +1,20 @@
+# This repo may be public. Nothing private, nothing big.
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Your 3D models and their pictures
+library/
+*.glb
+*.obj
+*.png
+*.jpg
+*.jpeg
+*.webp
+
+# This machine's own settings (folders, paths)
+*.local.json
+logs/
+.DS_Store
