@@ -1,7 +1,8 @@
 """Editing a picture with Qwen-Image-Edit-2511: a picture plus an
 instruction ("make his cloak red") gives a new picture.
 
-The drawing model is a 20B model; here it's a GGUF file (3-bit on the
+The drawing model is a 20B model: the full one from its folder (the Mac),
+or a GGUF file ("gguf" in settings: 3-bit on the
 12 GB card). With low_memory (generation.py measures the machine) the
 text reader (Qwen2.5-VL 7B) is loaded in 4-bit, and the two take turns on
 the card: the instruction is read first, then the reader is let go and the
@@ -99,13 +100,19 @@ class Backend:
         from diffusers import GGUFQuantizationConfig, QwenImageTransformer2DModel
 
         folder = req["folder"]
-        self.drawer = QwenImageTransformer2DModel.from_single_file(
-            str(folder / req["gguf"]),
-            quantization_config=GGUFQuantizationConfig(compute_dtype=self.dtype),
-            config=str(folder),
-            subfolder="transformer",
-            torch_dtype=self.dtype,
-        ).to(self.device)
+        if req.get("gguf"):  # a squeezed copy (the 12 GB card)
+            self.drawer = QwenImageTransformer2DModel.from_single_file(
+                str(folder / req["gguf"]),
+                quantization_config=GGUFQuantizationConfig(compute_dtype=self.dtype),
+                config=str(folder),
+                subfolder="transformer",
+                torch_dtype=self.dtype,
+            )
+        else:  # the full model, as it came (the Mac has room)
+            self.drawer = QwenImageTransformer2DModel.from_pretrained(
+                str(folder), subfolder="transformer", torch_dtype=self.dtype
+            )
+        self.drawer.to(self.device)
         self.pipe.transformer = self.drawer
         if req.get("lightning"):
             self.pipe.load_lora_weights(str(folder / req["lightning"]), adapter_name="lightning")

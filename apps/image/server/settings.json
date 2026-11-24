@@ -58,7 +58,7 @@
   "_max_queue": "Most picture jobs waiting or being made at once. More requests are turned away until some finish.",
   "max_queue": 500,
 
-  "_edit": "Changing a picture by an instruction (the Edit button). The model folder is in models_dir; gguf is the drawing model in it (3-bit for a 12 GB card), lightning a LoRA that does it in 8 steps with guidance 1. Without lightning: about 20 steps, guidance 4. roomy_gb: with less memory than this (measured: the card on NVIDIA, the whole machine on a Mac) the model is squeezed in: text reader in 4-bit, its parts taking turns.",
+  "_edit": "Changing a picture by an instruction (the Edit button). The model folder is in models_dir; gguf is a squeezed drawing model file in it (3-bit for a 12 GB card; empty: the full one in its transformer folder), lightning a LoRA that does it in 8 steps with guidance 1. Without lightning: about 20 steps, guidance 4. roomy_gb: with less memory than this (measured: the card on NVIDIA, the whole machine on a Mac) the model is squeezed in: text reader in 4-bit, its parts taking turns.",
   "edit": {
     "backend": "qwen-edit",
     "roomy_gb": 48,
