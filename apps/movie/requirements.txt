@@ -1,0 +1,18 @@
+fastapi>=0.115
+uvicorn>=0.30
+pillow==13.0.0
+
+# Video making. Versions known to work together (same as ImageAi).
+# On Linux, PyPI's torch comes with CUDA; on a Mac it uses the GPU through MPS.
+torch==2.14.1
+diffusers==0.41.0
+transformers==5.20.2
+accelerate==1.15.0
+safetensors==0.8.0
+peft==0.21.2
+# Wan's text reader cleans prompts with it.
+ftfy
+# Writes the .mp4 files (server/videos.py); brings its own ffmpeg.
+imageio[ffmpeg]
+# On a 12 GB card the text reader is loaded in 4-bit. Not needed on the Mac.
+bitsandbytes==0.50.2; sys_platform != "darwin"

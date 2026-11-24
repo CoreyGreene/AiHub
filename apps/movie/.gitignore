@@ -1,0 +1,72 @@
+# This repo is public. Nothing private, nothing big.
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# AI models: checkpoints, LoRAs, embeddings, VAEs, MLX and Core ML models
+server/aIModels/
+server/lora/
+models/
+loras/
+checkpoints/
+embeddings/
+vae/
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.gguf
+*.onnx
+*.npz
+*.mlmodel
+*.mlpackage/
+*.mlmodelc/
+.cache/
+
+# Themes are your own settings (model, LoRAs, prompt words): they stay on
+# this machine. Only the guide and the generic examples are shared.
+server/theme/*.json
+
+# Videos: generated ones, training sets, anything else
+outputs/
+datasets/
+*.mp4
+*.mov
+*.webm
+*.mkv
+*.avi
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.bmp
+*.tif
+*.tiff
+*.heic
+*.psd
+# ...except the page's own icons, which live in web/
+!web/**/*.png
+
+# Private settings, keys and logs
+.env
+.env.*
+*.local.json
+*.pem
+*.key
+*.log
+.claude/settings.local.json
+
+# Notes for this machine's own AI helper (paths, plans): kept local.
+# AGENTS.md is the shared overview.
+CLAUDE.md
+.claude/
+
+# OS / editor clutter
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

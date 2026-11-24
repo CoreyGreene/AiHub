@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#16161d">
+  <title>MovieAi</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="top">
+    <h1>MovieAi</h1>
+    <div id="gpu" class="gpu">Graphics card: checking…</div>
+    <a href="#settings" class="gear" data-view="settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </a>
+  </header>
+
+  <nav class="tabs">
+    <a href="#create" class="tab" data-view="create">Create</a>
+    <a href="#library" class="tab" data-view="library">Library</a>
+    <a href="#theme" class="tab" data-view="theme">Theme</a>
+    <a href="#workflows" class="tab" data-view="workflows">Workflows</a>
+  </nav>
+
+  <main id="view-create" class="view">
+    <nav class="subtabs" aria-label="Create mode">
+      <a href="#create" class="subtab" data-subview="standard">Standard</a>
+      <a href="#create/advanced" class="subtab" data-subview="advanced">Advanced</a>
+      <a href="#create/custom" class="subtab" data-subview="custom">Custom</a>
+    </nav>
+
+    <!-- One form for both: Advanced only adds "How many videos". -->
+    <div class="create-area">
+    <form id="make" class="card" novalidate>
+      <div class="field not-custom">
+        <label class="label" for="theme-name">Theme</label>
+        <div class="combo">
+          <input id="theme-name" type="text" role="combobox" aria-expanded="false"
+                 aria-controls="theme-options" aria-autocomplete="list"
+                 autocomplete="off" autocapitalize="off" spellcheck="false"
+                 placeholder="Loading themes…" disabled>
+          <button id="theme-toggle" type="button" class="combo-toggle" tabindex="-1"
+                  aria-label="Show all themes">▾</button>
+          <ul id="theme-options" class="combo-list" role="listbox" hidden></ul>
+        </div>
+        <p id="theme-hint" class="hint-line"></p>
+      </div>
+
+      <label class="field">
+        <span class="label">Prompt</span>
+        <textarea id="prompt" rows="4" placeholder="A goblin merchant waves, then walks off with a big backpack"></textarea>
+        <span id="prompt-error" class="error-line" hidden>Type a prompt first: describe the video you want, and what moves.</span>
+      </label>
+
+      <div class="field">
+        <label class="label" for="character">Character name <span class="optional">(optional)</span></label>
+        <div class="name-row">
+          <input id="character" class="text-input" type="text" placeholder="Grim the goblin"
+                 autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="60">
+          <button id="pick-character" type="button" class="button">Pick</button>
+        </div>
+        <span id="character-error" class="error-line" hidden></span>
+      </div>
+
+      <fieldset id="custom-box" class="custom custom-only">
+        <legend class="label">Your own theme</legend>
+        <p id="copied-note" class="note small" hidden></p>
+        <p class="muted small">Pick the model and LoRAs and write the words around your prompt. Nothing is saved as a theme.</p>
+        <div id="custom-fields"><p class="muted">Loading…</p></div>
+        <button id="custom-reset" type="button" class="button small-button">Start again</button>
+      </fieldset>
+
+      <div class="field advanced-only">
+        <label class="label" for="count">How many videos</label>
+        <div class="stepper">
+          <button id="count-down" type="button" class="button" aria-label="Fewer videos">−</button>
+          <input id="count" class="text-input" type="number" inputmode="numeric" min="1" max="4" value="2">
+          <button id="count-up" type="button" class="button" aria-label="More videos">+</button>
+        </div>
+      </div>
+
+      <fieldset id="theme-words" class="custom advanced-only not-custom">
+        <legend class="label">This theme's words</legend>
+        <p class="muted small">Change them for these videos. The theme itself isn't changed.</p>
+        <div id="theme-words-fields"><p class="muted">Loading…</p></div>
+        <button id="theme-words-reset" type="button" class="button small-button" hidden>Put back the theme's words</button>
+      </fieldset>
+
+      <button id="generate" type="submit" class="primary">Generate</button>
+    </form>
+
+    <section class="card result" aria-live="polite">
+      <h2>Result</h2>
+      <div id="result" class="result-box">
+        <p class="muted">Your video will show up here.</p>
+      </div>
+    </section>
+    </div>
+  </main>
+
+  <dialog id="character-chooser" class="chooser" aria-labelledby="chooser-title">
+    <div class="chooser-head">
+      <h2 id="chooser-title">Pick a character</h2>
+      <button id="chooser-close" type="button" class="button" aria-label="Close">✕</button>
+    </div>
+    <p class="muted small">New videos will be saved to the one you pick.</p>
+    <div id="chooser-list" class="choice-list"></div>
+  </dialog>
+
+  <dialog id="video-viewer" class="viewer" aria-label="Video">
+    <video id="viewer-video" controls loop playsinline></video>
+    <div class="viewer-bar">
+      <button id="viewer-prev" type="button" class="button" aria-label="Previous video">‹</button>
+      <span id="viewer-count" class="muted"></span>
+      <button id="viewer-next" type="button" class="button" aria-label="Next video">›</button>
+      <button id="viewer-close" type="button" class="button">Close</button>
+      <button id="viewer-pick" type="button" class="button viewer-pick" aria-pressed="false" hidden>Pick this one</button>
+    </div>
+  </dialog>
+
+  <main id="view-library" class="view" hidden>
+    <section class="card">
+      <a href="#library" id="library-back" class="link-button back-link" hidden>← All characters</a>
+      <div class="library-head">
+        <h2 id="library-title">Library</h2>
+        <div id="library-layout" class="layout-toggle" role="group" aria-label="Library tools" hidden>
+          <button type="button" class="icon-button" data-layout="thumbs" aria-label="Small videos">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+          </button>
+          <button type="button" class="icon-button" data-layout="full" aria-label="Full videos with details">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="12" rx="1.5"/><rect x="4" y="17.5" width="16" height="1.5" rx="0.75"/><rect x="4" y="20.5" width="10" height="1.5" rx="0.75"/></svg>
+          </button>
+          <button type="button" class="icon-button" data-layout="dates" aria-label="By date">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M7 2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2zM5 9v10h14V9z"/><rect x="7" y="11" width="4" height="4" rx="0.5"/></svg>
+          </button>
+          <button id="select-toggle" type="button" class="icon-button select-toggle" aria-pressed="false" aria-label="Select videos">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7.5 12.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+      <p id="library-count" class="muted" hidden></p>
+      <div id="library-list" class="library-grid">
+        <p class="muted">Loading…</p>
+      </div>
+      <!-- Select mode: what to do with the chosen videos. -->
+      <div id="select-bar" class="select-bar" hidden>
+        <div class="select-row">
+          <span id="select-count" class="select-count">Tap videos to choose them</span>
+          <button id="select-all" type="button" class="button small-button">All</button>
+        </div>
+        <div class="select-row" id="select-actions">
+          <button id="select-zip" type="button" class="button">Download zip</button>
+          <button id="select-delete" type="button" class="button danger">Delete</button>
+        </div>
+        <div class="select-row" id="delete-ask" hidden>
+          <span id="delete-question" class="select-count"></span>
+          <button id="delete-yes" type="button" class="button danger">Yes, delete</button>
+          <button id="delete-no" type="button" class="button">Keep them</button>
+        </div>
+        <p id="select-error" class="error-line" hidden></p>
+      </div>
+    </section>
+  </main>
+
+  <main id="view-theme" class="view" hidden>
+    <nav class="subtabs" aria-label="Theme mode">
+      <a href="#theme" class="subtab" data-subview="edit">Edit</a>
+      <a href="#theme/new" class="subtab" data-subview="new">New</a>
+    </nav>
+    <div id="theme-info" class="theme-info">
+      <p class="muted">Loading…</p>
+    </div>
+    <div id="theme-new" class="theme-info" hidden></div>
+  </main>
+
+  <main id="view-workflows" class="view" hidden>
+    <section class="card">
+      <h2>Workflows</h2>
+      <p class="muted">Nothing here yet. Coming soon.</p>
+    </section>
+  </main>
+
+  <main id="view-settings" class="view" hidden>
+    <section class="card">
+      <h2>Settings</h2>
+      <label class="switch-row">
+        <span>
+          <strong>Use 3060 settings</strong>
+          <span class="muted small">For the 12 GB RTX 3060 on the Linux PC: loads the text reader in 4-bit and makes the pixels in tiles, so it fits. Leave off on the Mac.</span>
+        </span>
+        <input id="use-3060" type="checkbox" role="switch" disabled>
+      </label>
+      <p id="settings-note" class="hint-line" aria-live="polite"></p>
+      <p class="muted small">Videos are made on: <span id="settings-device">…</span></p>
+    </section>
+
+
+    <section class="card">
+      <h2>Video queue</h2>
+      <p class="muted small">One video job is made at a time; the rest wait here in order.</p>
+      <ol id="queue-list" class="queue-list"></ol>
+    </section>
+  </main>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
