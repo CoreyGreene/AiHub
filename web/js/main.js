@@ -12,14 +12,16 @@ import { loadSettings } from "./settings.js";
 import { startQueueList } from "./queue-list.js";
 import { loadThemeInfo } from "./theme-info.js";
 import { loadWorkflows } from "./workflows.js";
+import { showExperiments } from "./experiments.js";
 
-// Tabs: Create, Library, Theme, Workflows, and the Settings gear. The address ends in
+// Tabs: Create, Library, Theme, Workflows, Experiments, and the Settings gear. The address ends in
 // #create, #library and so on, so the phone's Back button works too.
 // #library/<folder> opens one character, #library/<folder>/<date> one day of it.
 const onShow = {
   library: loadLibrary,
   theme: loadThemeInfo,
   workflows: () => loadWorkflows(),
+  experiments: showExperiments,
   settings: () => {
     loadSettings();
     startQueueList();

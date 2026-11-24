@@ -48,6 +48,14 @@ for where they go and how to write a theme.
   `web/js/create.js`), so the form is always the same one. Start queues
   every item; the pictures go to `outputs/staging/<group>/` (Library →
   Staging), where you choose which to move to a character.
+- **Experiments:** `server/experiments.py`, one JSON file each in
+  `server/experiment/` (git-ignored, personal). An experiment is a list of
+  batches, each a model plus prompts (and size, steps, guidance if not the
+  model's own). Start queues every batch in order, all with the same seeds;
+  each run gets `outputs/experiments/<run>/<n>-<batch>/` and a Compare grid
+  on the page. Models: every SDXL file, plus the mflux models listed in
+  `settings.json` → `"experiments"` (Qwen-Image, FLUX.2 klein; Mac only,
+  `server/backends/mflux_image.py`).
 - **Code lock:** `server/lock.py` + `web/lock.html`. A server option, off by
   default and not on the website: `"lock": true` and `"lock_code"` in
   `server/settings.local.json`, then restart. With it on, every route needs

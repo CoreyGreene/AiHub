@@ -93,6 +93,13 @@ Ground rules carried over from the last project:
 | `POST /api/workflows/{id}/start` | Queues every item; pictures go to staging under the item's name (or the workflow's name + its number). A running workflow can't be changed or deleted |
 | `PUT /api/workflows/{id}` `{name, items}` | Saves the whole workflow; each item is checked like Generate |
 | `DELETE /api/workflows/{id}` | Deletes the workflow (pictures already made stay) |
+| `GET /api/experiments` | Saved experiments (`id`, `name`, how many `batches`), the `models` a batch can use (with `here` and their defaults), and every run |
+| `POST /api/experiments` `{name, seed, batches}` | A new experiment; answers `{"id"}`. Each batch: `name`, `model`, `prompts`, `count`, and `width`, `height`, `steps`, `guidance` (0 = the model's own), `negative` |
+| `GET` / `PUT` / `DELETE /api/experiments/{id}` | One experiment: read, save, delete (its runs stay) |
+| `POST /api/experiments/{id}/start` | Queues every batch in order, same seeds for all; answers `{"run"}` (its folder in `outputs/experiments/`) |
+| `GET /api/experiment-runs/{run}` | A run: each batch's status, pictures (with prompt number and seed), seconds a picture, folder |
+| `POST /api/experiment-runs/{run}/stop` | Takes the run's waiting pictures out of the queue |
+| `DELETE /api/experiment-runs/{run}` | Deletes the run's folder and its pictures (not while running) |
 | `GET /api/staging` | Library → Staging: the groups of workflow pictures waiting to be picked |
 | `GET /api/staging/{folder}` | One staging group and its pictures |
 | `POST /api/staging/approve` `{ids, character}` | Moves the chosen staging pictures to a character (new or existing) |

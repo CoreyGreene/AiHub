@@ -84,7 +84,7 @@ h2 { margin: 0 0 12px; font-size: 1rem; color: var(--muted); font-weight: 600; }
 /* Create / Library tabs. */
 .tabs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   margin-bottom: 16px;
   border-bottom: 1px solid var(--line);
 }
@@ -226,6 +226,7 @@ main[hidden] { display: none; }
 .optional { font-weight: 400; color: var(--muted); }
 .error-line { display: block; margin-top: 6px; font-size: 0.9rem; color: #ff9b9b; }
 .error-line[hidden] { display: none; }
+#view-theme [hidden] { display: none; } /* the form hides LoRAs and Sampler for a model folder */
 
 textarea,
 .text-input {
@@ -852,3 +853,87 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
 /* iPhone: two quick taps (the viewer's next arrow, a stepper) would zoom the
    page. "manipulation" turns double-tap zoom off; pinch zoom still works. */
 button, .button, a, input, select, textarea, label, .viewer { touch-action: manipulation; }
+
+/* Experiments tab: a computer-screen tool, so phones don't show its tab (the phone tabs stay as they were) */
+@media (max-width: 759px) {
+  .tabs { grid-template-columns: repeat(4, 1fr); }
+  .tab[data-view="experiments"] { display: none; }
+}
+#view-experiments .card { margin-bottom: 16px; }
+.exp-about { margin-top: 10px; }
+.exp-batches { display: grid; gap: 12px; margin-bottom: 12px; }
+.exp-batch { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 0; min-width: 0; }
+.exp-batch legend { padding: 0 6px; margin: 0; }
+.exp-batch select.text-input { appearance: auto; }
+.exp-batch textarea { width: 100%; }
+.exp-numbers { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 10px; }
+.exp-numbers .field { margin-bottom: 12px; }
+.exp-numbers .text-input { width: 100%; }
+.exp-negative[hidden] { display: none; }
+.exp-model-note { margin: 0 0 10px; }
+.exp-batch-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.exp-batch-tools button { flex: none; }
+.exp-add { width: 100%; margin-bottom: 8px; }
+.exp-delete { margin-top: 12px; }
+.exp-delete[hidden], #run-stop[hidden], #run-delete[hidden] { display: none; }
+.exp-runs { display: grid; gap: 8px; margin-top: 10px; }
+.exp-run-row {
+  display: flex; gap: 10px; align-items: center; justify-content: space-between;
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; color: var(--text); text-decoration: none;
+}
+.exp-run-row > span:first-child { display: grid; gap: 2px; min-width: 0; }
+.exp-chip {
+  flex: none; font-size: 0.8rem; padding: 2px 10px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--muted); white-space: nowrap;
+}
+.exp-chip[data-status="working"], .exp-chip[data-status="running"] { color: var(--text); border-color: var(--accent); }
+.exp-chip[data-status="done"] { color: #9be3b0; border-color: #2f6b45; }
+.exp-chip[data-status="stopped"] { color: #ffcf8a; border-color: #7a5a2a; }
+.exp-run-batches { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.exp-run-batches li { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; }
+.exp-batch-head { display: flex; gap: 10px; align-items: baseline; justify-content: space-between; }
+.exp-path { overflow-wrap: anywhere; }
+.exp-compare-wrap { overflow-x: auto; margin-top: 10px; }
+.exp-compare { border-collapse: collapse; min-width: 100%; }
+.exp-compare td { border-top: 1px solid var(--line); padding: 8px; vertical-align: top; }
+.exp-compare thead td { font-weight: 600; font-size: 0.9rem; border-top: 0; white-space: nowrap; }
+.exp-compare .exp-prompt { min-width: 140px; max-width: 220px; font-size: 0.85rem; color: var(--muted); }
+.exp-compare img {
+  display: block; width: 160px; height: 160px; object-fit: cover; border-radius: 8px;
+  margin-bottom: 6px; cursor: zoom-in; background: var(--bg);
+}
+@media (min-width: 760px) {
+  .exp-numbers { grid-template-columns: repeat(5, 1fr); }
+  .exp-compare img { width: 220px; height: 220px; }
+}
+
+/* Library: search box, and characters or items. */
+.library-filter { display: grid; gap: 10px; margin: 12px 0 4px; }
+.library-filter[hidden] { display: none; }
+@media (min-width: 760px) {
+  .library-filter { grid-template-columns: 1fr auto; align-items: center; }
+}
+.kind-toggle {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.kind-toggle label {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 40px;
+  padding: 0 18px;
+  font-weight: 600;
+  color: var(--muted);
+  border-radius: 9px;
+  cursor: pointer;
+}
+.kind-toggle input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.kind-toggle label:hover { color: var(--text); }
+.kind-toggle label:has(input:checked) { color: var(--text); background: var(--note-bg); }
+.kind-toggle label:has(input:focus-visible) { outline: 2px solid var(--accent); }

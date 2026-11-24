@@ -41,9 +41,12 @@ def is_active(job_id: str) -> bool:
         return _jobs.get(job_id, {}).get("status") in ("waiting", "working")
 
 
-def submit(theme_id: str, theme: dict, prompt: str, count: int = 1, staging: str = "") -> str:
+def submit(theme_id: str, theme: dict, prompt: str, count: int = 1, staging: str = "",
+           folder=None, seed: int | None = None, extra: dict | None = None) -> str:
     """Queue a picture job. staging: a workflow's pictures go to that
-    staging group (Library → Staging) instead of outputs/new."""
+    staging group (Library → Staging) instead of outputs/new. folder, seed,
+    extra: an experiment's pictures go to its batch's folder, picture n
+    with seed + (n - 1) * 1000, and extra is saved beside each one."""
     global _worker
     job_id = uuid.uuid4().hex
     with _lock:
@@ -54,6 +57,7 @@ def submit(theme_id: str, theme: dict, prompt: str, count: int = 1, staging: str
         _jobs[job_id] = {
             "status": "waiting", "theme_id": theme_id, "theme": theme, "prompt": prompt,
             "count": count, "number": 0, "pictures": [], "blocked": 0, "stop": False, "staging": staging,
+            "folder": folder, "seed": seed, "extra": extra or {},
         }
         if _worker is None:
             _worker = threading.Thread(target=_work, daemon=True)
@@ -77,7 +81,7 @@ def status(job_id: str) -> dict | None:
         job = _jobs.get(job_id)
         if job is None:
             return None
-        out = {k: v for k, v in job.items() if k not in ("theme", "prompt", "theme_id", "stop", "edit_of")}
+        out = {k: v for k, v in job.items() if k not in ("theme", "prompt", "theme_id", "stop", "edit_of", "folder", "extra")}
         out["pictures"] = list(job["pictures"])
         if job["status"] == "waiting":
             out["ahead"] = sum(
@@ -165,12 +169,16 @@ def _work():
                     if job.get("edit_of"):
                         image, details = generation.edit(job["edit_of"], job["prompt"], progress)
                     else:
-                        image, details = generation.generate(job["theme"], job["prompt"], progress)
+                        seed = None if job["seed"] is None else job["seed"] + (number - 1) * 1000
+                        image, details = generation.generate(job["theme"], job["prompt"], progress, seed,
+                                                             alone=job["folder"] is not None)
                 except generation.Blocked:
                     _update(job_id, blocked=job["blocked"] + 1)
                     continue
                 pic_id = pictures.keep_new(
-                    image, {"theme": job["theme_id"], "prompt": job["prompt"], **details}, job["staging"]
+                    image, {"theme": job["theme_id"], "prompt": job["prompt"], **details, **job["extra"],
+                            **({"number": number} if job["folder"] else {})},
+                    job["staging"], job["folder"],
                 )
                 with _lock:
                     job["pictures"].append({"picture": pic_id, "image": f"api/pictures/{pic_id}"})

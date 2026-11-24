@@ -11,7 +11,10 @@ const newBox = document.getElementById("theme-new");
 
 const CHOSEN_KEY = "imageai.themeTab"; // the theme last looked at, on this phone
 
-const BACKENDS = { "diffusers-sdxl": "SDXL model, run with diffusers (PyTorch)" };
+const BACKENDS = {
+  "diffusers-sdxl": "SDXL model, run with diffusers (PyTorch)",
+  mflux: "Model folder, run with mflux (Apple MLX, Mac only)",
+};
 
 export function loadThemeInfo(sub) {
   const mode = sub === "new" ? "new" : "edit";
@@ -184,8 +187,13 @@ function fill(root, theme, onSaved) {
         ["Picture size", `${s.width} × ${s.height}`],
         ["Steps", `${s.steps} (more = more detail, slower)`],
         ["Guidance", `${s.guidance} (how closely it follows the prompt)`],
-        ["Sampler", SAMPLERS[s.scheduler] || s.scheduler],
-        ["3060 settings", theme.use_3060_settings ? "On (Settings page)" : "Off (Settings page)"],
+        // mflux models have no sampler to choose, and the 3060 settings are for SDXL.
+        ...(theme.backend === "mflux"
+          ? []
+          : [
+              ["Sampler", SAMPLERS[s.scheduler] || s.scheduler],
+              ["3060 settings", theme.use_3060_settings ? "On (Settings page)" : "Off (Settings page)"],
+            ]),
       ])
     )
   );

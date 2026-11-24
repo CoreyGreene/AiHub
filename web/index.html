@@ -26,6 +26,7 @@
     <a href="#library" class="tab" data-view="library">Library</a>
     <a href="#theme" class="tab" data-view="theme">Theme</a>
     <a href="#workflows" class="tab" data-view="workflows">Workflows</a>
+    <a href="#experiments" class="tab" data-view="experiments">Experiments</a>
   </nav>
 
   <main id="view-create" class="view">
@@ -153,6 +154,16 @@
           </button>
         </div>
       </div>
+      <!-- The list of characters: search by name, and characters or items
+           (an item is any name that starts with the word "Item"). -->
+      <div id="library-filter" class="library-filter" hidden>
+        <input id="library-search" class="text-input" type="search" placeholder="Search characters"
+               aria-label="Search by name" autocomplete="off" enterkeyhint="search">
+        <div class="kind-toggle" role="radiogroup" aria-label="Show">
+          <label><input type="radio" name="library-kind" value="characters" checked><span>Characters</span></label>
+          <label><input type="radio" name="library-kind" value="items"><span>Items</span></label>
+        </div>
+      </div>
       <p id="library-count" class="muted" hidden></p>
       <div id="library-list" class="library-grid">
         <p class="muted">Loading…</p>
@@ -225,6 +236,68 @@
       </div>
     </section>
     <div id="flow"><p class="muted">Loading…</p></div>
+  </main>
+
+  <main id="view-experiments" class="view" hidden>
+    <div id="exp-edit-area">
+      <section class="card flow-pick">
+        <div class="flow-pick-row">
+          <label class="field">
+            <span class="label">Experiment</span>
+            <select id="exp-choice" class="text-input"></select>
+          </label>
+          <button id="exp-new" type="button" class="button">New</button>
+        </div>
+        <p class="muted small exp-about">Batches of prompts, each made with its own model, one batch after another.
+          Every batch uses the same seeds, so the same prompt differs only by the model.</p>
+      </section>
+
+      <section class="card">
+        <label class="field">
+          <span class="label">Name</span>
+          <input id="exp-name" class="text-input" type="text" maxlength="60" placeholder="Robots, three models"
+                 autocomplete="off" autocapitalize="words">
+        </label>
+        <div id="exp-batches" class="exp-batches"></div>
+        <button id="exp-add" type="button" class="button exp-add">+ Add batch</button>
+        <span id="exp-error" class="error-line" hidden></span>
+        <p id="exp-note" class="hint-line"></p>
+        <div class="actions">
+          <button id="exp-save" type="button" class="button">Save</button>
+          <button id="exp-start" type="button" class="primary">Save and start</button>
+        </div>
+        <button id="exp-delete" type="button" class="button danger small-button exp-delete" hidden>Delete this experiment</button>
+      </section>
+
+      <section class="card">
+        <h2>Runs</h2>
+        <p class="muted small">Each run has a folder with one folder of pictures per batch.</p>
+        <div id="exp-runs" class="exp-runs"><p class="muted">Loading…</p></div>
+      </section>
+    </div>
+
+    <div id="exp-run-area" hidden>
+      <section class="card">
+        <a href="#experiments" class="link-button back-link">← Experiments</a>
+        <h2 id="run-title"></h2>
+        <p id="run-line" class="muted small"></p>
+        <p class="muted small">Folder: <span id="run-path" class="exp-path"></span></p>
+        <div class="actions">
+          <button id="run-stop" type="button" class="button">Stop</button>
+          <button id="run-delete" type="button" class="button danger">Delete run</button>
+        </div>
+        <span id="run-error" class="error-line" hidden></span>
+      </section>
+      <section class="card">
+        <h2>Batches</h2>
+        <ol id="run-batches" class="exp-run-batches"></ol>
+      </section>
+      <section class="card">
+        <h2>Compare</h2>
+        <p class="muted small">One row per prompt, one column per batch. Tap a picture to see it big.</p>
+        <div class="exp-compare-wrap"><table id="run-compare" class="exp-compare"></table></div>
+      </section>
+    </div>
   </main>
 
   <main id="view-settings" class="view" hidden>

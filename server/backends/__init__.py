@@ -9,8 +9,8 @@ Every backend has the same shape:
 where request is a dict with model / model_config / loras (full paths),
 prompt, negative, width, height, steps, guidance, scheduler, seed, and
 low_memory (the "Use 3060 settings" switch) with fp16_vae, and
-on_step(done, total) reports progress. Later: MLX and Core ML backends for
-the Mac, with the same shape.
+on_step(done, total) reports progress. The mflux backend (MLX, Mac only)
+takes its own request: see server/backends/mflux_image.py.
 """
 
 import importlib
@@ -18,6 +18,7 @@ import importlib
 MODULES = {
     "diffusers-sdxl": "server.backends.diffusers_sdxl",
     "qwen-edit": "server.backends.qwen_edit",  # picture + instruction -> picture
+    "mflux": "server.backends.mflux_image",  # Qwen-Image, FLUX.2 klein through MLX (Mac only)
 }
 
 _loaded = {}

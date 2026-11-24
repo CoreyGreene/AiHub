@@ -35,6 +35,20 @@ try {
   if (["thumbs", "dates"].includes(saved)) layout = saved;
 } catch {}
 
+// The list of characters: a search box, and characters or items. An item is
+// any character whose name starts with the word "Item" ("Item Fridge").
+const filterBar = document.getElementById("library-filter");
+const search = document.getElementById("library-search");
+const kindButtons = document.querySelectorAll('input[name="library-kind"]');
+const KIND_KEY = "imageai.libraryKind";
+let kind = "characters"; // or "items"; remembered like the layout
+try {
+  if (localStorage.getItem(KIND_KEY) === "items") kind = "items";
+} catch {}
+for (const b of kindButtons) b.checked = b.value === kind;
+let everyone = []; // every character from the server, before the filter
+const isItem = (name) => /^items?\b/i.test(name.trim());
+
 let folderShown = ""; // the character on screen
 let dateShown = ""; // the day on screen, or "" for all of them
 let nameShown = ""; // that character's name, for the zip file
@@ -235,6 +249,7 @@ async function showAll() {
   const staging = place === "staging";
   title.textContent = staging ? "Staging" : "Library";
   back.hidden = layoutButtons.hidden = true;
+  filterBar.hidden = staging;
   count.hidden = !staging;
   count.textContent = "Pictures made by workflows. Open a group, choose the ones you like and add them to a character.";
   list.className = "library-grid";
@@ -247,10 +262,44 @@ async function showAll() {
         : `<p class="muted">No characters yet. Make a picture, type a name and press Save.</p>`;
       return;
     }
-    list.replaceChildren(...characters.map(card));
+    if (staging) {
+      list.replaceChildren(...characters.map(card));
+      return;
+    }
+    everyone = characters;
+    showFiltered();
   } catch {
     list.innerHTML = `<p class="muted">Couldn't load the library. Is the server running?</p>`;
   }
+}
+
+// The characters (or items) whose name has the search words in it.
+function showFiltered() {
+  const items = kind === "items";
+  search.placeholder = items ? "Search items" : "Search characters";
+  const words = search.value.trim().toLowerCase();
+  const found = everyone.filter((c) => isItem(c.name) === items && c.name.toLowerCase().includes(words));
+  if (found.length) {
+    list.replaceChildren(...found.map(card));
+    return;
+  }
+  const note = document.createElement("p");
+  note.className = "muted";
+  if (words) note.textContent = `No ${items ? "items" : "characters"} called “${search.value.trim()}”.`;
+  else if (items) note.textContent = "No items yet. Save a picture with a name that starts with Item, like “Item Fridge”.";
+  else note.textContent = "No characters yet, only items. Make a picture, type a name and press Save.";
+  list.replaceChildren(note);
+}
+
+search.addEventListener("input", showFiltered);
+for (const b of kindButtons) {
+  b.addEventListener("change", () => {
+    kind = b.value;
+    try {
+      localStorage.setItem(KIND_KEY, kind);
+    } catch {}
+    showFiltered();
+  });
 }
 
 function card(character) {
@@ -272,8 +321,11 @@ async function showCharacter(folder, date = "", message = "") {
   // Choosing works where pictures are shown, not on the list of days.
   selectToggle.hidden = layout === "dates" && !date;
   back.hidden = layoutButtons.hidden = false;
+  filterBar.hidden = true;
   back.href = date ? groupHash(folder) : listHash();
-  back.textContent = date ? "← All dates" : place === "staging" ? "← All of staging" : "← All characters";
+  back.textContent = date
+    ? "← All dates"
+    : place === "staging" ? "← All of staging" : kind === "items" ? "← All items" : "← All characters";
   title.textContent = "…";
   count.hidden = true;
   showLayout();

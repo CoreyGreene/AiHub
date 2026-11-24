@@ -5,6 +5,7 @@
   "loras_dir": "server/lora",
   "themes_dir": "server/theme",
   "workflows_dir": "server/workflow",
+  "experiments_dir": "server/experiment",
   "outputs_dir": "outputs",
 
   "_device": "auto = cuda (NVIDIA), then mps (Mac), then cpu. Or name one.",
@@ -27,6 +28,18 @@
     "steps": 28,
     "guidance": 6.0,
     "scheduler": "euler_a"
+  },
+
+  "_experiments": "The Experiments tab: batches of prompts, each made with its own model, to compare. Its models are every SDXL file in models_dir, plus these model folders (in models_dir) run through mflux on a Mac: kind is qwen-image (Qwen-Image 2512) or flux2-klein-4b. quantize: 4 or 8 makes a full model smaller as it loads (leave it out for one already made smaller, like mlx-community's 8-bit). width, height, steps and guidance are each model's own settings, used when a batch leaves them empty.",
+  "experiments": {
+    "models": [
+      {"name": "Qwen-Image 2512 (8-bit)", "folder": "Qwen-Image-2512-8bit", "kind": "qwen-image",
+       "width": 1328, "height": 1328, "steps": 50, "guidance": 4.0},
+      {"name": "Qwen-Image 2512", "folder": "Qwen-Image-2512", "kind": "qwen-image",
+       "width": 1328, "height": 1328, "steps": 50, "guidance": 4.0},
+      {"name": "FLUX.2 klein 4B", "folder": "FLUX.2-klein-4B", "kind": "flux2-klein-4b",
+       "width": 1024, "height": 1024, "steps": 4, "guidance": 1.0}
+    ]
   },
 
   "_max_pictures": "Most pictures one Generate can make (Advanced tab).",

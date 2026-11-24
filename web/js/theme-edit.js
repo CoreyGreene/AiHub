@@ -143,7 +143,11 @@ export async function editTheme(card, theme, onDone, { isNew = false } = {}) {
   const before = textArea(theme.prompt_before);
   const after = textArea(theme.prompt_after);
   const negative = textArea(theme.negative);
-  const model = select([...found.models], theme.model.file);
+  // Model files (SDXL), then model folders run by mflux (FLUX.2 klein, Qwen-Image; Mac only).
+  const folders = found.folder_models || [];
+  const folderNames = Object.fromEntries(folders.map((m) => [m.folder, `${m.name} (folder)`]));
+  const model = select([...found.models, ...folders.map((m) => m.folder)], theme.model.file, folderNames);
+  const isFolder = () => folders.some((m) => m.folder === model.value);
   const width = numberInput(s.width, { min: 512, max: 2048, step: 8 });
   const height = numberInput(s.height, { min: 512, max: 2048, step: 8 });
   const steps = numberInput(s.steps, { min: 1, max: 100, step: 1 });
@@ -164,6 +168,7 @@ export async function editTheme(card, theme, onDone, { isNew = false } = {}) {
       forgetChoices();
       model.append(new Option(file, file));
       model.value = file;
+      showForModel();
     },
   });
   const addLora = uploadBox("lora", {
@@ -195,6 +200,18 @@ export async function editTheme(card, theme, onDone, { isNew = false } = {}) {
   heading.className = "theme-title";
   heading.textContent = isNew ? "New theme" : `Change ${theme.name}`;
 
+  const samplerField = field("Sampler", sampler);
+  const folderNote = document.createElement("p");
+  folderNote.className = "muted small";
+  folderNote.textContent = "This model has no LoRAs or sampler to choose.";
+  // LoRAs and the sampler are for SDXL model files; hide them for a model folder.
+  function showForModel() {
+    const folder = isFolder();
+    for (const part of [loras.box, addLora, samplerField]) part.hidden = folder;
+    folderNote.hidden = !folder;
+  }
+  model.addEventListener("change", showForModel);
+
   card.replaceChildren(
     heading,
     field("Name", name),
@@ -203,16 +220,18 @@ export async function editTheme(card, theme, onDone, { isNew = false } = {}) {
     field("Words after your prompt", after),
     field("What to avoid", negative, "The safety words are always added too"),
     field("Model", model),
+    folderNote,
     addModel,
     loras.box,
     addLora,
     size,
     more,
-    field("Sampler", sampler),
+    samplerField,
     error,
     save,
     actions
   );
+  showForModel();
   if (!isNew) name.focus(); // on New, the phone's keyboard would cover the form
 
   async function onSave() {
@@ -226,7 +245,7 @@ export async function editTheme(card, theme, onDone, { isNew = false } = {}) {
       prompt_after: after.value,
       negative: negative.value,
       model: model.value,
-      loras: loras.values(),
+      loras: isFolder() ? [] : loras.values(),
       width: Number(width.value),
       height: Number(height.value),
       steps: Number(steps.value),

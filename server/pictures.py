@@ -5,6 +5,8 @@
     outputs/staging/<folder>/<id>.png    made by a workflow, waiting to be
                                          picked (Library → Staging)
     outputs/characters/<folder>/<id>.png saved to a character
+    outputs/experiments/<run>/<batch>/<id>.png
+                                         made by an experiment (Experiments tab)
     ...each with <id>.json beside it: theme, prompt, seed, character, time.
 """
 
@@ -34,13 +36,19 @@ def _staging() -> Path:
     return settings.folder("outputs_dir") / "staging"
 
 
+def experiments() -> Path:
+    return settings.folder("outputs_dir") / "experiments"
+
+
 PLACES = {"characters": _characters, "staging": _staging}
 
 
-def keep_new(image, info: dict, staging: str = "") -> str:
+def keep_new(image, info: dict, staging: str = "", folder: Path | None = None) -> str:
     """Save a freshly made picture into outputs/new (or a staging group, for
-    a workflow's pictures) and return its id."""
-    folder = _staging() / (folder_name(staging) or "unnamed") if staging else _new()
+    a workflow's pictures, or the folder given: an experiment's batch) and
+    return its id."""
+    if folder is None:
+        folder = _staging() / (folder_name(staging) or "unnamed") if staging else _new()
     folder.mkdir(parents=True, exist_ok=True)
     pic_id = uuid.uuid4().hex
     image.save(folder / f"{pic_id}.png")
@@ -85,7 +93,8 @@ def find(pic_id: str) -> Path | None:
     """The picture file for an id, wherever it is kept."""
     if not ID_PATTERN.match(pic_id):
         return None
-    for path in [_new() / f"{pic_id}.png", *_characters().glob(f"*/{pic_id}.png"), *_staging().glob(f"*/{pic_id}.png")]:
+    for path in [_new() / f"{pic_id}.png", *_characters().glob(f"*/{pic_id}.png"), *_staging().glob(f"*/{pic_id}.png"),
+                 *experiments().glob(f"*/*/{pic_id}.png")]:
         if path.is_file():
             return path
     return None

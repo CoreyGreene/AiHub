@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import generation, gpu, jobs, lock, pictures, settings, themes, uploads, workflows
+from . import experiments, generation, gpu, jobs, lock, pictures, settings, themes, uploads, workflows
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 # Changes on every server start. The page asks for app.css and app.js with
@@ -127,9 +127,19 @@ def theme_choices() -> dict:
     return generation.choices()
 
 
+def _folder_model(model: str) -> dict | None:
+    """The mflux model folder (FLUX.2 klein, Qwen-Image) of this name, if it's here."""
+    return next((m for m in generation.folder_models() if m["folder"] == model), None)
+
+
 def _check_model_and_loras(model: str, loras: list[LoraChoice]) -> dict:
-    """The model and LoRAs must be files that are here, each LoRA once."""
+    """The model and LoRAs must be files that are here, each LoRA once.
+    A model folder run by mflux takes no LoRAs (they're for SDXL)."""
     found = generation.choices()
+    if _folder_model(model):
+        if loras:
+            raise HTTPException(400, "LoRAs only work with SDXL models. Remove them, or pick an SDXL model.")
+        return found
     if model not in found["models"]:
         raise HTTPException(400, "Pick a model that's in the models folder.")
     if len({lora.file for lora in loras}) < len(loras):
@@ -160,8 +170,12 @@ def _tidy(words: str) -> str:
 
 
 def _prompt_template(before: str, after: str) -> str:
-    """Your prompt goes between the words before and after it."""
-    return ", ".join(w for w in (_tidy(before), "{prompt}", _tidy(after)) if w)
+    """Your prompt goes between the words before and after it: with commas
+    for tag lists (SDXL), with spaces when the words before end a sentence
+    (FLUX and Qwen read whole sentences)."""
+    before = _tidy(before)
+    joiner = " " if before.endswith((".", "!", "?")) else ", "
+    return joiner.join(w for w in (before, "{prompt}", _tidy(after)) if w)
 
 
 class ThemeChange(BaseModel):
@@ -186,7 +200,20 @@ def _theme_keys(req: ThemeChange) -> dict:
         raise HTTPException(400, "Give the theme a name.")
     found = _check_model_and_loras(req.model, req.loras)
     _check_picture_settings(req, found)
+    # How the model is run follows the model picked: a folder through mflux,
+    # a file through diffusers (so a theme can switch between them).
+    folder_model = _folder_model(req.model)
+    if folder_model:
+        if req.width % 16 or req.height % 16:
+            raise HTTPException(400, "For this model, width and height must divide by 16.")
+        runs = {"backend": "mflux", "kind": folder_model["kind"]}
+        if folder_model.get("quantize"):
+            runs["quantize"] = folder_model["quantize"]
+    else:
+        start = settings.get()["custom"]
+        runs = {"backend": start["backend"], "model_config": start["model_config"]}
     return {
+        **runs,
         "name": name,
         "hint": " ".join(req.hint.split()),
         "prompt": _prompt_template(req.prompt_before, req.prompt_after),
@@ -216,14 +243,7 @@ def new_theme(req: ThemeChange) -> dict:
     keys = _theme_keys(req)
     if keys["name"].lower() in {t["name"].lower() for t in themes.public_list()}:
         raise HTTPException(400, "There's already a theme with that name. Pick another.")
-    start = settings.get()["custom"]
-    theme_id = themes.create({
-        "name": keys.pop("name"),
-        "hint": keys.pop("hint"),
-        "backend": start["backend"],
-        "model_config": start["model_config"],
-        **keys,
-    })
+    theme_id = themes.create({"name": keys.pop("name"), "hint": keys.pop("hint"), **keys})
     return {"id": theme_id, **generation.describe(themes.get(theme_id))}
 
 
@@ -387,6 +407,80 @@ def workflow_delete(flow_id: str) -> dict:
         raise HTTPException(409, RUNNING)
     if not workflows.delete(flow_id):
         raise HTTPException(404, "That workflow isn't there any more.")
+    return {"status": "deleted"}
+
+
+# --- Experiments: batches of prompts, each with its own model, made one after another to compare ---
+
+
+@app.get("/api/experiments")
+def experiment_list() -> dict:
+    """The saved experiments, the models a batch can use, and every run (newest first)."""
+    return {"experiments": experiments.listing(), "models": experiments.models(), "runs": experiments.runs()}
+
+
+@app.get("/api/experiments/{exp_id}")
+def experiment_get(exp_id: str) -> dict:
+    found = experiments.get(exp_id)
+    if found is None:
+        raise HTTPException(404, "That experiment isn't there any more.")
+    return found
+
+
+@app.post("/api/experiments")
+def experiment_new(req: dict) -> dict:
+    try:
+        return {"id": experiments.save("", req)}
+    except experiments.ExperimentError as err:
+        raise HTTPException(400, str(err))
+
+
+@app.put("/api/experiments/{exp_id}")
+def experiment_save(exp_id: str, req: dict) -> dict:
+    try:
+        return {"id": experiments.save(exp_id, req)}
+    except experiments.ExperimentError as err:
+        raise HTTPException(400, str(err))
+
+
+@app.delete("/api/experiments/{exp_id}")
+def experiment_delete(exp_id: str) -> dict:
+    if not experiments.delete(exp_id):
+        raise HTTPException(404, "That experiment isn't there any more.")
+    return {"status": "deleted"}
+
+
+@app.post("/api/experiments/{exp_id}/start")
+def experiment_start(exp_id: str) -> dict:
+    """Queue every batch, in order; returns the run (its folder under outputs/experiments)."""
+    try:
+        return {"run": experiments.start(exp_id)}
+    except experiments.ExperimentError as err:
+        raise HTTPException(400, str(err))
+
+
+@app.get("/api/experiment-runs/{run_id}")
+def experiment_run(run_id: str) -> dict:
+    found = experiments.run_view(run_id)
+    if found is None:
+        raise HTTPException(404, "That run isn't there any more.")
+    return found
+
+
+@app.post("/api/experiment-runs/{run_id}/stop")
+def experiment_run_stop(run_id: str) -> dict:
+    if not experiments.stop(run_id):
+        raise HTTPException(404, "That run isn't there any more.")
+    return {"status": "stopped"}
+
+
+@app.delete("/api/experiment-runs/{run_id}")
+def experiment_run_delete(run_id: str) -> dict:
+    try:
+        if not experiments.delete_run(run_id):
+            raise HTTPException(404, "That run isn't there any more.")
+    except experiments.ExperimentError as err:
+        raise HTTPException(409, str(err))
     return {"status": "deleted"}
 
 

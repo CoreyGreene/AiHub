@@ -6,6 +6,7 @@ file, and runs every picture through the nudity check (server/safety.py).
 """
 
 import random
+import time
 
 from . import backends, pictures, safety, settings
 
@@ -40,7 +41,7 @@ def describe(theme: dict) -> dict:
         "negative": theme.get("negative", ""),
         "safety_negative": settings.get()["safety"]["negative"],
         "backend": theme["backend"],
-        "model": {"file": theme["model"], "found": (models / theme["model"]).is_file()},
+        "model": {"file": theme["model"], "found": (models / theme["model"]).exists()},
         "loras": [
             {"file": lora["file"], "weight": lora.get("weight", 1.0), "found": (loras / lora["file"]).is_file()}
             for lora in theme.get("loras", [])
@@ -64,15 +65,35 @@ def choices() -> dict:
         return sorted(p.name for p in folder.iterdir() if p.is_file() and p.suffix in MODEL_TYPES)
     return {
         "models": files(settings.folder("models_dir")),
+        "folder_models": folder_models(),
         "loras": files(settings.folder("loras_dir")),
         "schedulers": list(SCHEDULERS),
     }
+
+
+def folder_models() -> list[dict]:
+    """The model folders run through mflux (settings.json "experiments" →
+    "models": Qwen-Image, FLUX.2 klein) that are in models_dir. Mac only."""
+    import sys
+
+    if sys.platform != "darwin":
+        return []
+    folder = settings.folder("models_dir")
+    listed = settings.get().get("experiments", {}).get("models", [])
+    return [m for m in listed if (folder / m["folder"]).is_dir()]
 
 
 def _request(theme: dict, prompt: str, seed: int) -> dict:
     models = settings.folder("models_dir")
     loras = settings.folder("loras_dir")
     negative = ", ".join(n for n in (theme.get("negative"), settings.get()["safety"]["negative"]) if n)
+    if theme["backend"] == "mflux":  # a model folder and its kind (Experiments tab)
+        return {
+            "folder": models / theme["model"], "kind": theme["kind"], "quantize": theme.get("quantize"),
+            "prompt": theme["prompt"].replace("{prompt}", prompt), "negative": negative,
+            **{key: _setting(theme, key) for key in ("width", "height", "steps", "guidance")},
+            "seed": seed,
+        }
     return {
         "model": models / theme["model"],
         "model_config": models / theme["model_config"],
@@ -86,19 +107,26 @@ def _request(theme: dict, prompt: str, seed: int) -> dict:
     }
 
 
-def generate(theme: dict, prompt: str, on_progress) -> tuple:
+def generate(theme: dict, prompt: str, on_progress, seed: int | None = None, alone: bool = False) -> tuple:
     """Make a picture. Returns (image, details). Raises Blocked if every try
     fails the nudity check.
 
     on_progress(stage, done, total): stage is "loading", "drawing" or "checking".
+    seed: start from this one (the Experiments tab, so every model gets the
+    same seeds); a try stopped by the nudity check goes on to the next seed.
+    alone: let go of other models first (big models: one at a time).
     """
-    backend = backends.get(theme["backend"], settings.device(), alone=settings.get()["use_3060_settings"])
+    alone = alone or settings.get()["use_3060_settings"]
+    backend = backends.get(theme["backend"], settings.device(), alone=alone)
     tries = settings.get()["safety"]["tries"]
     for attempt in range(1, tries + 1):
-        req = _request(theme, prompt, random.randrange(2**31))
-        if not backend.is_loaded(req):
+        req = _request(theme, prompt, random.randrange(2**31) if seed is None else seed + attempt - 1)
+        loads = not backend.is_loaded(req)
+        if loads:
             on_progress("loading", 0, 0)
+        started = time.monotonic()
         image = backend.make(req, lambda done, total: on_progress("drawing", done, total))
+        seconds = round(time.monotonic() - started, 1)
         on_progress("checking", 0, 0)
         if safety.is_safe(image):
             # Enough to make it again (Library → Copy settings), even if
@@ -111,9 +139,12 @@ def generate(theme: dict, prompt: str, on_progress) -> tuple:
                 "negative": theme.get("negative", ""),
                 "steps": req["steps"],
                 "guidance": req["guidance"],
-                "scheduler": req["scheduler"],
+                "scheduler": req.get("scheduler", ""),  # mflux models have none to choose
                 "size": list(image.size),
                 "tries": attempt,
+                # How long it took (with loading the model, if it had to: "loaded").
+                "seconds": seconds,
+                "loaded": loads,
             }
             return image, details
         print(f"Nudity check stopped try {attempt} of {tries}")
