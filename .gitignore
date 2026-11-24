@@ -1,0 +1,10 @@
+# The hub's own Python setup, logs and this machine's settings.
+# Each tool in apps/ has its own .gitignore for its pictures, models and settings.
+.venv/
+__pycache__/
+logs/
+*.local.json
+.DS_Store
+# AI models never go in git (models_dir points at them).
+models/
+.claude/

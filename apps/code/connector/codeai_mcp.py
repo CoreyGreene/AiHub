@@ -1,7 +1,8 @@
 """CodeAi's MCP connector: lets Claude (or Codex, or any MCP client) send questions to the local models.
 
 It's a small program the client starts itself and talks to over stdin/stdout (MCP's "stdio" kind), and all it does
-is call CodeAi's own API (http://localhost:8200, or CODEAI_URL). So CodeAi has to be running; Claude's questions go
+is call CodeAi's own API through AiHub (http://localhost:8000/code, or CODEAI_URL). If CodeAi isn't running, it asks
+AiHub to start it and waits. Claude's questions go
 in the same queue as yours, show "Claude asked" on the page, and are kept in History.
 
 Hand-rolled on purpose (no packages to install): MCP over stdio is JSON-RPC 2.0, one message per line.
@@ -18,7 +19,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-BASE = os.environ.get("CODEAI_URL", "http://localhost:8200").rstrip("/")
+BASE = os.environ.get("CODEAI_URL", "http://localhost:8000/code").rstrip("/")
+HUB = BASE.rsplit("/", 1)[0]  # AiHub, which starts CodeAi when it isn't running
 PROTOCOL = "2025-06-18"
 DONE = ("done", "stopped", "failed")
 MAX_WAIT = 600  # longest one codeai_result call waits for an answer, in seconds
@@ -28,20 +30,41 @@ class ApiError(Exception):
     pass
 
 
-def api(method: str, path: str, body: dict | None = None):
+def _send(method: str, path: str, body: dict | None = None, url: str = ""):
     data = json.dumps(body).encode() if body is not None else None
-    request = urllib.request.Request(BASE + path, data, {"Content-Type": "application/json"}, method=method)
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            return json.load(response)
-    except urllib.error.HTTPError as err:
+    request = urllib.request.Request((url or BASE) + path, data, {"Content-Type": "application/json"}, method=method)
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return json.load(response)
+
+
+def _start_codeai() -> None:
+    """Ask AiHub to start CodeAi, then wait (up to 2 minutes) until it answers."""
+    _send("POST", "/hub/api/apps/code/start", url=HUB)
+    for _ in range(120):
+        time.sleep(1)
+        state = next(a["state"] for a in _send("GET", "/hub/api/status", url=HUB)["apps"] if a["id"] == "code")
+        if state == "running":
+            return
+        if state != "starting":
+            raise ApiError(f"CodeAi didn't start ({state}). The user can see why on the AI Hub page ({HUB}).")
+    raise ApiError("CodeAi took too long to start.")
+
+
+def api(method: str, path: str, body: dict | None = None):
+    for attempt in (1, 2):
         try:
-            detail = json.load(err).get("detail")
-        except ValueError:
-            detail = None
-        raise ApiError(detail or f"CodeAi answered {err.code}.")
-    except (urllib.error.URLError, OSError):
-        raise ApiError(f"CodeAi isn't running at {BASE}. Ask the user to start it: python3 start.py in the Code-Ai folder.")
+            return _send(method, path, body)
+        except urllib.error.HTTPError as err:
+            if err.code == 503 and attempt == 1:  # AiHub is up but CodeAi isn't: start it, then try again
+                _start_codeai()
+                continue
+            try:
+                detail = json.load(err).get("detail")
+            except ValueError:
+                detail = None
+            raise ApiError(detail or f"CodeAi answered {err.code}.")
+        except (urllib.error.URLError, OSError):
+            raise ApiError(f"AI Hub isn't running at {HUB}. Ask the user to start it: python3 start.py in the Ai-Hub folder.")
 
 
 # ---------- what Claude sees ----------
@@ -126,7 +149,7 @@ def history(conversation: str = "") -> str:
 
 
 def bulk_start(file, folder: str = "", model: str = "", thinking: str = "", can_change_files: bool | None = None,
-               name: str = "") -> str:
+               name: str = "", output: str = "") -> str:
     if isinstance(file, str):  # a path to a bulk file on this Mac
         path = Path(file).expanduser()
         try:
@@ -134,7 +157,8 @@ def bulk_start(file, folder: str = "", model: str = "", thinking: str = "", can_
         except (OSError, ValueError) as err:
             raise ApiError(f"Can't read the bulk file {path}: {err}")
     run = api("POST", "/api/bulk", {"file": file, "folder": folder, "model": model, "thinking": thinking,
-                                    "can_change_files": can_change_files, "name": name, "source": "claude"})
+                                    "can_change_files": can_change_files, "name": name, "output": output,
+                                    "source": "claude"})
     return (f"Started bulk run {run['id']}: {run['name']}, {run['total']} items, in {run['folder']}.\n"
             "Each item is asked on its own with a fresh memory. Follow it with codeai_bulk_status; the user can watch "
             f"it on the CodeAi page (Bulk tab, {BASE}/#bulk/{run['id']}).")
@@ -168,6 +192,38 @@ def bulk_status(run: str = "", wait_seconds: float = 0, show: str = "problems") 
 def bulk_stop(run: str) -> str:
     r = api("POST", f"/api/bulk/{run}/stop")
     return f"Run {run} is {r['status']}. Done items stay done; Carry on (on the page) picks it up again."
+
+
+def saved_list() -> str:
+    bulks, pipes = api("GET", "/api/saved/bulk"), api("GET", "/api/saved/pipeline")
+    b = "\n".join(f"- {x['id']}: {x['name']} ({x['items']} items)" for x in bulks) or "(none)"
+    p = "\n".join(f"- {x['id']}: {x['name']}: " + " -> ".join(x["steps"]) for x in pipes) or "(none)"
+    return f"Saved bulk files:\n{b}\n\nSaved pipelines:\n{p}"
+
+
+def pipeline_start(pipeline: str, input: str, output: str, model: str = "", thinking: str = "") -> str:
+    r = api("POST", "/api/pipelines", {"pipeline": pipeline, "input": input, "output": output, "model": model,
+                                       "thinking": thinking, "source": "claude"})
+    return (f"Started pipeline run {r['id']}: {r['name']}, {len(r['steps'])} steps, from {r['input']} (the originals "
+            f"aren't touched). Follow it with codeai_pipeline_status; the user can watch it at {BASE}/#pipelines/{r['id']}.")
+
+
+def pipeline_status(run: str = "", wait_seconds: float = 0) -> str:
+    if not run:
+        runs = api("GET", "/api/pipelines")
+        return "Pipeline runs (newest first):\n" + ("\n".join(
+            f"{r['id']}  {r['status']}  {r['name']}  step {r['current']} of {len(r['steps'])}" for r in runs[:20]) or "(none)")
+    deadline = time.time() + min(max(wait_seconds, 0), MAX_WAIT)
+    while True:
+        r = api("GET", f"/api/pipelines/{run}")
+        if r["status"] != "running" or time.time() >= deadline:
+            break
+        time.sleep(5)
+    lines = [f"pipeline run {r['id']}: {r['name']}", f"status: {r['status']}" + (f" ({r['error']})" if r["error"] else "")]
+    for s in r["steps"]:
+        lines.append(f"{s['n']}. {s['name']}: {s.get('run_status') or s['status']} {json.dumps(s.get('counts', {}))}, "
+                     f"bulk run {s.get('run') or '-'}, changed files in {s['output']} ({s.get('copied', 0)})")
+    return "\n".join(lines)
 
 
 S = {"type": "string"}
@@ -218,7 +274,9 @@ TOOLS = [
          "model": {**S, "description": "Empty = the file's, or the default."},
          "thinking": {**S, "description": "on / short / off ...; empty = the file's."},
          "can_change_files": {"type": "boolean", "description": "Empty = the file's (on if it doesn't say)."},
-         "name": S}}},
+         "name": S,
+         "output": {**S, "description": "A folder to copy every changed file into, in the same subfolders (optional; "
+                    "not inside the working folder)."}}}},
     {"name": "codeai_bulk_status", "function": bulk_status,
      "description": "A bulk run's progress and its problem items (or with no run: the recent runs). "
                     "wait_seconds (up to 600) waits for it to finish first. show: problems (default), all or none.",
@@ -227,6 +285,22 @@ TOOLS = [
     {"name": "codeai_bulk_stop", "function": bulk_stop,
      "description": "Stop a bulk run (the item being worked on stops; the rest wait for Carry on).",
      "inputSchema": {"type": "object", "required": ["run"], "properties": {"run": S}}},
+    {"name": "codeai_saved", "function": saved_list,
+     "description": "The bulk files and pipelines saved in CodeAi's Saved list (ids to use with codeai_pipeline_start).",
+     "inputSchema": {"type": "object", "properties": {}}},
+    {"name": "codeai_pipeline_start", "function": pipeline_start,
+     "description": "Run a saved pipeline: its saved bulk files one after another, each step working on the files the "
+                    "step before changed (step 1 on a copy of the input folder; the originals are never touched). "
+                    "Each step's changed files go in <output>/<n>-<step>; the last one is the result.",
+     "inputSchema": {"type": "object", "required": ["pipeline", "input", "output"], "properties": {
+         "pipeline": {**S, "description": "A saved pipeline's id (codeai_saved)."},
+         "input": {**S, "description": "The folder step 1 works on."},
+         "output": {**S, "description": "Where each step's folder of changed files goes (not inside input)."},
+         "model": {**S, "description": "Empty = each bulk file's own."}, "thinking": S}}},
+    {"name": "codeai_pipeline_status", "function": pipeline_status,
+     "description": "A pipeline run's progress, step by step (or with no run: recent pipeline runs). wait_seconds (up "
+                    "to 600) waits for it to finish first.",
+     "inputSchema": {"type": "object", "properties": {"run": S, "wait_seconds": {"type": "number"}}}},
     {"name": "codeai_history", "function": history,
      "description": "Past CodeAi conversations (newest first), or one in full when given its id.",
      "inputSchema": {"type": "object", "properties": {"conversation": S}}},

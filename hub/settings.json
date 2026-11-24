@@ -1,0 +1,21 @@
+{
+  "_about": "AiHub settings shared by every machine. Put this machine's own values in hub/settings.local.json (git-ignored); it is laid over this file.",
+
+  "_models_dir": "The folder holding every AI model, one folder inside it per kind (each tool's models below). Relative to this project's folder, or a full path (~ allowed). Each tool is told its own folder when it starts.",
+  "models_dir": "models",
+
+  "_apps": "The tiles, in order. folder: the tool's folder (with its own start.py and .venv). port: where it runs on this computer only (the hub passes its pages through). models: its folder inside models_dir. about: the line on the tile.",
+  "apps": [
+    {"id": "image", "name": "Image AI", "folder": "apps/image", "port": 8110, "models": "ImageModels",
+     "about": "Pictures from a prompt, themes, library"},
+    {"id": "3d", "name": "3D AI", "folder": "apps/3d", "port": 8310, "models": "MeshModels",
+     "about": "Pictures into 3D models"},
+    {"id": "code", "name": "Code AI", "folder": "apps/code", "port": 8210, "models": "GeneralModels",
+     "about": "Ask the local models, bulk jobs, pipelines"},
+    {"id": "movie", "name": "Movie AI", "folder": "apps/movie", "port": 8410, "models": "MovieModels",
+     "about": "Short videos from a prompt"}
+  ],
+
+  "_start_seconds": "How long a tool may take to start before the hub gives up.",
+  "start_seconds": 120
+}

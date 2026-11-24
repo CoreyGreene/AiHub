@@ -1,8 +1,11 @@
 {
   "_about": "How CodeAi runs. To change something on this machine only, put just those keys in server/settings.local.json; it is never committed. The model list lives there too, since it holds this machine's folders.",
 
-  "_models": "The models you can pick, first = the default. Each: id (short, no spaces), name (shown on the page), path (the model's folder; ~ is fine), note (shown under the picker), thinking (which thinking_levels it has), server_args (extra settings for mlx_lm's server, e.g. [\"--kv-bits\", \"8\"]).",
+  "_models": "The models you can pick, first = the default. Each: id (short, no spaces), name (shown on the page), path (the model's folder: just its name to look in models_dir, or a full path; ~ is fine), note (shown under the picker), thinking (which thinking_levels it has), server_args (extra settings for mlx_lm's server, e.g. [\"--kv-bits\", \"8\"]).",
   "models": [],
+
+  "_models_dir": "Where a model path that's just a folder name is looked for. When AiHub starts CodeAi it gives its own (the GeneralModels folder), which wins.",
+  "models_dir": "models",
 
   "_model_port": "The model runs in its own program (mlx_lm's server) on this port, on this computer only.",
   "model_port": 8201,
@@ -43,6 +46,12 @@
 
   "_bulk": "The Bulk tab's saved runs (bulk.py). Everything about a bulk job (its prompt, checks, review) is in the bulk file you give it, not here: see examples/.",
   "bulk_dir": "bulk",
+  "_bulk_copy_limit_mb": "A run with an output folder works on a copy of its folder (so the originals aren't touched): the biggest folder it will copy.",
+  "bulk_copy_limit_mb": 2000,
+  "_saved_dir": "The Saved list: bulk files (saved/) and pipelines (saved/pipelines/) kept to run again.",
+  "saved_dir": "saved",
+  "_pipelines_dir": "The Pipelines tab's runs: bulk files chained, each step working on the one before's output.",
+  "pipelines_dir": "pipeline-runs",
 
   "history_dir": "history",
   "logs_dir": "logs"

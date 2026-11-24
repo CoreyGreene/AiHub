@@ -1,0 +1,5 @@
+# The hub only: the tile page and passing each tool's pages through.
+# Each tool in apps/ has its own requirements and its own .venv.
+fastapi>=0.115
+uvicorn>=0.30
+httpx>=0.27

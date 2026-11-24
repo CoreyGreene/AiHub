@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#16161d">
+  <title>{name}</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/hub/app.css">
+</head>
+<body>
+  <div class="waiting">
+    <h1>{name}</h1>
+    <p id="words" class="muted">Starting {name}…</p>
+    <div id="more"></div>
+  </div>
+
+  <script>
+    // Waits for the tool to start, then loads its page.
+    const words = document.getElementById("words");
+    const more = document.getElementById("more");
+    window.addEventListener("aihub-status", (e) => {
+      const tool = e.detail.apps.find((t) => t.id === "{id}");
+      if (!tool) return;
+      if (tool.state === "running") location.reload();
+      else if (tool.state === "not_set_up") {
+        words.textContent = "{name} isn't set up yet.";
+        more.innerHTML = '<p class="muted small">Its Python setup (.venv) hasn\'t been made. That can be a big download, so it\'s done by hand, once.</p><a class="button" href="/">Back to the tiles</a>';
+      } else if (tool.state === "failed") {
+        words.textContent = "{name} didn't start. The last lines it printed:";
+        const pre = document.createElement("pre");
+        pre.textContent = tool.error;
+        const again = document.createElement("button");
+        again.className = "button";
+        again.textContent = "Try again";
+        again.onclick = async () => {
+          again.disabled = true;
+          await fetch("/hub/api/apps/{id}/start", { method: "POST" });
+          words.textContent = "Starting {name}…";
+          more.replaceChildren();
+        };
+        more.replaceChildren(pre, again);
+      }
+    });
+  </script>
+  <script src="/hub/bar.js" defer></script>
+</body>
+</html>

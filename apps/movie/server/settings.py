@@ -5,6 +5,7 @@ comes from these files and the theme files.
 """
 
 import json
+import os
 from functools import cache
 from pathlib import Path
 
@@ -25,6 +26,9 @@ def get() -> dict:
     data = json.loads(SHARED.read_text(encoding="utf-8"))
     if LOCAL.exists():
         data = _merge(data, json.loads(LOCAL.read_text(encoding="utf-8")))
+    # Started from AiHub: it says where this tool's models are (one setting for every tool).
+    if os.environ.get("AIHUB_MODELS_DIR"):
+        data["models_dir"] = os.environ["AIHUB_MODELS_DIR"]
     return data
 
 

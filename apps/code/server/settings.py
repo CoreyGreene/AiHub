@@ -1,6 +1,7 @@
 """Settings from server/settings.json, with server/settings.local.json on top."""
 
 import json
+import os
 from functools import cache
 from pathlib import Path
 
@@ -32,10 +33,15 @@ def folder(key: str) -> Path:
 
 
 def models() -> list[dict]:
-    """The models you can pick: only those whose folder is on this computer."""
+    """The models you can pick: only those whose folder is on this computer.
+    A path that's just a folder name is looked for in the models folder AiHub
+    gives (AIHUB_MODELS_DIR), else in models_dir."""
     out = []
+    base = Path(os.environ.get("AIHUB_MODELS_DIR") or get().get("models_dir", "models")).expanduser()
     for m in get()["models"]:
         path = Path(m["path"]).expanduser()
+        if not path.is_absolute():
+            path = (ROOT / base / path).resolve()
         if (path / "config.json").exists():
             out.append({**m, "path": str(path)})
     return out
