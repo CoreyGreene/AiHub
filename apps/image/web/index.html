@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#16161d">
+  <title>ImageAi</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="top">
+    <h1>ImageAi</h1>
+    <div id="gpu" class="gpu">Graphics card: checking…</div>
+    <a href="#settings" class="gear" data-view="settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </a>
+  </header>
+
+  <nav class="tabs">
+    <a href="#create" class="tab" data-view="create">Create</a>
+    <a href="#library" class="tab" data-view="library">Library</a>
+    <a href="#theme" class="tab" data-view="theme">Theme</a>
+    <a href="#workflows" class="tab" data-view="workflows">Workflows</a>
+    <a href="#experiments" class="tab" data-view="experiments">Experiments</a>
+  </nav>
+
+  <main id="view-create" class="view">
+    <nav class="subtabs" aria-label="Create mode">
+      <a href="#create" class="subtab" data-subview="standard">Standard</a>
+      <a href="#create/advanced" class="subtab" data-subview="advanced">Advanced</a>
+      <a href="#create/custom" class="subtab" data-subview="custom">Custom</a>
+    </nav>
+
+    <!-- One form for both: Advanced only adds "How many pictures". -->
+    <div class="create-area">
+    <form id="make" class="card" novalidate>
+      <div id="adding-bar" class="note adding-bar" hidden>
+        <span id="adding-text"></span>
+        <button id="adding-cancel" type="button" class="button small-button">Cancel</button>
+      </div>
+      <div class="field not-custom">
+        <label class="label" for="theme-name">Theme</label>
+        <div class="combo">
+          <input id="theme-name" type="text" role="combobox" aria-expanded="false"
+                 aria-controls="theme-options" aria-autocomplete="list"
+                 autocomplete="off" autocapitalize="off" spellcheck="false"
+                 placeholder="Loading themes…" disabled>
+          <button id="theme-toggle" type="button" class="combo-toggle" tabindex="-1"
+                  aria-label="Show all themes">▾</button>
+          <ul id="theme-options" class="combo-list" role="listbox" hidden></ul>
+        </div>
+        <p id="theme-hint" class="hint-line"></p>
+      </div>
+
+      <label class="field">
+        <span class="label">Prompt</span>
+        <textarea id="prompt" rows="4" placeholder="A goblin merchant with a big backpack"></textarea>
+        <span id="prompt-error" class="error-line" hidden>Type a prompt first: describe the picture you want.</span>
+      </label>
+
+      <div class="field">
+        <label class="label" for="character"><span id="character-label">Character name</span> <span class="optional">(optional)</span></label>
+        <div class="name-row">
+          <input id="character" class="text-input" type="text" placeholder="Grim the goblin"
+                 autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="60">
+          <button id="pick-character" type="button" class="button">Pick</button>
+        </div>
+        <span id="character-error" class="error-line" hidden></span>
+      </div>
+
+      <fieldset id="custom-box" class="custom custom-only">
+        <legend class="label">Your own theme</legend>
+        <p id="copied-note" class="note small" hidden></p>
+        <p class="muted small">Pick the model and LoRAs and write the words around your prompt. Nothing is saved as a theme.</p>
+        <div id="custom-fields"><p class="muted">Loading…</p></div>
+        <button id="custom-reset" type="button" class="button small-button">Start again</button>
+      </fieldset>
+
+      <div class="field advanced-only">
+        <label class="label" for="count">How many pictures</label>
+        <div class="stepper">
+          <button id="count-down" type="button" class="button" aria-label="Fewer pictures">−</button>
+          <input id="count" class="text-input" type="number" inputmode="numeric" min="1" max="8" value="4">
+          <button id="count-up" type="button" class="button" aria-label="More pictures">+</button>
+        </div>
+      </div>
+
+      <fieldset id="theme-words" class="custom advanced-only not-custom">
+        <legend class="label">This theme's words</legend>
+        <p class="muted small">Change them for these pictures. The theme itself isn't changed.</p>
+        <div id="theme-words-fields"><p class="muted">Loading…</p></div>
+        <button id="theme-words-reset" type="button" class="button small-button" hidden>Put back the theme's words</button>
+      </fieldset>
+
+      <button id="generate" type="submit" class="primary">Generate</button>
+      <span id="adding-error" class="error-line" hidden></span>
+    </form>
+
+    <section class="card result" aria-live="polite">
+      <h2>Result</h2>
+      <div id="result" class="result-box">
+        <p class="muted">Your picture will show up here.</p>
+      </div>
+    </section>
+    </div>
+  </main>
+
+  <dialog id="character-chooser" class="chooser" aria-labelledby="chooser-title">
+    <div class="chooser-head">
+      <h2 id="chooser-title">Pick a character</h2>
+      <button id="chooser-close" type="button" class="button" aria-label="Close">✕</button>
+    </div>
+    <p class="muted small">The pictures will go to the one you pick.</p>
+    <div id="chooser-list" class="choice-list"></div>
+  </dialog>
+
+  <dialog id="picture-viewer" class="viewer" aria-label="Picture">
+    <img id="viewer-image" alt="">
+    <div class="viewer-bar">
+      <button id="viewer-prev" type="button" class="button" aria-label="Previous picture">‹</button>
+      <span id="viewer-count" class="muted"></span>
+      <button id="viewer-next" type="button" class="button" aria-label="Next picture">›</button>
+      <button id="viewer-close" type="button" class="button">Close</button>
+      <button id="viewer-pick" type="button" class="button viewer-pick" aria-pressed="false" hidden>Pick this one</button>
+    </div>
+  </dialog>
+
+  <main id="view-library" class="view" hidden>
+    <nav class="subtabs" aria-label="Library part">
+      <a href="#library" class="subtab" data-place="characters">Characters</a>
+      <a href="#library/_staging" class="subtab" data-place="staging">Staging</a>
+    </nav>
+    <section class="card">
+      <a href="#library" id="library-back" class="link-button back-link" hidden>← All characters</a>
+      <div class="library-head">
+        <h2 id="library-title">Library</h2>
+        <div id="library-layout" class="layout-toggle" role="group" aria-label="Library tools" hidden>
+          <button type="button" class="icon-button" data-layout="thumbs" aria-label="Small pictures">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+          </button>
+          <button type="button" class="icon-button" data-layout="full" aria-label="Full pictures with details">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="12" rx="1.5"/><rect x="4" y="17.5" width="16" height="1.5" rx="0.75"/><rect x="4" y="20.5" width="10" height="1.5" rx="0.75"/></svg>
+          </button>
+          <button type="button" class="icon-button" data-layout="dates" aria-label="By date">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M7 2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2zM5 9v10h14V9z"/><rect x="7" y="11" width="4" height="4" rx="0.5"/></svg>
+          </button>
+          <button id="select-toggle" type="button" class="icon-button select-toggle" aria-pressed="false" aria-label="Select pictures">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7.5 12.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+      <!-- The list of characters: search by name, and characters or items
+           (an item is any name that starts with the word "Item"). -->
+      <div id="library-filter" class="library-filter" hidden>
+        <input id="library-search" class="text-input" type="search" placeholder="Search characters"
+               aria-label="Search by name" autocomplete="off" enterkeyhint="search">
+        <div class="kind-toggle" role="radiogroup" aria-label="Show">
+          <label><input type="radio" name="library-kind" value="characters" checked><span>Characters</span></label>
+          <label><input type="radio" name="library-kind" value="items"><span>Items</span></label>
+        </div>
+      </div>
+      <p id="library-count" class="muted" hidden></p>
+      <div id="library-list" class="library-grid">
+        <p class="muted">Loading…</p>
+      </div>
+      <!-- Select mode: what to do with the chosen pictures. -->
+      <div id="select-bar" class="select-bar" hidden>
+        <div class="select-row">
+          <span id="select-count" class="select-count">Tap pictures to choose them</span>
+          <button id="select-all" type="button" class="button small-button">All</button>
+        </div>
+        <div class="select-row" id="select-actions">
+          <button id="select-approve" type="button" class="primary select-approve" hidden>Add to character</button>
+          <button id="select-zip" type="button" class="button">Download zip</button>
+          <button id="select-delete" type="button" class="button danger">Delete</button>
+        </div>
+        <!-- Staging: which character the chosen pictures go to. -->
+        <div id="approve-box" class="approve-box" hidden>
+          <label class="label" for="approve-name">Character (new or existing)</label>
+          <div class="name-row">
+            <input id="approve-name" class="text-input" type="text" placeholder="Grim the goblin"
+                   autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="60">
+            <button id="approve-pick" type="button" class="button">Pick</button>
+          </div>
+          <div class="actions">
+            <button id="approve-yes" type="button" class="primary">Add</button>
+            <button id="approve-no" type="button" class="button">Cancel</button>
+          </div>
+        </div>
+        <div class="select-row" id="delete-ask" hidden>
+          <span id="delete-question" class="select-count"></span>
+          <button id="delete-yes" type="button" class="button danger">Yes, delete</button>
+          <button id="delete-no" type="button" class="button">Keep them</button>
+        </div>
+        <p id="select-error" class="error-line" hidden></p>
+      </div>
+    </section>
+  </main>
+
+  <main id="view-theme" class="view" hidden>
+    <nav class="subtabs" aria-label="Theme mode">
+      <a href="#theme" class="subtab" data-subview="edit">Edit</a>
+      <a href="#theme/new" class="subtab" data-subview="new">New</a>
+    </nav>
+    <div id="theme-info" class="theme-info">
+      <p class="muted">Loading…</p>
+    </div>
+    <div id="theme-new" class="theme-info" hidden></div>
+  </main>
+
+  <main id="view-workflows" class="view" hidden>
+    <section class="card flow-pick">
+      <div class="flow-pick-row">
+        <label class="field">
+          <span class="label">Workflow</span>
+          <select id="flow-choice" class="text-input"></select>
+        </label>
+        <button id="flow-new" type="button" class="button">New</button>
+      </div>
+      <div id="flow-new-box" class="flow-new" hidden>
+        <label class="field">
+          <span class="label">Name for the new workflow</span>
+          <input id="flow-new-name" class="text-input" type="text" maxlength="60" placeholder="Space dinosaurs"
+                 autocomplete="off" autocapitalize="words">
+        </label>
+        <span id="flow-new-error" class="error-line" hidden></span>
+        <div class="actions">
+          <button id="flow-new-make" type="button" class="primary">Make it</button>
+          <button id="flow-new-cancel" type="button" class="button">Cancel</button>
+        </div>
+      </div>
+    </section>
+    <div id="flow"><p class="muted">Loading…</p></div>
+  </main>
+
+  <main id="view-experiments" class="view" hidden>
+    <div id="exp-edit-area">
+      <section class="card flow-pick">
+        <div class="flow-pick-row">
+          <label class="field">
+            <span class="label">Experiment</span>
+            <select id="exp-choice" class="text-input"></select>
+          </label>
+          <button id="exp-new" type="button" class="button">New</button>
+        </div>
+        <p class="muted small exp-about">Batches of prompts, each made with its own model, one batch after another.
+          Every batch uses the same seeds, so the same prompt differs only by the model.</p>
+      </section>
+
+      <section class="card">
+        <label class="field">
+          <span class="label">Name</span>
+          <input id="exp-name" class="text-input" type="text" maxlength="60" placeholder="Robots, three models"
+                 autocomplete="off" autocapitalize="words">
+        </label>
+        <div id="exp-batches" class="exp-batches"></div>
+        <button id="exp-add" type="button" class="button exp-add">+ Add batch</button>
+        <span id="exp-error" class="error-line" hidden></span>
+        <p id="exp-note" class="hint-line"></p>
+        <div class="actions">
+          <button id="exp-save" type="button" class="button">Save</button>
+          <button id="exp-start" type="button" class="primary">Save and start</button>
+        </div>
+        <button id="exp-delete" type="button" class="button danger small-button exp-delete" hidden>Delete this experiment</button>
+      </section>
+
+      <section class="card">
+        <h2>Runs</h2>
+        <p class="muted small">Each run has a folder with one folder of pictures per batch.</p>
+        <div id="exp-runs" class="exp-runs"><p class="muted">Loading…</p></div>
+      </section>
+    </div>
+
+    <div id="exp-run-area" hidden>
+      <section class="card">
+        <a href="#experiments" class="link-button back-link">← Experiments</a>
+        <h2 id="run-title"></h2>
+        <p id="run-line" class="muted small"></p>
+        <p class="muted small">Folder: <span id="run-path" class="exp-path"></span></p>
+        <div class="actions">
+          <button id="run-stop" type="button" class="button">Stop</button>
+          <button id="run-delete" type="button" class="button danger">Delete run</button>
+        </div>
+        <span id="run-error" class="error-line" hidden></span>
+      </section>
+      <section class="card">
+        <h2>Batches</h2>
+        <ol id="run-batches" class="exp-run-batches"></ol>
+      </section>
+      <section class="card">
+        <h2>Compare</h2>
+        <p class="muted small">One row per prompt, one column per batch. Tap a picture to see it big.</p>
+        <div class="exp-compare-wrap"><table id="run-compare" class="exp-compare"></table></div>
+      </section>
+    </div>
+  </main>
+
+  <main id="view-settings" class="view" hidden>
+    <section class="card">
+      <h2>Settings</h2>
+      <label class="switch-row">
+        <span>
+          <strong>Use 3060 settings</strong>
+          <span class="muted small">For the 12 GB RTX 3060 on the Linux PC: uses less graphics memory, and reads long prompts in full (not just the first 77 words). Leave off on the Mac.</span>
+        </span>
+        <input id="use-3060" type="checkbox" role="switch" disabled>
+      </label>
+      <p id="settings-note" class="hint-line" aria-live="polite"></p>
+      <p class="muted small">Pictures are made on: <span id="settings-device">…</span></p>
+    </section>
+
+
+    <section class="card">
+      <h2>Picture queue</h2>
+      <p class="muted small">One picture job is made at a time; the rest wait here in order.</p>
+      <ol id="queue-list" class="queue-list"></ol>
+    </section>
+  </main>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

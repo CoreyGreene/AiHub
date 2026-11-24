@@ -1,0 +1,939 @@
+/* Mobile first: the base styles are for a phone; wider screens get a few tweaks at the bottom. */
+
+:root {
+  --bg: #16161d;
+  --card: #20202a;
+  --line: #34343f;
+  --text: #ececf1;
+  --muted: #9a9aa8;
+  --accent: #7c6cff;
+  --accent-text: #ffffff;
+  --note-bg: #2a2740;
+  --radius: 14px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  padding: 0 16px calc(24px + env(safe-area-inset-bottom));
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0 4px;
+}
+h1 { margin: 0; font-size: 1.4rem; }
+h2 { margin: 0 0 12px; font-size: 1rem; color: var(--muted); font-weight: 600; }
+
+/* Graphics card line. Phone: its own row under the title. Desktop: between
+   the title and the gear. */
+.top { flex-wrap: wrap; column-gap: 16px; }
+.gpu {
+  order: 3;
+  flex-basis: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px 10px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding-bottom: 4px;
+}
+.gpu-name { grid-column: 1 / -1; color: var(--text); font-weight: 600; }
+.gpu-meter {
+  position: relative;
+  width: 90px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+}
+.gpu-meter span { position: absolute; inset: 0 auto 0 0; border-radius: 4px; }
+.gpu-meter .used { background: #6b6880; }
+.gpu-meter .mine { background: var(--accent); }
+.gpu-queue {
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+}
+.gpu-queue.busy { border-color: var(--accent); color: var(--text); }
+
+/* Settings gear, top right. */
+.gear {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-right: -12px;
+  color: var(--muted);
+  border-radius: 10px;
+}
+.gear:hover, .gear[aria-current] { color: var(--text); }
+
+/* Create / Library tabs. */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.tab {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+}
+.tab:hover { color: var(--text); }
+.tab[aria-current] { color: var(--text); border-bottom-color: var(--accent); }
+
+main { display: grid; gap: 16px; }
+main[hidden] { display: none; }
+
+/* Standard / Advanced / Custom inside Create (and Edit / New inside Theme):
+   a smaller switch, so it reads as part of the tab rather than another row
+   of main tabs. */
+.subtabs {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.subtab {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  border-radius: 8px;
+}
+.subtab:hover { color: var(--text); }
+.subtab[aria-current] { color: var(--text); background: var(--note-bg); }
+
+.create-area { display: grid; gap: 16px; }
+#view-create[data-mode="standard"] .advanced-only { display: none; }
+#view-create:not([data-mode="custom"]) .custom-only { display: none; }
+#view-create[data-mode="custom"] .not-custom { display: none; }
+
+/* Custom: your own theme (model, LoRAs, words, size). */
+.custom { margin: 0 0 16px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.custom legend { padding: 0 6px; margin-bottom: 0; }
+.custom > p { margin: 0 0 12px; }
+.custom select.text-input { appearance: auto; }
+.custom #custom-reset,
+.custom #theme-words-reset { width: 100%; }
+.custom #theme-words-reset[hidden] { display: none; }
+
+/* How many pictures: − [ 4 ] + with big tap targets. */
+/* Just wide enough for a number up to 8, on any screen. */
+.stepper { display: grid; grid-template-columns: 56px 80px 56px; gap: 8px; width: max-content; }
+.stepper .button { font-size: 1.4rem; }
+.stepper input { text-align: center; -moz-appearance: textfield; }
+.stepper input::-webkit-inner-spin-button,
+.stepper input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.muted { color: var(--muted); margin: 0; }
+
+/* Theme picker: a text box with a drop list under it. Type to search. */
+.combo { position: relative; }
+
+.combo input {
+  width: 100%;
+  min-height: 48px;
+  font: inherit;
+  font-size: 16px; /* 16px stops iPhone from zooming in on focus */
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 52px 10px 12px;
+}
+.combo input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+.combo-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 48px;
+  height: 48px;
+  font-size: 1.2rem;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.combo-list {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+}
+.combo-list li {
+  min-height: 48px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+}
+.combo-list li[aria-selected="true"],
+.combo-list li:not(.empty):hover { background: var(--note-bg); }
+.combo-list li.chosen { border-left-color: var(--accent); }
+.combo-list li.empty { color: var(--muted); cursor: default; }
+.combo-list .name { display: block; font-weight: 600; }
+.combo-list .hint { display: block; font-size: 0.85rem; color: var(--muted); }
+
+.hint-line { margin: 6px 0 0; min-height: 1.2em; font-size: 0.85rem; color: var(--muted); }
+
+.field { display: block; margin-bottom: 16px; }
+.label { display: block; font-weight: 600; margin-bottom: 8px; }
+.text-input { min-height: 48px; }
+.optional { font-weight: 400; color: var(--muted); }
+.error-line { display: block; margin-top: 6px; font-size: 0.9rem; color: #ff9b9b; }
+.error-line[hidden] { display: none; }
+#view-theme [hidden] { display: none; } /* the form hides LoRAs and Sampler for a model folder */
+
+textarea,
+.text-input {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  font-size: 16px; /* 16px stops iPhone from zooming in on focus */
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+textarea:focus,
+.text-input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+button.primary {
+  width: 100%;
+  min-height: 48px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--accent-text);
+  background: var(--accent);
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+button.primary:disabled { opacity: 0.6; cursor: default; }
+
+.result-box {
+  min-height: 200px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.note {
+  background: var(--note-bg);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 0;
+}
+.note strong { display: block; margin-bottom: 4px; }
+
+/* Waiting for a picture: a spinning ring. */
+.working { display: grid; justify-items: center; gap: 14px; color: var(--muted); }
+.working p { margin: 0; }
+.spinner {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 15%, var(--accent));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.5s; } }
+
+/* The finished picture with its Download button. */
+.done { display: grid; gap: 12px; width: 100%; }
+.picture { display: block; width: 100%; height: auto; border-radius: 8px; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.actions.three { grid-template-columns: 1fr 1fr 1fr; }
+.edit-box { display: grid; gap: 8px; }
+.edit-box[hidden] { display: none; }
+.button {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--text);
+  background: none;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.button:hover { border-color: var(--accent); }
+
+/* Progress bar under the spinner while drawing. */
+.working { width: min(100%, 320px); }
+.bar { width: 100%; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bar[hidden] { display: none; }
+.bar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.4s; }
+
+/* Library: one card per character, its first picture on top. */
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.library-grid > p { grid-column: 1 / -1; }
+.character {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.character img { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; object-position: top; background: #fff; }
+.character h3 { margin: 8px 10px 0; font-size: 1rem; }
+.character p { margin: 2px 10px 10px; font-size: 0.85rem; }
+.character:hover, .character:focus-visible { border-color: var(--accent); }
+
+/* Character name box with "Pick" beside it. */
+.name-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.name-row .button { padding: 0 18px; }
+
+/* "Pick a character": a sheet over the page. */
+.chooser {
+  width: min(100% - 24px, 420px);
+  max-height: calc(100% - 48px);
+  padding: 16px;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.chooser::backdrop { background: rgb(0 0 0 / 0.6); }
+.chooser-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.chooser-head h2 { margin: 0; }
+.chooser-head .button { width: 48px; }
+.chooser > p { margin: 6px 0 14px; }
+.choice-list { display: flex; flex-direction: column; gap: 8px; }
+.choice {
+  min-height: 52px;
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.choice:hover { border-color: var(--accent); }
+.choice.chosen { border: 2px solid var(--accent); }
+
+/* One character: all of its pictures, each with its prompt and theme. */
+.back-link { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 4px; text-decoration: none; }
+.back-link[hidden] { display: none; }
+.library-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.library-head h2 { margin: 0; }
+.layout-toggle { display: flex; gap: 6px; }
+.layout-toggle[hidden] { display: none; }
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.icon-button svg { width: 22px; height: 22px; fill: currentColor; }
+.icon-button[aria-pressed="true"] { color: var(--accent-text); background: var(--accent); border-color: var(--accent); }
+#library-count { margin-bottom: 14px; }
+/* By date: one small square card per day, two across on a phone. */
+.library-grid.days { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.library-grid.days .character img { aspect-ratio: 1; }
+.character-pictures {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+.character-pictures > p { grid-column: 1 / -1; }
+.pager { grid-column: 1 / -1; display: grid; gap: 10px; }
+.pager-numbers { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px; }
+.pager-numbers .page-number { min-width: 40px; padding-inline: 6px; }
+.pager-numbers .page-number[aria-current] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.pager-arrows { display: flex; justify-content: space-between; gap: 8px; }
+.pager-arrows .button { flex: 1; max-width: 160px; white-space: nowrap; padding-inline: 10px; }
+.saved-picture {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.saved-image img { display: block; width: 100%; height: auto; background: #fff; }
+.saved-info { padding: 10px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.saved-info p { margin: 0; }
+.saved-meta { margin-bottom: 4px !important; }
+.saved-info .saved-copy { margin-top: auto; }
+
+/* Choosing pictures: a tick on the chosen ones, a bar to act on them. */
+.saved-image { position: relative; display: block; }
+.selecting .saved-image { cursor: pointer; }
+.selecting .saved-info .button { display: none; }
+.selecting .saved-image::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.35);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
+}
+.selecting .saved-picture.chosen { outline: 3px solid var(--accent); outline-offset: -3px; }
+.selecting .saved-picture.chosen .saved-image::after {
+  content: "✓";
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: var(--accent-text);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.select-toggle[hidden] { display: none; }
+.select-bar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 5;
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px;
+  background: var(--card);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.5);
+}
+.select-bar[hidden], .select-row[hidden] { display: none; }
+.select-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.select-row .button { flex: 1; padding: 0 12px; }
+.select-row .small-button { flex: none; }
+.select-count { flex: 1 1 100%; font-weight: 600; }
+.select-row:first-child .select-count { flex: 1; }
+.select-bar .error-line { margin: 0; }
+.button.danger { color: #ffb3b3; border-color: #7a3a3a; }
+.button.danger:hover { border-color: #ff8080; }
+.button:disabled { opacity: 0.5; cursor: default; }
+
+/* Small pictures: two across on a phone, pictures only. */
+.character-pictures.thumbs { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.character-pictures.thumbs .saved-info { display: none; }
+.character-pictures.thumbs .saved-image img { aspect-ratio: 1; object-fit: cover; object-position: top; }
+
+/* Settings: a label on the left, an on/off switch on the right. */
+.small { font-size: 0.85rem; }
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  cursor: pointer;
+}
+.switch-row > span > * { display: block; }
+.switch-row input {
+  appearance: none;
+  flex: none;
+  width: 52px;
+  height: 32px;
+  margin: 0;
+  border-radius: 16px;
+  background: var(--line);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.switch-row input::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform 0.2s;
+}
+.switch-row input:checked { background: var(--accent); }
+.switch-row input:checked::after { transform: translateX(20px); }
+.switch-row input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Theme tab: what a theme does, read only. */
+.theme-info { display: grid; gap: 16px; }
+.theme-info[hidden] { display: none; }
+
+/* Adding a model or LoRA file: drop it here, or Choose a file. */
+.drop-zone {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  margin: -4px 0 16px;
+  padding: 12px;
+  border: 2px dashed var(--line);
+  border-radius: 10px;
+}
+.drop-zone.over { border-color: var(--accent); background: var(--note-bg); }
+.drop-zone p { margin: 0; }
+.drop-zone .drop-text { color: var(--muted); }
+.drop-progress { display: grid; gap: 6px; width: 100%; justify-items: start; }
+.drop-progress[hidden], .drop-zone [hidden] { display: none; }
+.drop-message.good { color: #8fe3a8; }
+/* Files are added from a computer only (download, then drag it in), so
+   phones and tablets don't get the box. */
+@media (hover: none) and (pointer: coarse) { .drop-zone { display: none; } }
+.theme-title { margin: 0 0 4px; font-size: 1.2rem; color: var(--text); }
+.theme-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.theme-head .button { padding: 0 16px; flex: none; }
+
+/* Changing a theme. */
+.theme-card select.text-input { appearance: auto; }
+.theme-chooser select.text-input { appearance: auto; max-width: 420px; }
+.theme-chooser .label { display: block; margin-bottom: 6px; }
+.field-help { display: block; margin-top: 4px; }
+.two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.lora-rows { display: grid; gap: 8px; margin-bottom: 8px; }
+.lora-row {
+  display: grid;
+  grid-template-columns: auto 84px 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.lora-row select { grid-column: 1 / -1; min-width: 0; }
+.lora-row .button { justify-self: end; }
+.lora-row .button { padding: 0 12px; }
+.theme-card .error-line[hidden] { display: none; }
+.notes { margin: 8px 0 0; }
+.theme-body { display: grid; gap: 4px; }
+.theme-part { margin-top: 16px; }
+.theme-part h3 { margin: 0 0 8px; font-size: 0.95rem; }
+.theme-part p { margin: 0 0 4px; }
+.words { color: var(--muted); font-size: 0.9rem; overflow-wrap: anywhere; }
+.words.block, .prompt-flow {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.prompt-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.yours {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.file { overflow-wrap: anywhere; }
+.file-name { font-weight: 600; }
+.missing {
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #5a2630;
+  color: #ffb3bd;
+  font-size: 0.8rem;
+}
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; font-size: 0.9rem; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; }
+
+/* Advanced results: a grid of pictures to pick from. */
+.picks { display: grid; gap: 12px; width: 100%; align-self: start; }
+.pick-bar { display: flex; align-items: center; gap: 4px; }
+.pick-bar .muted { margin-right: auto; }
+.link-button {
+  min-height: 44px;
+  padding: 0 10px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.pick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.pick { display: grid; gap: 6px; }
+.pick-frame { position: relative; }
+.pick-help { margin: -6px 0 0; }
+.grid-working { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 10px; }
+.grid-working p { margin: 0; }
+.grid-working .bar { grid-column: 1 / -1; }
+.small-spinner {
+  width: 22px;
+  height: 22px;
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+}
+.done .picture { cursor: zoom-in; }
+.pick-toggle {
+  position: relative;
+  width: 100%;
+  cursor: zoom-in;
+  display: block;
+  padding: 0;
+  border: 3px solid transparent;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg);
+}
+/* Each box takes its picture's own shape (tall or wide). */
+.pick-toggle img { display: block; width: 100%; height: auto; }
+.pick.picked .pick-toggle { border-color: var(--accent); }
+.check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: rgb(0 0 0 / 0.35);
+  color: transparent;
+  font-weight: 700;
+}
+.pick.picked .check { background: var(--accent); color: var(--accent-text); }
+.saved-tag:not(:empty) {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  font-size: 0.75rem;
+}
+.small-button { min-height: 40px; font-size: 0.9rem; }
+/* Phones: no bulk download, each picture has its own Download. */
+@media (pointer: coarse) {
+  .bulk-download { display: none; }
+  .picks .actions { grid-template-columns: 1fr; }
+}
+
+/* Settings: the picture queue. */
+#view-settings { align-items: start; }
+.queue-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.queue-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.queue-item.working { border-color: var(--accent); }
+.queue-info { display: grid; gap: 2px; min-width: 0; }
+.queue-state { font-size: 0.85rem; font-weight: 600; }
+.queue-item.waiting .queue-state { color: var(--muted); }
+.queue-prompt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.queue-remove { min-width: 88px; padding: 0 12px; font-size: 0.9rem; }
+.queue-remove.asking { border-color: #ff9b9b; color: #ff9b9b; }
+.queue-remove:disabled { opacity: 0.5; cursor: default; }
+.queue-empty { padding: 4px 0; }
+
+/* Wider screens: use the whole width. Tabs stretch across, the form sits
+   on the left and the result gets the bigger share and most of the height. */
+@media (min-width: 800px) {
+  body { padding: 0 32px 32px; }
+  .subtabs { width: 480px; }
+  .gpu { order: 0; flex: 1; flex-basis: auto; justify-content: end; padding: 0; }
+  .gpu-name { grid-column: auto; }
+  .gpu { grid-template-columns: auto auto auto auto; }
+  .gpu-queue { grid-column: auto; }
+  .create-area {
+    grid-template-columns: minmax(340px, 2fr) 3fr;
+    align-items: stretch;
+    gap: 24px;
+  }
+  .create-area textarea { min-height: 200px; }
+  .result { display: flex; flex-direction: column; }
+  .result-box { flex: 1; min-height: calc(100vh - 302px); }
+  /* The picture fills the space but always fits on screen with its buttons. */
+  .done { justify-items: center; }
+  .picture { width: 100%; height: calc(100vh - 450px); min-height: 300px; object-fit: contain; }
+  .done .primary, .actions { width: min(100%, 520px); }
+  .theme-body { grid-template-columns: 3fr 2fr; gap: 32px; }
+  .pick-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .picks .primary, .picks .actions { width: 100%; }
+}
+
+/* One picture on its own, centred on a dark screen (tap a saved picture). */
+.viewer {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 16px;
+  border: 0;
+  background: #000;
+  color: var(--text);
+}
+.viewer[open] { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+.viewer::backdrop { background: #000; }
+.viewer img { display: block; max-width: 100%; max-height: calc(100% - 140px); object-fit: contain; border-radius: 6px; }
+.viewer-bar {
+  display: grid;
+  grid-template-columns: 56px 1fr 56px 1fr;
+  grid-template-areas: "prev count next close" "pick pick pick pick";
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 360px);
+}
+.viewer-bar #viewer-count { grid-area: count; }
+.viewer-bar #viewer-prev { grid-area: prev; }
+.viewer-bar #viewer-next { grid-area: next; }
+.viewer-bar #viewer-close { grid-area: close; }
+.viewer-pick { grid-area: pick; }
+.viewer-pick[hidden] { display: none; }
+.viewer-pick[aria-pressed="true"] { color: var(--accent-text); background: var(--accent); border-color: var(--accent); }
+.viewer-bar #viewer-count { text-align: center; }
+.viewer-bar #viewer-prev, .viewer-bar #viewer-next { font-size: 1.6rem; }
+.viewer-bar .button:disabled { opacity: 0.35; cursor: default; }
+/* The picture handles its own pinch, drag and swipe (viewer.js). */
+.viewer img { touch-action: none; user-select: none; -webkit-user-select: none; transition: transform 0.05s; }
+
+/* Phone held sideways: the screen is short, so the buttons go beside the
+   picture instead of under it, and the picture gets the full height. */
+@media (orientation: landscape) and (max-height: 540px) {
+  .viewer { padding: 8px 12px; }
+  .viewer[open] { flex-direction: row; gap: 12px; }
+  .viewer img { max-height: 100%; max-width: calc(100% - 136px); }
+  .viewer-bar {
+    width: 120px;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: "count count" "prev next" "close close" "pick pick";
+  }
+}
+.theme-card .actions { grid-template-columns: 1fr; margin-top: 8px; }
+
+/* Workflows: pick one, then its items as boxes joined by arrows (down on a
+   phone, across on a wide screen). */
+.flow-pick-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+.flow-pick-row .field[hidden], .flow-new[hidden], .flow-ask[hidden] { display: none; }
+.flow-pick-row .field { margin: 0; }
+.flow-pick select.text-input { appearance: auto; }
+.flow-new { display: grid; gap: 8px; margin-top: 12px; }
+.flow-pick, .flow-head, .flow-start { margin-bottom: 16px; }
+.flow-start { display: grid; gap: 8px; }
+.flow-start p { margin: 0; }
+.flow-start .error-line[hidden] { display: none; }
+.flow-head { display: grid; gap: 10px; }
+.flow-head .field { margin: 0; }
+.flow-ask { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.flow-ask p { grid-column: 1 / -1; margin: 0; }
+.flow { display: flex; flex-direction: column; align-items: stretch; margin-bottom: 16px; }
+.flow-box {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-width: 0;
+}
+.flow-box h3 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.flow-box p { margin: 0; }
+.flow-prompt { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.flow-actions { display: grid; grid-template-columns: 1fr auto auto 1fr; gap: 6px; margin-top: 6px; }
+.flow-actions .button { min-width: 44px; }
+.flow-add {
+  min-height: 64px;
+  place-items: center;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+  border-style: dashed;
+  cursor: pointer;
+}
+.flow-add:hover { color: var(--text); border-color: var(--accent); }
+.flow-run { font-size: 0.9rem; padding: 8px 10px; border-radius: 10px; background: var(--note-bg); overflow-wrap: anywhere; }
+.flow-run a { color: var(--text); font-weight: 600; }
+.flow-run.working { box-shadow: inset 3px 0 0 var(--accent); }
+.flow-run.failed, .flow-run.blocked, .flow-run.removed { color: #ff9b9b; }
+.flow-arrow { align-self: center; color: var(--muted); font-size: 1.5rem; line-height: 1; padding: 6px 0; }
+.flow-arrow::before { content: "↓"; }
+@media (min-width: 760px) {
+  .flow { flex-direction: row; flex-wrap: wrap; align-items: center; row-gap: 12px; }
+  .flow-box { width: 260px; align-self: stretch; }
+  .flow-arrow { padding: 0 10px; }
+  .flow-arrow::before { content: "→"; }
+}
+
+/* Create in "add to a workflow" mode. */
+.adding-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 14px; }
+.adding-bar[hidden] { display: none; }
+#view-create.adding [data-subview="standard"],
+#view-create.adding #pick-character,
+#view-create.adding .result { display: none; }
+@media (min-width: 760px) {
+  .flow-pick-row, .flow-new, .flow-head .field, .flow-ask { max-width: 480px; }
+  .flow-head .danger { justify-self: start; padding: 0 18px; }
+}
+
+/* Library → Staging: "Add to character" takes a whole row; then the name. */
+.select-row .select-approve { flex: 1 1 100%; }
+.select-row .select-approve[hidden], .approve-box[hidden] { display: none; }
+.approve-box { display: grid; gap: 8px; }
+#view-library .subtabs { margin-bottom: 12px; }
+.layout-toggle [hidden] { display: none; }
+#flow[hidden] { display: none; }
+
+/* iPhone: two quick taps (the viewer's next arrow, a stepper) would zoom the
+   page. "manipulation" turns double-tap zoom off; pinch zoom still works. */
+button, .button, a, input, select, textarea, label, .viewer { touch-action: manipulation; }
+
+/* Experiments tab: a computer-screen tool, so phones don't show its tab (the phone tabs stay as they were) */
+@media (max-width: 759px) {
+  .tabs { grid-template-columns: repeat(4, 1fr); }
+  .tab[data-view="experiments"] { display: none; }
+}
+#view-experiments .card { margin-bottom: 16px; }
+.exp-about { margin-top: 10px; }
+.exp-batches { display: grid; gap: 12px; margin-bottom: 12px; }
+.exp-batch { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 0; min-width: 0; }
+.exp-batch legend { padding: 0 6px; margin: 0; }
+.exp-batch select.text-input { appearance: auto; }
+.exp-batch textarea { width: 100%; }
+.exp-numbers { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 10px; }
+.exp-numbers .field { margin-bottom: 12px; }
+.exp-numbers .text-input { width: 100%; }
+.exp-negative[hidden] { display: none; }
+.exp-model-note { margin: 0 0 10px; }
+.exp-batch-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.exp-batch-tools button { flex: none; }
+.exp-add { width: 100%; margin-bottom: 8px; }
+.exp-delete { margin-top: 12px; }
+.exp-delete[hidden], #run-stop[hidden], #run-delete[hidden] { display: none; }
+.exp-runs { display: grid; gap: 8px; margin-top: 10px; }
+.exp-run-row {
+  display: flex; gap: 10px; align-items: center; justify-content: space-between;
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; color: var(--text); text-decoration: none;
+}
+.exp-run-row > span:first-child { display: grid; gap: 2px; min-width: 0; }
+.exp-chip {
+  flex: none; font-size: 0.8rem; padding: 2px 10px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--muted); white-space: nowrap;
+}
+.exp-chip[data-status="working"], .exp-chip[data-status="running"] { color: var(--text); border-color: var(--accent); }
+.exp-chip[data-status="done"] { color: #9be3b0; border-color: #2f6b45; }
+.exp-chip[data-status="stopped"] { color: #ffcf8a; border-color: #7a5a2a; }
+.exp-run-batches { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.exp-run-batches li { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; }
+.exp-batch-head { display: flex; gap: 10px; align-items: baseline; justify-content: space-between; }
+.exp-path { overflow-wrap: anywhere; }
+.exp-compare-wrap { overflow-x: auto; margin-top: 10px; }
+.exp-compare { border-collapse: collapse; min-width: 100%; }
+.exp-compare td { border-top: 1px solid var(--line); padding: 8px; vertical-align: top; }
+.exp-compare thead td { font-weight: 600; font-size: 0.9rem; border-top: 0; white-space: nowrap; }
+.exp-compare .exp-prompt { min-width: 140px; max-width: 220px; font-size: 0.85rem; color: var(--muted); }
+.exp-compare img {
+  display: block; width: 160px; height: 160px; object-fit: cover; border-radius: 8px;
+  margin-bottom: 6px; cursor: zoom-in; background: var(--bg);
+}
+@media (min-width: 760px) {
+  .exp-numbers { grid-template-columns: repeat(5, 1fr); }
+  .exp-compare img { width: 220px; height: 220px; }
+}
+
+/* Library: search box, and characters or items. */
+.library-filter { display: grid; gap: 10px; margin: 12px 0 4px; }
+.library-filter[hidden] { display: none; }
+@media (min-width: 760px) {
+  .library-filter { grid-template-columns: 1fr auto; align-items: center; }
+}
+.kind-toggle {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.kind-toggle label {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 40px;
+  padding: 0 18px;
+  font-weight: 600;
+  color: var(--muted);
+  border-radius: 9px;
+  cursor: pointer;
+}
+.kind-toggle input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.kind-toggle label:hover { color: var(--text); }
+.kind-toggle label:has(input:checked) { color: var(--text); background: var(--note-bg); }
+.kind-toggle label:has(input:focus-visible) { outline: 2px solid var(--accent); }

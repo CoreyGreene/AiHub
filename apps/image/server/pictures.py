@@ -1,0 +1,232 @@
+"""Where pictures are kept on disk (the outputs folder, never in git).
+
+    outputs/new/<id>.png                 just made, not saved yet (deleted
+                                         after new_keep_hours, see clear_new)
+    outputs/staging/<folder>/<id>.png    made by a workflow, waiting to be
+                                         picked (Library → Staging)
+    outputs/characters/<folder>/<id>.png saved to a character
+    outputs/experiments/<run>/<batch>/<id>.png
+                                         made by an experiment (Experiments tab)
+    ...each with <id>.json beside it: theme, prompt, seed, character, time.
+"""
+
+import json
+import re
+import shutil
+import threading
+import time
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
+from . import settings
+
+ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
+
+
+def _new() -> Path:
+    return settings.folder("outputs_dir") / "new"
+
+
+def _characters() -> Path:
+    return settings.folder("outputs_dir") / "characters"
+
+
+def _staging() -> Path:
+    return settings.folder("outputs_dir") / "staging"
+
+
+def experiments() -> Path:
+    return settings.folder("outputs_dir") / "experiments"
+
+
+PLACES = {"characters": _characters, "staging": _staging}
+
+
+def keep_new(image, info: dict, staging: str = "", folder: Path | None = None) -> str:
+    """Save a freshly made picture into outputs/new (or a staging group, for
+    a workflow's pictures, or the folder given: an experiment's batch) and
+    return its id."""
+    if folder is None:
+        folder = _staging() / (folder_name(staging) or "unnamed") if staging else _new()
+    folder.mkdir(parents=True, exist_ok=True)
+    pic_id = uuid.uuid4().hex
+    image.save(folder / f"{pic_id}.png")
+    info = {"id": pic_id, **info, **({"staging": staging} if staging else {}), "made": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    (folder / f"{pic_id}.json").write_text(json.dumps(info, indent=2), encoding="utf-8")
+    return pic_id
+
+
+def clear_new() -> int:
+    """Delete unsaved pictures (outputs/new) older than "new_keep_hours".
+    Saved and staged pictures are never touched. Returns how many went."""
+    folder = _new()
+    if not folder.is_dir():
+        return 0
+    oldest = time.time() - settings.get()["new_keep_hours"] * 3600
+    gone = 0
+    for picture in folder.glob("*.png"):
+        try:
+            if picture.stat().st_mtime < oldest:
+                picture.unlink()
+                picture.with_suffix(".json").unlink(missing_ok=True)
+                gone += 1
+        except OSError:  # already gone, or in use: next time
+            pass
+    return gone
+
+
+def start_clearing() -> None:
+    """Clear old unsaved pictures now (server start) and then every hour."""
+
+    def loop():
+        while True:
+            gone = clear_new()
+            if gone:
+                print(f"Cleared {gone} unsaved picture{'s' if gone != 1 else ''} older than {settings.get()['new_keep_hours']} hours")
+            time.sleep(3600)
+
+    threading.Thread(target=loop, daemon=True).start()
+
+
+def find(pic_id: str) -> Path | None:
+    """The picture file for an id, wherever it is kept."""
+    if not ID_PATTERN.match(pic_id):
+        return None
+    for path in [_new() / f"{pic_id}.png", *_characters().glob(f"*/{pic_id}.png"), *_staging().glob(f"*/{pic_id}.png"),
+                 *experiments().glob(f"*/*/{pic_id}.png")]:
+        if path.is_file():
+            return path
+    return None
+
+
+def info(pic_id: str) -> dict | None:
+    """The settings saved beside a picture."""
+    picture = find(pic_id)
+    if picture is None:
+        return None
+    try:
+        return json.loads(picture.with_suffix(".json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def is_saved(path: Path) -> bool:
+    return path.parent.parent == _characters()
+
+
+def is_staged(path: Path) -> bool:
+    return path.parent.parent == _staging()
+
+
+def _drop_if_empty(folder: Path) -> None:
+    """A character or staging group with no pictures left goes too."""
+    if any(folder.glob("*.png")):
+        return
+    for leftover in folder.glob("*.json"):
+        leftover.unlink()
+    try:
+        folder.rmdir()
+    except OSError:  # something else is in it (e.g. .DS_Store): leave it
+        pass
+
+
+def folder_name(character: str) -> str:
+    """A safe folder name for a character: 'Grim the Goblin' -> 'grim-the-goblin'."""
+    return re.sub(r"[^a-z0-9]+", "-", character.lower()).strip("-")
+
+
+def save_to_character(pic_id: str, character: str) -> None:
+    """Move a picture (and its settings) into the character's folder."""
+    picture = find(pic_id)
+    if picture is None:
+        raise FileNotFoundError(pic_id)
+    folder = _characters() / folder_name(character)
+    folder.mkdir(parents=True, exist_ok=True)
+
+    info_path = picture.with_suffix(".json")
+    info = json.loads(info_path.read_text(encoding="utf-8"))
+    info["character"] = character
+    info.pop("staging", None)
+    (folder / f"{pic_id}.json").write_text(json.dumps(info, indent=2), encoding="utf-8")
+    if info_path.parent != folder:
+        info_path.unlink()
+    if picture.parent != folder:
+        shutil.move(picture, folder / picture.name)
+        if is_staged(picture):
+            _drop_if_empty(picture.parent)
+
+
+def delete_saved(pic_ids: list[str]) -> int:
+    """Delete saved or staged pictures (and their settings) for good. A
+    character or staging group left with none goes too. Returns how many
+    were deleted."""
+    done = 0
+    for pic_id in pic_ids:
+        picture = find(pic_id)
+        if picture is None or not (is_saved(picture) or is_staged(picture)):
+            continue
+        picture.unlink()
+        picture.with_suffix(".json").unlink(missing_ok=True)
+        done += 1
+        _drop_if_empty(picture.parent)
+    return done
+
+
+def _read_folder(folder: Path) -> list[dict]:
+    """The settings of every picture in a character's folder, oldest first."""
+    infos = []
+    for path in folder.glob("*.json"):
+        try:
+            info = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if (folder / f"{info.get('id')}.png").is_file():
+            infos.append(info)
+    infos.sort(key=lambda i: i.get("made", ""))
+    return infos
+
+
+def list_characters(place: str = "characters") -> list[dict]:
+    """Every character (or staging group), with its first picture as the cover."""
+    out = []
+    root = PLACES[place]()
+    key = "character" if place == "characters" else "staging"
+    if not root.is_dir():
+        return out
+    for folder in root.iterdir():
+        infos = _read_folder(folder) if folder.is_dir() else []
+        if not infos:
+            continue
+        out.append({
+            "name": infos[0].get(key, folder.name),
+            "folder": folder.name,
+            "count": len(infos),
+            "cover": f"api/pictures/{infos[0]['id']}",
+        })
+    out.sort(key=lambda c: c["name"].lower())
+    return out
+
+
+def character(folder_id: str, place: str = "characters") -> dict | None:
+    """One character (or staging group) and all of its pictures, oldest first."""
+    if folder_id != folder_name(folder_id) or not folder_id:
+        return None
+    folder = PLACES[place]() / folder_id
+    infos = _read_folder(folder) if folder.is_dir() else []
+    if not infos:
+        return None
+    return {
+        "name": infos[0].get("character" if place == "characters" else "staging", folder_id),
+        "folder": folder_id,
+        "pictures": [
+            {
+                "id": i["id"],
+                "image": f"api/pictures/{i['id']}",
+                "theme": i.get("theme", ""),
+                "prompt": i.get("prompt", ""),
+                "made": i.get("made", ""),
+            }
+            for i in infos
+        ],
+    }

@@ -1,0 +1,86 @@
+{
+  "_about": "Where things live and how pictures are checked. Paths are relative to the project folder. To change something on one machine only (for example the Mac), put just those keys in server/settings.local.json; it is never committed.",
+
+  "models_dir": "server/aIModels",
+  "loras_dir": "server/lora",
+  "themes_dir": "server/theme",
+  "workflows_dir": "server/workflow",
+  "experiments_dir": "server/experiment",
+  "outputs_dir": "outputs",
+
+  "_device": "auto = cuda (NVIDIA), then mps (Mac), then cpu. Or name one.",
+  "device": "auto",
+
+  "_use_3060_settings": "For a 12 GB graphics card like the RTX 3060: a lighter VAE (the step that turns the result into pixels) that works in half precision, used in tiles, and long prompts read in full with Compel (otherwise the model reads only the first 77 tokens). Not needed on the Mac. Switched on the Settings page, which saves it in settings.local.json.",
+  "use_3060_settings": false,
+  "fp16_vae": "sdxl-vae-fp16-fix",
+
+  "_custom": "Where the Custom tab starts (its own theme, no theme file behind it). The model is the first one in the models folder unless named here.",
+  "custom": {
+    "backend": "diffusers-sdxl",
+    "model_config": "sdxl-config",
+    "model": "",
+    "prompt_before": "masterpiece, best quality",
+    "prompt_after": "",
+    "negative": "lowres, worst quality, bad quality, blurry, bad anatomy, bad hands, text, watermark",
+    "width": 832,
+    "height": 1216,
+    "steps": 28,
+    "guidance": 6.0,
+    "scheduler": "euler_a"
+  },
+
+  "_experiments": "The Experiments tab: batches of prompts, each made with its own model, to compare. Its models are every SDXL file in models_dir, plus these model folders (in models_dir) run through mflux on a Mac: kind is qwen-image (Qwen-Image 2512) or flux2-klein-4b. quantize: 4 or 8 makes a full model smaller as it loads (leave it out for one already made smaller, like mlx-community's 8-bit). width, height, steps and guidance are each model's own settings, used when a batch leaves them empty.",
+  "experiments": {
+    "models": [
+      {"name": "Qwen-Image 2512 (8-bit)", "folder": "Qwen-Image-2512-8bit", "kind": "qwen-image",
+       "width": 1328, "height": 1328, "steps": 50, "guidance": 4.0},
+      {"name": "Qwen-Image 2512", "folder": "Qwen-Image-2512", "kind": "qwen-image",
+       "width": 1328, "height": 1328, "steps": 50, "guidance": 4.0},
+      {"name": "FLUX.2 klein 4B", "folder": "FLUX.2-klein-4B", "kind": "flux2-klein-4b",
+       "width": 1024, "height": 1024, "steps": 4, "guidance": 1.0}
+    ]
+  },
+
+  "_max_pictures": "Most pictures one Generate can make (Advanced tab).",
+  "max_pictures": 8,
+
+  "_page_size": "Library: how many pictures show at once, with page buttons for the rest. page_size for full pictures (one big picture with its details), thumbs_page_size for small pictures (also one day's pictures). 0 = all on one page.",
+  "page_size": 10,
+  "thumbs_page_size": 100,
+
+  "_unload_after_minutes": "Let go of the model when no pictures have been made for this long, so the graphics card's memory is free. The next picture then takes a few seconds longer to start. 0 = let go as soon as the queue is empty.",
+  "unload_after_minutes": 5,
+
+  "_new_keep_hours": "Pictures made but never saved (outputs/new) are deleted once they are this old. Checked when the server starts and every hour. Saved and staging pictures are never deleted this way.",
+  "new_keep_hours": 24,
+
+  "_max_queue": "Most picture jobs waiting or being made at once. More requests are turned away until some finish.",
+  "max_queue": 500,
+
+  "_edit": "Changing a picture by an instruction (the Edit button). The model folder is in models_dir; gguf is the drawing model in it (3-bit for a 12 GB card), lightning a LoRA that does it in 8 steps with guidance 1. Without lightning: about 20 steps, guidance 4. roomy_gb: with less memory than this (measured: the card on NVIDIA, the whole machine on a Mac) the model is squeezed in: text reader in 4-bit, its parts taking turns.",
+  "edit": {
+    "backend": "qwen-edit",
+    "roomy_gb": 48,
+    "folder": "qwen-image-edit-2511",
+    "gguf": "qwen-image-edit-2511-Q3_K_S.gguf",
+    "lightning": "Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors",
+    "steps": 8,
+    "guidance": 1.0
+  },
+
+  "_lock": "Ask for a six-digit code before anything on the site can be seen. A server option, not on the website: turn it on in server/settings.local.json (never here, so the code isn't committed) with \"lock\": true and \"lock_code\": \"123456\", then restart the server. A browser that typed the code isn't asked again for 30 days; a new code asks everyone again.",
+  "lock": false,
+  "lock_code": "",
+
+  "safety": {
+    "_about": "Every picture is checked by both checkers and is not shown if either one scores it at or above the threshold. Up to 'tries' pictures are made before giving up. 'negative' is added to every theme's negative prompt.",
+    "checkers": [
+      "safety/falconsai-nsfw-image-detection",
+      "safety/adamcodd-vit-base-nsfw-detector"
+    ],
+    "threshold": 0.7,
+    "tries": 3,
+    "negative": "nsfw, nude, nudity, naked, topless, nipples, genitals, explicit, sexual"
+  }
+}
