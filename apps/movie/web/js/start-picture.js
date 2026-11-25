@@ -9,6 +9,7 @@ const els = {
   image: document.getElementById("start-image"),
   file: document.getElementById("start-file"),
   choose: document.getElementById("start-choose"),
+  rotate: document.getElementById("start-rotate"),
   remove: document.getElementById("start-remove"),
   error: document.getElementById("start-error"),
   view: document.getElementById("view-create"),
@@ -32,8 +33,8 @@ export function showStartField() {
 function show() {
   els.image.hidden = !picture;
   if (picture) els.image.src = picture.image;
-  els.remove.hidden = !picture;
-  els.choose.textContent = picture ? "Choose another" : "Choose a picture";
+  els.remove.hidden = els.rotate.hidden = !picture;
+  els.choose.textContent = picture ? "Change" : "Choose a picture";
 }
 
 els.file.addEventListener("change", async () => {
@@ -50,6 +51,24 @@ els.file.addEventListener("change", async () => {
   } catch (err) {
     els.error.textContent = err.message || "Couldn't send the picture. Is the server running?";
     els.error.hidden = false;
+  }
+  show();
+});
+
+// A quarter turn clockwise; the server keeps it as a new picture.
+els.rotate.addEventListener("click", async () => {
+  els.rotate.disabled = true;
+  els.error.hidden = true;
+  try {
+    const res = await fetch(`api/start-pictures/${picture.id}/rotate`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    picture = data;
+  } catch (err) {
+    els.error.textContent = err.message || "Couldn't turn the picture. Is the server running?";
+    els.error.hidden = false;
+  } finally {
+    els.rotate.disabled = false;
   }
   show();
 });

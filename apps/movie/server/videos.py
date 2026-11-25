@@ -31,18 +31,36 @@ def _characters() -> Path:
 def keep_start_picture(data: bytes) -> str:
     """Keep a picture sent to begin videos from (any common format, made a
     PNG). Returns its id. Raises ValueError if it isn't a picture."""
-    from PIL import Image, UnidentifiedImageError
+    from PIL import Image, ImageOps, UnidentifiedImageError
 
     try:
         with Image.open(io.BytesIO(data)) as opened:
-            picture = opened.convert("RGB")
+            # Phone photos say which way up they are in a tag: turn them that way.
+            picture = ImageOps.exif_transpose(opened).convert("RGB")
     except (UnidentifiedImageError, OSError) as err:
         raise ValueError("That file isn't a picture.") from err
+    return _keep_start(picture)
+
+
+def _keep_start(picture) -> str:
     folder = settings.folder("outputs_dir") / "start-pictures"
     folder.mkdir(parents=True, exist_ok=True)
     pic_id = uuid.uuid4().hex
     picture.save(folder / f"{pic_id}.png")
     return pic_id
+
+
+def rotate_start_picture(pic_id: str) -> str | None:
+    """A quarter turn clockwise, kept as a new start picture (so the page
+    never shows an old copy). Returns its id, or None if it isn't here."""
+    from PIL import Image
+
+    path = start_picture(pic_id)
+    if path is None:
+        return None
+    with Image.open(path) as opened:
+        turned = opened.convert("RGB").transpose(Image.Transpose.ROTATE_270)
+    return _keep_start(turned)
 
 
 def start_picture(pic_id: str) -> Path | None:

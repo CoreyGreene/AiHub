@@ -327,6 +327,15 @@ async def add_start_picture(request: Request) -> dict:
     return {"id": pic_id, "image": f"api/start-pictures/{pic_id}"}
 
 
+@app.post("/api/start-pictures/{pic_id}/rotate")
+def rotate_start_picture(pic_id: str) -> dict:
+    """Create → Start picture → Rotate: a quarter turn clockwise, as a new picture."""
+    new_id = videos.rotate_start_picture(pic_id)
+    if new_id is None:
+        raise HTTPException(404, "That picture isn't here any more. Pick it again.")
+    return {"id": new_id, "image": f"api/start-pictures/{new_id}"}
+
+
 @app.get("/api/start-pictures/{pic_id}")
 def get_start_picture(pic_id: str):
     path = videos.start_picture(pic_id)
