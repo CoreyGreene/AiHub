@@ -4,6 +4,9 @@
   "_models_dir": "The folder holding every AI model, one folder inside it per kind (each tool's models below). Relative to this project's folder, or a full path (~ allowed). Each tool is told its own folder when it starts.",
   "models_dir": "models",
 
+  "_safety_models": "The folder inside models_dir holding the nudity checkers, shared by every tool that checks pictures or videos. Each tool is told where it is when it starts.",
+  "safety_models": "SafetyModels",
+
   "_apps": "The tiles, in order. folder: the tool's folder (with its own start.py and .venv). port: where it runs on this computer only (the hub passes its pages through). models: its folder inside models_dir. about: the line on the tile.",
   "apps": [
     {"id": "image", "name": "Image AI", "folder": "apps/image", "port": 8110, "models": "ImageModels",

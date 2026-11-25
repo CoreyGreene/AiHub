@@ -74,7 +74,12 @@ def start(app: dict) -> None:
     if state(app) in ("running", "starting") or not set_up(app):
         return
     models = settings.folder("models_dir") / app["models"]
-    env = {**os.environ, "AIHUB": "1", "AIHUB_MODELS_DIR": str(models)}
+    env = {
+        **os.environ,
+        "AIHUB": "1",
+        "AIHUB_MODELS_DIR": str(models),
+        "AIHUB_SAFETY_DIR": str(settings.folder("models_dir") / settings.get()["safety_models"]),
+    }
     log = open(log_path(app), "a")
     log.write(f"\n==== {time.strftime('%Y-%m-%d %H:%M:%S')} starting {app['name']}\n")
     log.flush()

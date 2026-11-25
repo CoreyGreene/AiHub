@@ -44,7 +44,9 @@ Ctrl+C stops the hub and every tool it started.
 - **Models:** `models_dir` in `hub/settings.json` (this machine's in `hub/settings.local.json`) holds one folder per
   kind; each tool's `models` names its folder. The hub gives a tool `AIHUB_MODELS_DIR` (that folder) when it starts
   it: Image AI and Movie AI use it as `models_dir`; Code AI looks for models given by folder name there; 3D AI's
-  models are named in `trellis-mac/local-model/pipeline.json` (TRELLIS's own file, outside this repo).
+  models are named in `trellis-mac/local-model/pipeline.json` (TRELLIS's own file, outside this repo). The nudity
+  checkers are in one shared folder, `safety_models` in `hub/settings.json` (`SafetyModels`); the hub gives every tool
+  `AIHUB_SAFETY_DIR`, and Image AI and Movie AI load their checkers from it.
 - **Connector:** `connector/aihub_mcp.py` is an MCP server (stdio, standard library only) that gives Claude
   Image AI and 3D AI tools: themes, make, workflows, Staging, save pictures, approve; 3D make, bulk, status,
   models. It calls the hub's pass-through (`/image/…`, `/3d/…`) and starts a stopped tool through the hub.

@@ -16,7 +16,8 @@ Each tool lives in `apps/` with its own README. Set the folder that holds your A
 {"models_dir": "~/AIModels"}
 ```
 
-Inside it, one folder per kind: `ImageModels`, `MeshModels`, `GeneralModels` (language models), `MovieModels`.
+Inside it, one folder per kind: `ImageModels`, `MeshModels`, `GeneralModels` (language models), `MovieModels`, and
+`SafetyModels`: the nudity checkers every picture and video goes through, shared by Image AI and Movie AI.
 
 ## API
 
