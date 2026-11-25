@@ -1,11 +1,16 @@
-# CodeAi
+# Code AI
 
 A website for asking local AI models about code: pick a model, ask, and watch the answer being written. Code comes
-in code windows with a Copy button. The same look and layout as ImageAi; one of a family of local AI tools.
+in code windows with a Copy button. The same look and layout as Image AI; one of the tools in AiHub (`apps/code`).
 
 The models run on this Mac (MLX, Apple's GPU), one at a time, and are let go after a while with no questions.
 
 ## Start it
+
+Open its tile in AiHub (`python3 start.py` at the repo root, then http://localhost:8000); it shows at `/code/`. The
+hub doesn't make the tool's `.venv`: run it on its own once first, or the tile says "Not set up yet".
+
+On its own, in this folder:
 
 ```bash
 python3 start.py
@@ -19,7 +24,8 @@ It prints two addresses: **on this computer** `http://localhost:8200`, and **fro
 Stop it with Ctrl+C. Another port: `python3 start.py --port 9000`.
 
 **Models** are listed in `server/settings.local.json` (this machine's folders, not in git): an id, a name, the
-model's folder, a note, and any extra settings for mlx_lm's server. The first is the default.
+model's folder, a note, and any extra settings for mlx_lm's server. The first is the default. A folder given by name
+only is looked for in the hub's models folder (`GeneralModels`) under AiHub, or in `models_dir` on its own.
 
 ## The page
 
@@ -27,8 +33,8 @@ model's folder, a note, and any extra settings for mlx_lm's server. The first is
   conversation** starts fresh. The answer shows its thinking (folded away), then the answer, then the model, time
   and speed. **Stop** stops it; what it wrote so far is kept.
 - **Ask → Advanced:** the same, with more Thinking levels: Long (no limit), Medium (up to 4,000 thinking tokens),
-  Short (up to 1,000) and Off. Gemma 4 and Qwen3.5 only have thinking on or off, so the budgets are CodeAi's own:
-  when the thinking reaches the budget, CodeAi stops it and has the model answer from its notes (the answer says so).
+  Short (up to 1,000) and Off. Gemma 4 and Qwen3.5 only have thinking on or off, so the budgets are Code AI's own:
+  when the thinking reaches the budget, Code AI stops it and has the model answer from its notes (the answer says so).
 - **Thinking** (under Model): a model's thinking choices, from `thinking_levels` in `settings.json` (`where` says
   which sub-tab shows each). Standard has On and Off; a model with none hides it.
 - **It can look at your files**, read only, in the `folders` listed in `settings.local.json` (Desktop, Documents,
@@ -43,7 +49,7 @@ model's folder, a note, and any extra settings for mlx_lm's server. The first is
   file changed again since is left alone).
 - **Bulk:** one prompt over a long list of items, such as "change these 300 lines of dialogue". Everything about
   the job is in a **bulk file** you give it (JSON): the prompt, the items, and optionally the checks and a review.
-  CodeAi has no knowledge of any one kind of job, so a new kind of bulk job is a new file, never a code change.
+  Code AI has no knowledge of any one kind of job, so a new kind of bulk job is a new file, never a code change.
   **Open a bulk file** (a picker over your allowed folders on this Mac, phone included) or **Paste JSON**, then
   **Choose folder** for the folder it works in (it looks only there), check the model and Thinking (the file fills
   them in), and press **Start**. **Choose output** (optional) picks a folder that gets a copy of every file the run
@@ -56,9 +62,9 @@ model's folder, a note, and any extra settings for mlx_lm's server. The first is
     `items` (a list of objects, each with all its fields). Optional: `name` (else the file's name), `model`,
     `thinking`, `can_change_files` (on unless it says `false`), `search`, `checks`, `review`, `retries` (1),
     `max_steps`. The page warns when items are missing a `{field}` the prompt uses. [examples/README.md](examples/README.md) explains each, with example files.
-  - **search:** text CodeAi looks for in the folder before the model starts (e.g. `"{old}"`), so it starts at the
+  - **search:** text Code AI looks for in the folder before the model starts (e.g. `"{old}"`), so it starts at the
     right lines.
-  - **checks:** CodeAi's own tests of what an item changed: `changed`, `lines` (how many, changed in place), `had`
+  - **checks:** Code AI's own tests of what an item changed: `changed`, `lines` (how many, changed in place), `had`
     and `has` (a changed line held / now has some text, exactly or most of its words), `kept` (what a regex matches
     stays the same, e.g. a speaker's name or #tags), `lacks` (no changed line matches a regex). **review:** a second
     prompt, asked fresh with the change in front of it, that answers PASS or FAIL. A failed check or review undoes the item and tries it once more with the
@@ -69,10 +75,10 @@ model's folder, a note, and any extra settings for mlx_lm's server. The first is
   - A run's page shows each item (its fields, the check, the review, the model's note, the tools it used, the diff)
     with filters by status, **Undo this item**, **Stop**, **Carry on**, **Try the failed ones again**, **Undo the
     whole run** and **Download results**. Runs are kept in `bulk/` (one JSON each), saved after every item; one
-    going when CodeAi stopped shows as paused, and Carry on picks it up.
+    going when Code AI stopped shows as paused, and Carry on picks it up.
   - **With an output folder the originals are never touched:** the run works on a copy of its folder (in
     `bulk/work/<run>`, up to `bulk_copy_limit_mb`), and the output folder gets what it changed.
-  - **Saved list:** **Save to list** keeps the bulk file in CodeAi (`saved/`, git-ignored, under its `name`);
+  - **Saved list:** **Save to list** keeps the bulk file in Code AI (`saved/`, git-ignored, under its `name`);
     **Load a saved one** opens it again. Saved bulk files are what pipelines are made of.
 - **Pipelines:** saved bulk files chained. Build one (a name, then **Add step** for each saved bulk file, in order,
   ↑ ↓ to reorder) and **Save pipeline** (`saved/pipelines/`). To run it pick the pipeline, the **Input folder** and
@@ -106,7 +112,7 @@ web/                  the page: plain HTML, CSS and ES modules, no build step
 
 ## API
 
-The page uses it, and so will Claude (an MCP connector, next).
+The page uses it, and so does Claude (the MCP connector below).
 
 | Call | What it does |
 | --- | --- |
@@ -139,8 +145,9 @@ The page uses it, and so will Claude (an MCP connector, next).
 
 ## Claude's connector (MCP)
 
-`connector/codeai_mcp.py` lets Claude (or Codex, or any MCP client) use CodeAi: it calls the API above, so CodeAi
-has to be running. No packages: MCP over stdio is one JSON message per line. Claude's questions go in the same
+`connector/codeai_mcp.py` lets Claude (or Codex, or any MCP client) use Code AI: it calls the API above through
+AiHub (`http://localhost:8000/code`, or `CODEAI_URL`), and asks the hub to start Code AI if it isn't running. No
+packages: MCP over stdio is one JSON message per line. Claude's questions go in the same
 queue as yours and show "Claude asked" on the page.
 
 | Tool | What it does |

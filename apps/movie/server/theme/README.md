@@ -23,7 +23,7 @@ shared is this guide and the generic examples in `server/theme/examples/`.
 
 This file is for anyone setting up a theme, people and AI agents alike.
 
-## A model to start with
+## Models to start with
 
 **Wan 2.1 text-to-video 1.3B** (`Wan-AI/Wan2.1-T2V-1.3B-Diffusers` on
 Hugging Face, about 29 GB to download) is the smallest Wan and runs on a
@@ -31,6 +31,12 @@ Hugging Face, about 29 GB to download) is the smallest Wan and runs on a
 `server/aIModels/wan2.1-t2v-1.3b/` and name that folder in the theme's
 `model`. On an RTX 3060 a 2-second clip (33 frames, 20 steps) takes about
 4 minutes; a 5-second one (81 frames, 30 steps) about 15 to 20.
+
+**LTX-2.5** (Mac only, MLX): a model folder in the ltx-2-mlx layout (for
+example `mlx-community/ltx-2.5-mlx` on Hugging Face; read its licence),
+with the `ltx-mlx` backend. It makes the sound too, and can begin from a
+start picture: the video takes the picture's shape. Start from
+`examples/ltx-example.json`.
 
 ## Where the files go
 
@@ -48,6 +54,7 @@ server/
     README.md               this file (in git)
     examples/               generic starting points (in git)
       wan-example.json
+      ltx-example.json
 ```
 
 - **Models** go in `server/aIModels/`. Video models usually come as a
@@ -61,16 +68,18 @@ A theme names its model and LoRAs by **name only**. The site adds the
 folder itself, so a theme never contains a path like `/home/...` or
 `C:\...`.
 
-These folders can be moved (for example to a bigger drive on the Mac) by
-setting `models_dir` or `loras_dir` in `server/settings.local.json`. Theme
-files don't change when you do that.
+Under AiHub, models come from the hub's models folder (`MovieModels`) in
+place of `server/aIModels/`, and the nudity checkers from its shared
+`SafetyModels` folder. On its own, these folders can be moved (for example
+to a bigger drive on the Mac) by setting `models_dir` or `loras_dir` in
+`server/settings.local.json`. Theme files don't change either way.
 
 ## Adding a new theme, step by step
 
 1. **Put the model** in `server/aIModels/`.
 2. **Put any LoRAs** (`.safetensors`) in `server/lora/`.
-3. **Copy** `examples/wan-example.json` up into `server/theme/` under a
-   new name, e.g. `hero-idle.json`. The file name (without `.json`) becomes
+3. **Copy** `examples/wan-example.json` (or `ltx-example.json`) up into
+   `server/theme/` under a new name, e.g. `hero-idle.json`. The file name (without `.json`) becomes
    the theme's id; use lowercase and dashes. (Files inside `examples/` are
    never shown on the site.)
 4. **Edit** the copy: `name`, `hint`, `model`, `loras`, `prompt`,
@@ -113,6 +122,10 @@ Any key starting with `_` is a note and is ignored when making videos.
 
 More backends can be added in `server/backends/`; a theme picks one by name.
 
+A theme's `prompt` can be just `"{prompt}"`: a "no theme" theme with no
+style words, so your prompt (and the start picture, with LTX) decides the
+look.
+
 ## What always gets added (you don't put this in the theme)
 
 - **Safety words** from `server/settings.json` (`safety.negative`) are added
@@ -122,7 +135,7 @@ More backends can be added in `server/backends/`; a theme picks one by name.
   (up to 2 tries) and is never shown. There is no way to turn it off from a
   theme.
 
-## Rules (this repo is public)
+## Rules (AiHub is public)
 
 - **Safe for work only.** No NSFW themes, no NSFW LoRAs, no adult words in
   `prompt`.
@@ -136,6 +149,7 @@ More backends can be added in `server/backends/`; a theme picks one by name.
 
 ## Example
 
-See [`examples/wan-example.json`](examples/wan-example.json): a complete
-theme with made-up names. Copy it, then change it. To see what any of your
+See [`examples/wan-example.json`](examples/wan-example.json) and
+[`examples/ltx-example.json`](examples/ltx-example.json): complete themes
+with made-up names. Copy one, then change it. To see what any of your
 own themes does, open the **Theme** tab on the website.

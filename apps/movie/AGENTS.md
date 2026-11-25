@@ -1,13 +1,14 @@
 # AGENTS.md
 
-A short guide for AI coding helpers (and people) working on MovieAi.
+A short guide for AI coding helpers (and people) working on Movie AI, `apps/movie` in AiHub.
 
 ## What it is
 
 A small website for making short videos for games: pick a theme, type a
 prompt, get a video. It's built for one person, used mostly from a phone.
 The server runs the video model on the same machine (an NVIDIA card, Apple
-Silicon or the CPU). A sister project of ImageAi, built the same way.
+Silicon or the CPU). One of the tools in AiHub, built the same way as Image AI
+(`apps/image`).
 
 **Video models:** Wan through diffusers (`server/backends/diffusers_wan.py`),
 tested with Wan 2.1 1.3B on a 12 GB card; and on a Mac, LTX-2.5 through MLX
@@ -18,12 +19,16 @@ page says "Not connected yet".
 
 ## Run it
 
+Open its tile in AiHub (`python3 start.py` at the repo root, then
+`http://localhost:8000`); the hub starts it on port 8410 and shows it at
+`/movie/`. On its own:
+
 ```bash
 python3 start.py            # makes .venv, installs requirements, starts on port 8200
 python3 start.py --port 9000
 ```
 
-It listens on `0.0.0.0` so a phone on the same network can reach it.
+On its own it listens on `0.0.0.0` so a phone on the same network can reach it.
 Models aren't included: see [server/theme/README.md](server/theme/README.md)
 for where they go and how to write a theme.
 
@@ -39,12 +44,17 @@ for where they go and how to write a theme.
   the finished .mp4 with sound for LTX); a theme names its backend.
 - **Start pictures:** Create → Start picture sends it to
   `/api/start-pictures` (kept in `outputs/start-pictures/`); Generate sends
-  its id. Only themes whose backend is in `backends.TAKES_PICTURE` show it. `server/videos.py` writes the `.mp4` and its
-  first frame (`.jpg`).
+  its id. Only themes whose backend is in `backends.TAKES_PICTURE` show it
+  (and the Custom tab, when its backend is). Rotate turns it a quarter turn
+  clockwise, kept as a new picture; phone photos are turned the right way up
+  when they arrive. `server/videos.py` writes the `.mp4` and its first frame
+  (`.jpg`).
 - **Queue:** `server/jobs.py` makes one video job at a time; the page
   asks for progress. The model stays loaded, and is let go when idle.
 - **Settings:** `server/settings.json` (shared) and
-  `server/settings.local.json` (this machine, git-ignored).
+  `server/settings.local.json` (this machine, git-ignored). Started by
+  AiHub, `AIHUB_MODELS_DIR` (the hub's `MovieModels`) wins over
+  `models_dir`, and the nudity checkers load from `AIHUB_SAFETY_DIR`.
 - **Themes:** one JSON file each in `server/theme/` (git-ignored, personal).
   Generic examples are in `server/theme/examples/`. The Theme tab can
   change them (Edit) and make new ones (New).
@@ -73,7 +83,7 @@ for where they go and how to write a theme.
 - **Keep it lean.** Add only what's needed; remove experiments that didn't
   work out.
 
-## This repo is public
+## AiHub is public
 
 - Never commit models (checkpoints, LoRAs, VAEs…), videos, pictures, theme files,
   `*.local.json` or `.env`. `.gitignore` covers them; check `git status`

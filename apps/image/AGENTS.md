@@ -1,6 +1,6 @@
 # AGENTS.md
 
-A short guide for AI coding helpers (and people) working on ImageAi.
+A short guide for AI coding helpers (and people) working on Image AI, `apps/image` in AiHub.
 
 ## What it is
 
@@ -11,12 +11,16 @@ the CPU).
 
 ## Run it
 
+Open its tile in AiHub (`python3 start.py` at the repo root, then
+`http://localhost:8000`); the hub starts it on port 8110 and shows it at
+`/image/`. On its own:
+
 ```bash
 python3 start.py            # makes .venv, installs requirements, starts on port 8100
 python3 start.py --port 9000
 ```
 
-It listens on `0.0.0.0` so a phone on the same network can reach it.
+On its own it listens on `0.0.0.0` so a phone on the same network can reach it.
 Models aren't included: see [server/theme/README.md](server/theme/README.md)
 for where they go and how to write a theme.
 
@@ -37,7 +41,9 @@ for where they go and how to write a theme.
 - **Queue:** `server/jobs.py` makes one picture job at a time; the page
   asks for progress. The model stays loaded, and is let go when idle.
 - **Settings:** `server/settings.json` (shared) and
-  `server/settings.local.json` (this machine, git-ignored).
+  `server/settings.local.json` (this machine, git-ignored). Started by
+  AiHub, `AIHUB_MODELS_DIR` (the hub's `ImageModels`) wins over
+  `models_dir`, and the nudity checkers load from `AIHUB_SAFETY_DIR`.
 - **Themes:** one JSON file each in `server/theme/` (git-ignored, personal).
   Generic examples are in `server/theme/examples/`. The Theme tab can
   change them (Edit) and make new ones (New).
@@ -80,7 +86,7 @@ for where they go and how to write a theme.
 - **Keep it lean.** Add only what's needed; remove experiments that didn't
   work out.
 
-## This repo is public
+## AiHub is public
 
 - Never commit models (checkpoints, LoRAs, VAEs…), pictures, theme files,
   `*.local.json` or `.env`. `.gitignore` covers them; check `git status`

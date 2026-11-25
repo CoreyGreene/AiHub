@@ -1,28 +1,33 @@
 # AGENTS.md
 
-A short guide for AI coding helpers (and people) working on MeshAi.
+A short guide for AI coding helpers (and people) working on 3D AI, `apps/3d` in AiHub.
 
 ## What it is
 
 A small website for turning 2D pictures into 3D models (GLB) for the game:
 give it a picture (or a whole folder of them), it makes textured 3D models with
 **TRELLIS.2**, keeps them in a library with several versions each, and shows
-them in a 3D viewer. Sister of `../Image-Ai` (pictures, port 8100) and
-`../Code-Ai` (port 8200); same look, same rules. Built 2026-11-23.
+them in a 3D viewer. One of the tools in AiHub, beside Image AI (`apps/image`), Movie AI (`apps/movie`)
+and Code AI (`apps/code`); same look, same rules. Built 2026-11-23.
 
-Use: **items and props** (pictures from Image-Ai's "Becky Item Style" theme).
+Use: **items and props** (pictures from Image AI's "Becky Item Style" theme).
 Characters are made with Meshy instead (the user's choice: TRELLIS's faces and
 colours aren't good enough for them).
 
 ## Run it
+
+Open its tile in AiHub (`python3 start.py` at the repo root, then
+`http://localhost:8000`); the hub starts it on port 8310 and shows it at `/3d/`.
+On its own:
 
 ```bash
 python3 start.py            # makes .venv, installs requirements, starts on port 8300
 python3 start.py --port 9000
 ```
 
-Needs `../trellis-mac` set up first (its own `.venv`, the Metal texture tools and
-`local-model/`): see `../trellis-mac/CLAUDE.md`. The settings `trellis_dir` points there.
+Needs trellis-mac set up first, beside the AiHub folder (its own `.venv`, the Metal
+texture tools and `local-model/`, which holds the models): see trellis-mac's
+`CLAUDE.md`. The setting `trellis_dir` points there (`../../../trellis-mac` from `apps/3d`).
 
 ## How it's built
 
@@ -59,5 +64,5 @@ Needs `../trellis-mac` set up first (its own `.venv`, the Metal texture tools an
 
 - Make props matte (metallic 0 / roughness 1) for the cartoon look; an option per run.
 - Fewer triangles for the game (decimate to a few thousand).
-- Pick pictures straight from Image-Ai's library; an MCP connector like Code-Ai's.
+- Pick pictures straight from Image AI's library.
 - TRELLIS's colours come out a bit dark (suspected colour-space mix-up in the bake).

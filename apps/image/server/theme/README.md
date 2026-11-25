@@ -50,9 +50,11 @@ folder itself, so a theme never contains a path like `/home/...` or
 `C:\...`. A subfolder is fine (`"model": "sdxl/myModel.safetensors"`), as
 long as it's inside `server/aIModels/` or `server/lora/`.
 
-These folders can be moved (for example to a bigger drive on the Mac) by
-setting `models_dir` or `loras_dir` in `server/settings.local.json`. Theme
-files don't change when you do that.
+Under AiHub, models come from the hub's models folder (`ImageModels`) in
+place of `server/aIModels/`, and the nudity checkers from its shared
+`SafetyModels` folder. On its own, these folders can be moved (for example
+to a bigger drive on the Mac) by setting `models_dir` or `loras_dir` in
+`server/settings.local.json`. Theme files don't change either way.
 
 ## Adding a new theme, step by step
 
@@ -97,8 +99,10 @@ Any key starting with `_` is a note and is ignored when making pictures.
 | --- | --- | --- |
 | `diffusers-sdxl` | SDXL-based checkpoints (SDXL, Illustrious, NoobAI, Pony…) with PyTorch on CUDA, Apple (MPS) or CPU | `model_config: "sdxl-config"` |
 
-More backends (MLX, Core ML for the Mac) will be added in
-`server/backends/`; a theme picks one by name.
+More backends can be added in `server/backends/`; a theme picks one by
+name. Two more are there already, not for themes: `mflux` (Qwen-Image,
+FLUX.2 klein on a Mac) for the Experiments tab, and `qwen-edit` for the
+Edit button.
 
 ## What always gets added (you don't put this in the theme)
 
@@ -108,7 +112,7 @@ More backends (MLX, Core ML for the Mac) will be added in
   picture, the picture is made again (up to 3 tries) and is never shown.
   There is no way to turn it off from a theme.
 
-## Rules (this repo is public)
+## Rules (AiHub is public)
 
 - **Safe for work only.** No NSFW themes, no NSFW LoRAs, no adult words in
   `prompt`.

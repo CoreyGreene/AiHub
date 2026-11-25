@@ -1,6 +1,6 @@
 # Bulk files
 
-A bulk file is everything CodeAi needs for one bulk job: the prompt, the items, and how to check each one. CodeAi
+A bulk file is everything Code AI needs for one bulk job: the prompt, the items, and how to check each one. Code AI
 knows nothing about any one kind of job, so a new kind of bulk job is a new file like these, never a code change.
 
 On the Bulk tab, choose a file (or paste it), pick the folder it works in, and press Start. Claude can send the same
@@ -24,8 +24,8 @@ Only `prompt` and `items` are needed.
 | `model`, `thinking` | Which model (`gemma-31b`, `qwen-122b`...), and its thinking (`off`, `short`, `medium`, `on`...). The page can change them. |
 | `can_change_files` | On unless the file says `false` (for a job that only reads). Every file is backed up first, so any item, or the whole run, can be undone. |
 | `required` | Fields every item must have, e.g. `["old", "new"]`: a file with an item missing one won't start. Rarely needed: the page's warning covers most slips. |
-| `search` | Text CodeAi finds in the folder before the model starts, e.g. `"{old}"`. The matching lines go in the prompt, so it starts in the right place. |
-| `checks` | CodeAi's own tests of what each item changed (below). They run only when something changed. |
+| `search` | Text Code AI finds in the folder before the model starts, e.g. `"{old}"`. The matching lines go in the prompt, so it starts in the right place. |
+| `checks` | Code AI's own tests of what each item changed (below). They run only when something changed. |
 | `review` | A second prompt, asked fresh after a change passes its checks: it sees the change and answers PASS or FAIL. `{changes}` is the diff (added at the end if you leave it out), `{answer}` what the model said, plus the item's `{field}`s. |
 | `retries` | How many more tries after a failed check or review (1). |
 | `max_steps` | The most tool uses per item (12), so one it can't find doesn't search for minutes. |

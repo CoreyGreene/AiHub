@@ -1,14 +1,17 @@
 # AGENTS.md
 
-A short guide for AI coding helpers (and people) working on CodeAi.
+A short guide for AI coding helpers (and people) working on Code AI.
 
 ## What it is
 
 A small website for asking local AI models about code, built for one person, used from a Mac or a phone. It's one
-of a family of local AI tools (ImageAi is the other so far) that share a look and a shape: a page with tabs, a queue
+of the tools in AiHub (`apps/code`), beside Image AI, 3D AI and Movie AI; they share a look and a shape: a page with tabs, a queue
 on the server, and an API that Claude or Codex can use through an MCP connector.
 
 ## Run it
+
+Open its tile in AiHub (`python3 start.py` at the repo root, then `http://localhost:8000`); the hub starts it on
+port 8210 and shows it at `/code/`. On its own:
 
 ```bash
 python3 start.py            # makes .venv, installs requirements, starts on port 8200
@@ -19,7 +22,7 @@ python3 start.py            # makes .venv, installs requirements, starts on port
 - **Server:** FastAPI + uvicorn in `server/`. The page is static files; all else is JSON under `/api/` (listed in
   [README.md](README.md)).
 - **Page:** plain HTML, CSS and ES modules in `web/`. No framework, no npm, no build step. `app.css` starts with
-  ImageAi's own styles so the two look the same: change shared looks in both.
+  Image AI's own styles so they look the same: change shared looks in both.
 - **Models:** `server/models.py` runs mlx_lm's server as its own program (`model_server.py`) on `model_port`, one
   model at a time; stopping it gives all its memory back. Answers stream from its OpenAI-style API.
 - **Queue:** `server/jobs.py`, one worker, one question at a time. The page asks for progress (the answer so far)
@@ -34,6 +37,7 @@ python3 start.py            # makes .venv, installs requirements, starts on port
   originals untouched) and the step before's output as its folder; `bulk.on_finish` tells it when a step's run ends.
 - **History:** `server/history.py`, one JSON file per conversation in `history/` (git-ignored).
 - **Settings:** `server/settings.json` (shared) and `server/settings.local.json` (this machine: the model list).
+  Started by AiHub, a model folder given by name is looked for in `AIHUB_MODELS_DIR` (the hub's `GeneralModels`).
 
 ## Rules
 

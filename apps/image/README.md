@@ -1,20 +1,29 @@
-# ImageAi
+# Image AI
 
 A website for making pictures: pick a theme, type a prompt, press Generate.
+It's one of the tools in AiHub (`apps/image`).
 
 Pick a theme, type a prompt, press Generate. The picture is made on this
 computer's graphics card and checked for nudity before it's shown (the
 site is safe for work). Give it a character name and Save to keep it in
 the Library.
 
-**Models aren't in git.** Put them in `server/aIModels/` and LoRAs in
-`server/lora/`. Themes are JSON files in `server/theme/` (also not in git:
-they're your own settings): add a file to add a theme, no code change. **How to set up a theme, and where models and
-LoRAs go:** [server/theme/README.md](server/theme/README.md).
+**Models aren't in git.** Under AiHub, models come from the hub's models
+folder (`ImageModels`) and the nudity checkers from its shared
+`SafetyModels`. On its own, models go in `server/aIModels/`. LoRAs go in
+`server/lora/` either way. Themes are JSON files in `server/theme/` (also
+not in git: they're your own settings): add a file to add a theme, no code
+change. **How to set up a theme, and where models and LoRAs go:** [server/theme/README.md](server/theme/README.md).
 
 ## Start it
 
-You need Python 3.10 or newer. Same command on Linux and macOS:
+Open its tile in AiHub (`python3 start.py` at the repo root, then
+http://localhost:8000). It shows at `/image/`. The hub doesn't make the
+tool's `.venv`: run it on its own once first, or the tile says "Not set up
+yet".
+
+On its own: you need Python 3.10 or newer. Same command on Linux and macOS,
+in this folder:
 
 ```bash
 python3 start.py
@@ -64,7 +73,7 @@ web/                  the page your browser loads
   js/                 main.js loads the rest: theme picker, create, library, settings
 ```
 
-Ground rules carried over from the last project:
+Ground rules:
 
 - Phone first. Every screen should work well at phone width.
 - Image and pixel work happens on the server in Python, never in browser
