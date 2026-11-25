@@ -15,7 +15,7 @@ import time
 import traceback
 import uuid
 
-from . import history, models, settings, tools
+from . import checks, history, models, settings, tools
 
 KEEP = 50  # finished jobs remembered for the page to collect
 
@@ -31,13 +31,14 @@ class QueueFull(Exception):
     pass
 
 
-HIDDEN = ("stop", "changes", "messages", "on_done", "folders")  # kept off the page
+HIDDEN = ("stop", "changes", "messages", "on_done", "folders", "work_folder")  # kept off the page
 
 
 def submit(conv_id: str | None, model_id: str, prompt: str, source: str = "you", thinking_level: str = "",
-           can_edit: bool = False, bulk: dict | None = None) -> str:
+           can_edit: bool = False, bulk: dict | None = None, work_folder: str = "", can_run: bool = False) -> str:
     """Queue a question in a conversation (the question is already saved in it). bulk: a bulk item's
-    {run, index, messages, folders, on_done} instead of a conversation."""
+    {run, index, messages, folders, on_done} instead of a conversation. work_folder: the conversation's one
+    folder (Ask → Work folder): its tools see only that folder, like a bulk job's."""
     global _worker
     job_id = uuid.uuid4().hex
     with _lock:
@@ -53,6 +54,9 @@ def submit(conv_id: str | None, model_id: str, prompt: str, source: str = "you",
             "run": None, "index": None, "messages": None, "folders": None, "on_done": None, "max_steps": 0,
         }
         _jobs[job_id].update(bulk or {})
+        if work_folder:
+            # commands only with a work folder: the sandbox fences them to that one folder
+            _jobs[job_id].update(folders=[work_folder], work_folder=work_folder, can_run=can_run)
         if _worker is None:
             _worker = threading.Thread(target=_work, daemon=True)
             _worker.start()
@@ -151,9 +155,13 @@ def _answer(job_id: str, job: dict):
     template = settings.template(m, job["thinking_level"])
     budget = settings.budget(m, job["thinking_level"])
     thought = 0  # thinking tokens so far, for the budget
-    messages = [{"role": "system", "content": tools.instructions(job["can_edit"])}]
+    messages = [{"role": "system", "content": tools.instructions(job["can_edit"], job.get("work_folder", ""), job.get("can_run", False))}]
     messages += job["messages"] if job["messages"] is not None else _conversation(job["conversation"])
     definitions = tools.DEFINITIONS + (tools.EDIT_DEFINITIONS if job["can_edit"] else [])
+    if checks.for_folder(job.get("work_folder", "")):
+        definitions = definitions + [tools.CHECK_DEFINITION]
+    if job.get("can_run"):
+        definitions = definitions + [tools.COMMAND_DEFINITION]
     _update(job_id, status="thinking")
     started = time.time()
     count = 0
@@ -211,7 +219,7 @@ def _answer(job_id: str, job: dict):
         for call in calls:
             name = call["function"]["name"]
             arguments = call["function"].get("arguments") or "{}"
-            result, summary, ok = tools.run(name, arguments, job["changes"])
+            result, summary, ok = tools.run(name, arguments, job["changes"], job.get("can_run", False))
             if not ok and any(s["tool"] == name and s["arguments"] == _short(arguments) and not s["ok"] for s in job["steps"]):
                 # the same call failed before: say so plainly, or a small model can try it again and again
                 result += " (You tried exactly this before and it failed the same way: do something different.)"

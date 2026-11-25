@@ -54,12 +54,31 @@
           <span class="hint-line wide-only">⌘ Enter asks.</span>
         </label>
 
+        <div class="field">
+          <span class="label">Work folder</span>
+          <div class="picked-row">
+            <span id="work-folder-shown" class="picked-path muted">All your folders</span>
+            <button id="work-folder-choose" type="button" class="button small-button">Choose folder</button>
+            <button id="work-folder-clear" type="button" class="button small-button" hidden>Clear</button>
+          </div>
+          <span class="hint-line">Pick a project and it can only see and change files inside it. Git is always off limits.</span>
+          <span id="work-checks" class="hint-line" hidden></span>
+        </div>
+
         <label class="switch-row edit-switch">
           <span>
             <strong>Can change files</strong>
             <span class="muted small">Lets it make and change files in your folders. Each file is backed up first: Undo puts it back.</span>
           </span>
           <input id="can-edit" type="checkbox" role="switch">
+        </label>
+
+        <label class="switch-row edit-switch">
+          <span>
+            <strong>Can run commands</strong>
+            <span id="can-run-note" class="muted small">Lets it run its work to check it: scripts, tests, a build. In a sandbox: it can't delete your files, go online or use Git.</span>
+          </span>
+          <input id="can-run" type="checkbox" role="switch" checked>
         </label>
 
         <button id="ask-button" type="submit" class="primary">Ask</button>

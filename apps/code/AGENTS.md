@@ -41,6 +41,22 @@ python3 start.py            # makes .venv, installs requirements, starts on port
 
 ## Rules
 
+- **Never Git.** The local agent does nothing with Git: the user commits and backs up before any run. Enforced in
+  `server/tools.py`, not only in what the model is told: nothing inside a `.git` folder can be listed, read, searched
+  or changed; `.gitignore`, `.gitattributes` and `.gitmodules` are never changed; no script it writes or makes
+  runnable may run git; and there is no tool for running commands. Keep it that way.
+- **Work folder.** Ask can be pointed at one folder (the page's Work folder, `folder` in `/api/ask`): its tools see
+  only that folder, like a bulk job's (`tools.scoped`), and the model is told to give paths relative to it.
+- **Checking its own work:**
+  - **Syntax, always** (`server/syntax.py`): after every edit the file is parsed by its kind (Python, JSON, shell,
+    JavaScript; C/C++ with a compile_commands.json) and the model is told at once if it broke it. Nothing is run.
+  - **Commands** (`run_command`, the page's Can run commands, on by default; only with a work folder): the model runs
+    commands it chooses. **Checks** (`run_check`): commands the user sets per work folder (`checks` in
+    settings.local.json), picked by name.
+  - Both run in one macOS sandbox (`server/checks.py`, `sandbox-exec`, enforced by the system): writes only in the
+    work folder; no deleting or moving files except in build and cache folders; its `.git` can't be read or
+    written; git never runs, by any path (a command mentioning git is refused before it starts); no internet; a
+    time limit that ends everything it started. Keep these limits in the sandbox, not in the prompt.
 - **Mac first.** It runs models with MLX, on Apple silicon.
 - **Phone first** for the page: every screen works at 375px wide; big tap targets, 16px inputs. Check desktop too.
 - **No browser pop-ups** (`alert`, `confirm`, `prompt`). Ask and tell inside the page.

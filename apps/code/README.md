@@ -40,6 +40,20 @@ only is looked for in the hub's models folder (`GeneralModels`) under AiHub, or 
 - **It can look at your files**, read only, in the `folders` listed in `settings.local.json` (Desktop, Documents,
   Downloads): list a folder, find files by name, read a file, search. "Looked at N things" in the answer shows
   what it read.
+- **Work folder** (optional): point a conversation at one folder, a project for example. Its tools then see only
+  that folder, to read and to change; nothing outside it, not even through a shortcut. The conversation keeps it.
+- **Checking its work:** after every change it checks the file's syntax (Python, JSON, shell scripts, JavaScript;
+  C/C++ when the project has a compile_commands.json) and fixes what it broke. With a work folder and **Can run
+  commands** (on by default), it can also run its work (the script it wrote, the tests, a build) and fix what fails.
+  Commands run in a macOS sandbox: they can change files only in the work folder, can't delete or move your files
+  (only in build and cache folders), can't read `.git` or run git, and have no internet.
+- **Checks:** for a work folder, you can also name commands it should use to test its work (build, tests, a checker) in
+  `settings.local.json` under `checks`: `{"~/code/my-game": [{"name": "build", "command": "cmake --build build",
+  "about": "builds it"}]}`. The page shows them under Work folder. The model picks one by name and gets the output
+  back; it can't type a command of its own. Each runs in a macOS sandbox: it can only write in the work folder
+  (never `.git`), has no internet, and can't run git.
+- **Never Git:** it can't open a `.git` folder, change `.gitignore`, or write a script that runs git, and it has no
+  way to run commands. Commit and back up yourself before letting it change things.
 - **Can change files** (a switch, off every time the page opens): for that question it may also make and change
   text files in the same folders (never delete, never inside `.git` or `.venv`). It can mark a file runnable
   itself (`write_file` with `runnable: true`, or `make_runnable`), and scripts (a `#!` first line, or `.command`,
@@ -118,7 +132,8 @@ The page uses it, and so does Claude (the MCP connector below).
 | --- | --- |
 | `GET /api/status` | `memory` (total, used, the model's share, GB), `model` (loaded, loading), `queue` (answering, waiting) |
 | `GET /api/models` | The models on this computer, and the default |
-| `POST /api/ask` `{prompt, model, thinking, can_edit, conversation, source}` | Ask: a new conversation when `conversation` is empty. Answers `{job, conversation}` at once. `source`: `you` or `claude` |
+| `GET /api/checks?folder=` | The checks set for a work folder: `{checks: [{name, about, command}]}` |
+| `POST /api/ask` `{prompt, model, thinking, can_edit, can_run, folder, conversation, source}` | Ask: a new conversation when `conversation` is empty. Answers `{job, conversation}` at once. `folder`: its work folder (the tools see only that one). `can_run` (default true): it may run commands, with a work folder only. `source`: `you` or `claude` |
 | `GET /api/jobs/{job}` | Progress: `status` waiting (with `ahead`) / loading / thinking / answering / done / stopped / failed, the `thinking` and `answer` so far, `tokens`, `seconds`, `per_second` |
 | `GET /api/queue` | Questions waiting or being answered, in order |
 | `DELETE /api/queue/{job}` | Stop one (a waiting one is dropped; the one being answered stops where it is) |

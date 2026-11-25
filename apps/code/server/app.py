@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import bulk, history, jobs, memory, models, pipelines, saved, settings, tools
+from . import bulk, checks, history, jobs, memory, models, pipelines, saved, settings, tools
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 # Changes on every server start: the page asks for app.css and main.js with it attached, so a restart always gets
@@ -56,6 +56,8 @@ class AskRequest(BaseModel):
     source: str = "you"     # who's asking: "you" (the page) or "claude"
     thinking: str = ""      # the model's thinking level (GET /api/models lists each model's); "" = its default
     can_edit: bool = False  # may it change files for this question (backed up first; Undo puts them back)
+    folder: str = ""        # its work folder: the tools see only this one (inside the allowed ones); "" = all of them
+    can_run: bool = True    # may it run commands (with a work folder only, in a sandbox: checks.py)
 
 
 @app.post("/api/ask")
@@ -77,10 +79,19 @@ async def ask(req: AskRequest) -> dict:
     else:
         conv_id = history.create(prompt, model_id)["id"]
     source = "claude" if req.source == "claude" else "you"
+    work = ""
+    if req.folder:
+        found = tools.inside_allowed(req.folder)
+        if found is None:
+            raise HTTPException(400, "That work folder isn't inside your allowed folders. Pick it again.")
+        if ".git" in found.parts:
+            raise HTTPException(400, "A .git folder can't be a work folder.")
+        work = str(found)
     history.add(conv_id, {"role": "user", "content": prompt, "from": source, "can_edit": req.can_edit,
-                          "time": time.time()})
+                          "folder": work, "can_run": bool(work and req.can_run), "time": time.time()})
     try:
-        job_id = jobs.submit(conv_id, model_id, prompt, source, req.thinking, req.can_edit)
+        job_id = jobs.submit(conv_id, model_id, prompt, source, req.thinking, req.can_edit, work_folder=work,
+                             can_run=req.can_run)
     except jobs.QueueFull as err:
         raise HTTPException(429, str(err))
     return {"job": job_id, "conversation": conv_id}
@@ -197,6 +208,13 @@ class OutputRequest(BaseModel):
 async def bulk_output(run_id: str, req: OutputRequest) -> dict:
     """Copy a run's changed files into a folder (and keep doing so as it goes)."""
     return _bulk(bulk.set_output, run_id, req.path)
+
+
+@app.get("/api/checks")
+async def list_checks(folder: str = "") -> dict:
+    """The checks set for a work folder (settings.local.json "checks"), for the Ask page to show."""
+    return {"checks": [{"name": c["name"], "about": c.get("about", ""), "command": c["command"]}
+                       for c in checks.for_folder(folder)]}
 
 
 @app.get("/api/browse")

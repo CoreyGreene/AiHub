@@ -25,6 +25,9 @@
     "low": {"label": "Low: thinks the least", "template": {"reasoning_effort": "low"}}
   },
 
+  "_checks": "Commands the model may run to test its work, per work folder: {\"<folder>\": [{\"name\", \"command\", \"about\", \"timeout\"}]}. Set in settings.local.json (this machine's paths). The model picks one by name (run_check); each runs in the work folder inside a macOS sandbox: it can only write in that folder (never its .git), has no internet, and can't run git. A command that mentions git is never run.",
+  "checks": {},
+
   "_folders": "Folders the model may look at (read only), each {name, path}. Set in settings.local.json, since they're this machine's paths.",
   "folders": [],
 

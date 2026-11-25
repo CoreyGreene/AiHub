@@ -9,6 +9,10 @@ With "Can change files" on (off by default), two more, each change backed up fir
     write_file(path, content)            make a file, or replace one whole
     replace_in_file(path, old_text, new_text)
 Nothing is ever deleted. A path must be inside an allowed folder (symlinks followed first, so a link can't lead out).
+
+Git is off limits, always (a hard rule, here in the tools, not just in what the model is told): nothing inside a
+.git folder can be listed, read, searched or changed; .gitignore, .gitattributes and .gitmodules can't be changed;
+and no script it writes or marks runnable may run git. There's no tool for running commands at all.
 """
 
 import difflib
@@ -23,7 +27,7 @@ import os
 import re
 from pathlib import Path
 
-from . import settings
+from . import checks, settings, syntax
 
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", ".cache", "build", "DerivedData", ".Trash"}
 MAX_LIST, MAX_FOUND, MAX_MATCHES = 300, 200, 100
@@ -104,6 +108,8 @@ def _resolve(raw: str, new_ok: bool = False) -> Path:
         named = next((Path(f["path"]) for f in folders() if f["name"].lower() == first.lower()), None)
         path = (named / rest) if named else roots[0] / raw
     path = path.resolve()
+    if ".git" in path.parts:
+        raise ToolError("Git's own folder (.git) is off limits: the user does everything with Git themselves.")
     if not any(path == r or r in path.parents for r in roots):
         allowed = ", ".join(f["path"] for f in folders())
         raise ToolError(f"{path} is outside the folders you may look at ({allowed}).")
@@ -126,7 +132,7 @@ def list_files(path: str = "") -> tuple[str, str]:
     if not folder.is_dir():
         raise ToolError(f"{folder} is a file, not a folder: use read_file.")
     entries = sorted(folder.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
-    entries = [p for p in entries if p.name != ".DS_Store"]
+    entries = [p for p in entries if p.name not in (".DS_Store", ".git")]
     lines = []
     for p in entries[:MAX_LIST]:
         try:
@@ -205,6 +211,16 @@ def search(pattern: str, path: str = "") -> tuple[str, str]:
 # ---------- changing files (only with "Can change files" on) ----------
 
 NO_WRITE = {".git", ".venv", "node_modules", "__pycache__"}
+GIT_FILES = {".gitignore", ".gitattributes", ".gitmodules", ".git"}
+# A git command in a script: "git" as a word followed by a space (git status, /usr/bin/git push, $(git ...)).
+GIT_COMMAND = re.compile(r"(^|[\s;&|(`/])git\s", re.MULTILINE)
+
+
+def _refuse_git_script(path: Path, text: str, runnable: bool = False) -> None:
+    """A script (runnable, a #! first line, or .command / .sh / .zsh) that would run git is never written."""
+    script = runnable or text.startswith("#!") or path.suffix in RUNNABLE
+    if script and GIT_COMMAND.search(text):
+        raise ToolError("Scripts that run git aren't allowed: the user does everything with Git themselves.")
 MAX_WRITE = 1_000_000
 RUNNABLE = {".command", ".sh", ".zsh", ".bash"}
 
@@ -237,6 +253,7 @@ class Changes:
         return entry
 
     def write(self, path: Path, text: str, runnable: bool = False) -> str:
+        _refuse_git_script(path, text, runnable)
         entry = self._entry(path)
         path.write_text(text, encoding="utf-8")
         # asked for, or a script (a #! first line, or .command / .sh / .zsh): marked runnable
@@ -251,6 +268,7 @@ class Changes:
 
     def make_runnable(self, path: Path) -> bool:
         """Mark a file runnable (chmod +x). False if it already was."""
+        _refuse_git_script(path, path.read_text(encoding="utf-8", errors="replace"), runnable=True)
         entry = self._entry(path)
         made = self._runnable(path, entry)
         entry["after"] = _sha(path.read_bytes())
@@ -272,6 +290,8 @@ class Changes:
 
 
 def _check_writable(path: Path) -> None:
+    if path.name in GIT_FILES:
+        raise ToolError(f"{path.name} belongs to Git: it's never changed (the user does everything with Git).")
     if any(part in NO_WRITE for part in path.parts):
         raise ToolError(f"{path} is inside a folder that's never changed ({', '.join(sorted(NO_WRITE))}).")
     if path.is_dir():
@@ -374,21 +394,61 @@ EDIT_DEFINITIONS = [
           {"path": _PATH, "old_text": {"type": "string"}, "new_text": {"type": "string"}},
           ["path", "old_text", "new_text"]),
 ]
-_RUN = {"list_files": list_files, "find_files": find_files, "read_file": read_file, "search": search}
+CHECK_DEFINITION = _tool(
+    "run_check", "Run one of this project's checks (the user set them: building, tests, a checker) to test your "
+    "work, and get its output. Run one after changing files, and fix what it reports.",
+    {"name": {"type": "string", "description": "The check's name, from the list you were given"}}, ["name"])
+
+
+def run_check(name: str) -> tuple[str, str]:
+    """The work folder's check by name, in the sandbox (checks.py). Only with a work folder."""
+    work = folders()
+    if len(work) != 1 or not checks.for_folder(work[0]["path"]):
+        raise ToolError("There are no checks to run here (checks need a work folder that has some set).")
+    try:
+        return checks.run(work[0]["path"], name)
+    except checks.CheckError as err:
+        raise ToolError(str(err))
+
+
+COMMAND_DEFINITION = _tool(
+    "run_command", "Run a shell command (zsh) in your work folder to test your work: run a script or the program, "
+    "run tests, build it. It runs in a sandbox: it can change files only in the work folder, can't delete or move "
+    "your files (only build and cache folders), has no internet, and can't use git. You get its output back.",
+    {"command": {"type": "string", "description": "The command, e.g. python3 src/app.py"},
+     "timeout": {"type": "integer", "description": "Seconds before it's stopped (default 300)"}}, ["command"])
+
+
+def run_command(command: str, timeout: int = checks.DEFAULT_TIMEOUT) -> tuple[str, str]:
+    """A command the model chose, in the work folder's sandbox (checks.py). Only with a work folder."""
+    work = folders()
+    if len(work) != 1:
+        raise ToolError("Commands need a work folder (pick one on the page).")
+    try:
+        return checks.run_command(work[0]["path"], command, max(5, min(int(timeout or 300), 1800)))
+    except checks.CheckError as err:
+        raise ToolError(str(err))
+
+
+_RUN = {"list_files": list_files, "find_files": find_files, "read_file": read_file, "search": search,
+        "run_check": run_check}
 _EDIT = {"write_file": write_file, "replace_in_file": replace_in_file, "make_runnable": make_runnable}
-_KNOWN = {"path", "name", "pattern", "start_line", "end_line", "content", "old_text", "new_text", "runnable"}
+_KNOWN = {"path", "name", "pattern", "start_line", "end_line", "content", "old_text", "new_text", "runnable",
+          "command", "timeout"}
 _ALIASES = {"folder": "path", "dir": "path", "directory": "path", "file": "path", "file_path": "path",
             "filename": "path", "query": "pattern", "regex": "pattern", "text": "content",
             "old": "old_text", "new": "new_text", "old_string": "old_text", "new_string": "new_text",
-            "executable": "runnable"}
+            "executable": "runnable", "cmd": "command", "shell": "command"}
 
 
-def run(name: str, arguments: str, changes: Changes | None = None) -> tuple[str, str, bool]:
+def run(name: str, arguments: str, changes: Changes | None = None, can_run: bool = False) -> tuple[str, str, bool]:
     """Run a tool the model asked for: (result for the model, a short summary for the page, ok). changes: this
-    answer's Changes when it may change files, else None."""
+    answer's Changes when it may change files, else None. can_run: it may run commands (run_command)."""
     try:
         args = json.loads(arguments or "{}") if isinstance(arguments, str) else dict(arguments or {})
-        allowed = {**_RUN, **(_EDIT if changes else {})}
+        allowed = {**_RUN, **(_EDIT if changes else {}), **({"run_command": run_command} if can_run else {})}
+        if name == "run_command" and not can_run:
+            raise ToolError("Running commands is switched off for this question.")
         if name in _EDIT and not changes:
             raise ToolError("Changing files is switched off for this question: say what you would change instead.")
         if name not in allowed:
@@ -399,6 +459,8 @@ def run(name: str, arguments: str, changes: Changes | None = None) -> tuple[str,
         if name in _EDIT:
             args["changes"] = changes
         text, summary = allowed[name](**args)
+        if name in ("write_file", "replace_in_file"):
+            text, summary = _with_syntax(args.get("path", ""), text, summary)
         return text, summary, True
     except ToolError as err:
         return f"Error: {err}", str(err), False
@@ -408,9 +470,37 @@ def run(name: str, arguments: str, changes: Changes | None = None) -> tuple[str,
         return f"Error: {err.strerror or err}", err.strerror or str(err), False
 
 
-def instructions(can_edit: bool = False) -> str:
-    """What the model is told about itself and the folders, at the start of every question."""
+def _with_syntax(raw: str, text: str, summary: str) -> tuple[str, str]:
+    """After an edit: is the file still valid (syntax.py)? Told to the model at once, so it fixes a broken edit."""
+    try:
+        problem = syntax.check(_resolve(raw))
+    except ToolError:
+        return text, summary
+    if problem is None:
+        return text, summary
+    if not problem:
+        return f"{text}\nSyntax check: fine.", f"{summary}; syntax fine"
+    return (f"{text}\nSyntax check FAILED, the file isn't valid now. Fix it:\n{problem}",
+            f"{summary}; syntax broken")
+
+
+def instructions(can_edit: bool = False, work_folder: str = "", can_run: bool = False) -> str:
+    """What the model is told about itself and the folders, at the start of every question. work_folder: the
+    conversation's one folder (its tools see only that one; the page's Work folder)."""
     allowed = "\n".join(f"- {f['name']}: {f['path']}" for f in folders()) or "- (none)"
+    if work_folder:
+        allowed = (f"- {work_folder} (your work folder: you can't see or change anything outside it; give paths "
+                   "relative to it, like src/main.py)")
+        if can_run:
+            allowed += ("\nYou can run shell commands in it with run_command, to test your work: run what you wrote, "
+                        "run its tests, build it. After changing files, run something that shows they work, and fix "
+                        "what fails before you finish. Commands can't delete or move your files, reach the internet "
+                        "or use git.")
+        listed = checks.for_folder(work_folder)
+        if listed:
+            allowed += ("\nChecks you can run here with run_check (to test your work; run one after changing files "
+                        "and fix what it reports before you finish):\n" + "\n".join(
+                            f"  - {c['name']}: {c.get('about') or c['command']}" for c in listed))
     if can_edit:
         rights = (
             "For this question you may also change files, with write_file, replace_in_file and make_runnable, "
@@ -435,5 +525,8 @@ def instructions(can_edit: bool = False) -> str:
         f"{allowed}\n"
         f"{rights} When a question is about the user's files or projects, look first instead of guessing or "
         "telling them to do it themselves; say which files you looked at. When you write code, put it in a fenced "
-        "code block with its language."
+        "code block with its language.\n"
+        "Never do anything with Git: the user commits and backs up everything themselves. You can't open the .git "
+        "folder or change .gitignore, and scripts you write must not run git. If a question asks for Git, say so "
+        "and leave it to the user."
     )

@@ -4,6 +4,7 @@
 
 import { render } from "./markdown.js";
 import { refreshStatus } from "./status.js";
+import { pick } from "./picker.js";
 
 const form = document.getElementById("ask-form");
 const modelSelect = document.getElementById("model");
@@ -11,6 +12,7 @@ const modelNote = document.getElementById("model-note");
 const thinkingField = document.getElementById("thinking-field");
 const thinkingSelect = document.getElementById("thinking");
 const canEdit = document.getElementById("can-edit");
+const canRun = document.getElementById("can-run");
 const prompt = document.getElementById("prompt");
 const promptLabel = document.getElementById("prompt-label");
 const promptError = document.getElementById("prompt-error");
@@ -26,6 +28,44 @@ let conversation = "";   // the open conversation's id ("" = a new one)
 let job = "";            // the question being answered now
 let following = 0;       // bumps when we stop following, so an old poll loop ends
 let mode = "standard";   // the sub-tab: standard or advanced
+let workFolder = "";     // Work folder: its tools see only this folder ("" = all the allowed ones)
+
+const tilde = (p) => (p || "").replace(/^\/Users\/[^/]+/, "~");
+const folderName = (p) => (p || "").split("/").filter(Boolean).pop() || p;
+
+function setWorkFolder(path) {
+  workFolder = path || "";
+  localStorage.setItem("codeai-work-folder", workFolder);
+  const shown = document.getElementById("work-folder-shown");
+  shown.textContent = workFolder ? tilde(workFolder) : "All your folders";
+  shown.classList.toggle("muted", !workFolder);
+  document.getElementById("work-folder-clear").hidden = !workFolder;
+  // commands are fenced to one folder, so they need a work folder
+  canRun.disabled = !workFolder;
+  document.getElementById("can-run-note").textContent = workFolder
+    ? "Lets it run its work to check it: scripts, tests, a build. In a sandbox: it can't delete your files, go online or use Git."
+    : "Needs a work folder: commands are fenced into one folder.";
+  showChecks();
+}
+
+// The checks it may run in this folder (set in Code AI's settings), so you know it can test its work.
+async function showChecks() {
+  const line = document.getElementById("work-checks");
+  line.hidden = true;
+  if (!workFolder) return;
+  const asked = workFolder;
+  const data = await fetch(`api/checks?folder=${encodeURIComponent(workFolder)}`).then((r) => r.json()).catch(() => null);
+  if (asked !== workFolder || !data) return;
+  if (!data.checks.length) return; // none named: with Can run commands it finds its own way to test
+  line.textContent = `Checks set for this folder: ${data.checks.map((c) => c.name).join(", ")}.`;
+  line.hidden = false;
+}
+setWorkFolder(localStorage.getItem("codeai-work-folder") || "");
+document.getElementById("work-folder-choose").addEventListener("click", async () => {
+  const path = await pick({ mode: "folder", start: workFolder });
+  if (path) setWorkFolder(path);
+});
+document.getElementById("work-folder-clear").addEventListener("click", () => setWorkFolder(""));
 
 // The address for a conversation in this sub-tab.
 const address = (conv, inMode = mode) => `#ask${inMode === "advanced" ? "/advanced" : ""}${conv ? `/${conv}` : ""}`;
@@ -75,10 +115,11 @@ thinkingSelect.addEventListener("change", () => {
 
 // ---------- the conversation on screen ----------
 
-function questionEl(text, from, edits) {
+function questionEl(text, from, edits, folder, runs) {
   const el = document.createElement("div");
   el.className = "question";
-  const tags = [from === "claude" ? "Claude asked" : "", edits ? "can change files" : ""].filter(Boolean);
+  const tags = [from === "claude" ? "Claude asked" : "", folder ? `in ${folderName(folder)}` : "",
+    edits ? "can change files" : "", runs ? "can run commands" : ""].filter(Boolean);
   if (tags.length) {
     const tag = document.createElement("span");
     tag.className = "from";
@@ -290,7 +331,7 @@ form.addEventListener("submit", async (event) => {
     res = await fetch("api/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: text, model: modelSelect.value, thinking: thinkingField.hidden ? "" : thinkingSelect.value, can_edit: canEdit.checked, conversation }),
+      body: JSON.stringify({ prompt: text, model: modelSelect.value, thinking: thinkingField.hidden ? "" : thinkingSelect.value, can_edit: canEdit.checked, can_run: canRun.checked && !!workFolder, folder: workFolder, conversation }),
     });
   } catch {
     promptError.textContent = "Can't reach the server.";
@@ -313,7 +354,7 @@ form.addEventListener("submit", async (event) => {
   history.replaceState(null, "", address(conversation));
   showConversationState();
   prompt.value = "";
-  thread.append(questionEl(text, "you", canEdit.checked));
+  thread.append(questionEl(text, "you", canEdit.checked, workFolder, canRun.checked && !!workFolder));
   const el = answerEl();
   thread.append(el);
   if (matchMedia("(max-width: 799px)").matches) thread.lastElementChild.previousElementSibling.scrollIntoView({ behavior: "smooth" });
@@ -377,7 +418,7 @@ export async function showAsk(parts = []) {
   title.textContent = conv.title;
   thread.innerHTML = "";
   for (const m of conv.messages) {
-    if (m.role === "user") thread.append(questionEl(m.content, m.from, m.can_edit));
+    if (m.role === "user") thread.append(questionEl(m.content, m.from, m.can_edit, m.folder, m.can_run));
     else {
       const el = answerEl();
       el.dataset.index = conv.messages.indexOf(m);
@@ -385,6 +426,9 @@ export async function showAsk(parts = []) {
       thread.append(el);
     }
   }
+  // carrying a conversation on keeps its work folder (the one its last question had)
+  const lastQuestion = [...conv.messages].reverse().find((m) => m.role === "user");
+  if (lastQuestion && "folder" in lastQuestion) setWorkFolder(lastQuestion.folder);
   if (conv.job) {
     const el = answerEl();
     thread.append(el);
