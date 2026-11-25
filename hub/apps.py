@@ -236,6 +236,7 @@ def status() -> dict:
         s = state(app)
         out.append({
             "id": app["id"], "name": app["name"], "about": app.get("about", ""), "state": s,
+            "tile": app.get("tile", True),
             "memory": memory(app) if s == "running" else 0,
             "error": _errors.get(app["id"], "") if s == "failed" else "",
         })

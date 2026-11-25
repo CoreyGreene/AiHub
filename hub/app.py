@@ -5,6 +5,7 @@ hub's bar (what's running, how much memory) added at the top. Opening a tool
 that isn't running starts it; the page waits, then shows the tool.
 """
 
+import asyncio
 import html
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -78,6 +79,27 @@ def stop(app_id: str):
     tool = _app_or_404(app_id)
     apps.stop(tool)
     return {"state": apps.state(tool)}
+
+
+@app.post("/hub/api/listen")
+async def listen(request: Request):
+    """The mic buttons: a recording in, its words out. Speech (a helper tool,
+    no tile) does the work; it's started here the first time it's needed."""
+    speech = apps.find("speech")
+    if not speech or not apps.set_up(speech):
+        return JSONResponse({"detail": "Speech isn't set up yet."}, 409)
+    data = await request.body()
+    if apps.state(speech) != "running":
+        apps.start(speech)  # also tries again after a failed start
+        while apps.state(speech) == "starting":
+            await asyncio.sleep(0.5)
+        if apps.state(speech) != "running":
+            return JSONResponse({"detail": "Speech didn't start. Its log is in logs/speech.log."}, 503)
+    answer = await client.post(
+        f"http://127.0.0.1:{speech['port']}/api/transcribe", content=data,
+        headers={"content-type": request.headers.get("content-type", "audio/webm")},
+    )
+    return JSONResponse(answer.json(), answer.status_code)
 
 
 app.mount("/hub", StaticFiles(directory=WEB), name="hub")

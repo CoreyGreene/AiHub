@@ -109,4 +109,85 @@
     timer = setTimeout(load, 3000);
   }
   load();
+  // --- 🎤 next to every prompt box (every <textarea>, in every tool) ---
+  // Tap to record, tap again to stop; Speech (Whisper, on this Mac) writes
+  // what was said into the box, after anything already there. Browsers only
+  // allow the mic on a secure page (https, or localhost on the Mac itself),
+  // so elsewhere the button isn't added.
+  if (window.isSecureContext && navigator.mediaDevices?.getUserMedia && window.MediaRecorder) {
+    const micCss = document.createElement("style");
+    micCss.textContent = `
+      .aihub-mic-row { display: flex; justify-content: flex-end; margin-top: 6px; }
+      .aihub-mic { font: 600 14px/1 system-ui, -apple-system, sans-serif; color: #ececf1; background: #20202a;
+        border: 1px solid #34343f; border-radius: 999px; padding: 0 14px; min-height: 36px; cursor: pointer; }
+      .aihub-mic:hover { border-color: #7c6cff; }
+      .aihub-mic.aihub-rec { background: #d9534f; border-color: #d9534f; }
+      .aihub-mic:disabled { opacity: 0.7; cursor: default; }
+      .aihub-mic-note { color: #ff8a80; font: 13px system-ui, sans-serif; margin: 4px 0 0; text-align: right; }
+    `;
+    document.head.append(micCss);
+
+    const addMic = (box) => {
+      if (box.dataset.aihubMic) return;
+      box.dataset.aihubMic = "1";
+      const row = make("div", "aihub-mic-row");
+      const btn = make("button", "aihub-mic", "🎤 Speak");
+      btn.type = "button";
+      const note = make("p", "aihub-mic-note");
+      note.hidden = true;
+      row.append(btn);
+      box.after(row, note);
+      let rec = null;
+
+      btn.addEventListener("click", async () => {
+        if (rec) return rec.stop(); // second tap: stop and write it down
+        note.hidden = true;
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch {
+          note.textContent = "The mic isn't allowed. Allow it for this page in the browser's settings.";
+          note.hidden = false;
+          return;
+        }
+        const parts = [];
+        rec = new MediaRecorder(stream);
+        rec.ondataavailable = (e) => e.data.size && parts.push(e.data);
+        rec.onstop = async () => {
+          stream.getTracks().forEach((t) => t.stop());
+          const type = rec.mimeType || "audio/webm";
+          rec = null;
+          btn.classList.remove("aihub-rec");
+          btn.disabled = true;
+          btn.textContent = "Writing it down…";
+          try {
+            const res = await fetch("/hub/api/listen", { method: "POST", headers: { "Content-Type": type }, body: new Blob(parts, { type }) });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail);
+            if (data.text) {
+              const before = box.value.trimEnd();
+              box.value = before ? `${before} ${data.text}` : data.text;
+              box.dispatchEvent(new Event("input", { bubbles: true })); // the page sees the change
+            } else {
+              note.textContent = "Didn't catch any words. Try again a little closer to the mic.";
+              note.hidden = false;
+            }
+          } catch (err) {
+            note.textContent = err.message || "Couldn't reach Speech. Is the hub running?";
+            note.hidden = false;
+          }
+          btn.disabled = false;
+          btn.textContent = "🎤 Speak";
+        };
+        rec.start();
+        btn.classList.add("aihub-rec");
+        btn.textContent = "■ Stop";
+      });
+    };
+
+    document.querySelectorAll("textarea").forEach(addMic);
+    // Prompt boxes a page adds later (an Edit box, a new form) get one too.
+    new MutationObserver(() => document.querySelectorAll("textarea:not([data-aihub-mic])").forEach(addMic))
+      .observe(document.body, { childList: true, subtree: true });
+  }
 })();

@@ -7,7 +7,7 @@
   "_safety_models": "The folder inside models_dir holding the nudity checkers, shared by every tool that checks pictures or videos. Each tool is told where it is when it starts.",
   "safety_models": "SafetyModels",
 
-  "_apps": "The tiles, in order. folder: the tool's folder (with its own start.py and .venv). port: where it runs on this computer only (the hub passes its pages through). models: its folder inside models_dir. about: the line on the tile.",
+  "_apps": "The tiles, in order. folder: the tool's folder (with its own start.py and .venv). port: where it runs on this computer only (the hub passes its pages through). models: its folder inside models_dir. about: the line on the tile. tile: false = no tile (a helper the hub starts itself, like Speech for the mic buttons).",
   "apps": [
     {"id": "image", "name": "Image AI", "folder": "apps/image", "port": 8110, "models": "ImageModels",
      "about": "Pictures from a prompt, themes, library"},
@@ -16,7 +16,9 @@
     {"id": "code", "name": "Code AI", "folder": "apps/code", "port": 8210, "models": "GeneralModels",
      "about": "Ask the local models, bulk jobs, pipelines"},
     {"id": "movie", "name": "Movie AI", "folder": "apps/movie", "port": 8410, "models": "MovieModels",
-     "about": "Short videos from a prompt"}
+     "about": "Short videos from a prompt"},
+    {"id": "speech", "name": "Speech", "folder": "apps/speech", "port": 8510, "models": "SoundModels",
+     "about": "Turns what you say into text for the mic buttons", "tile": false}
   ],
 
   "_start_seconds": "How long a tool may take to start before the hub gives up.",

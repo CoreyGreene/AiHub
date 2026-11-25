@@ -12,7 +12,7 @@ const WORDS = {
 };
 
 function show(data) {
-  tiles.replaceChildren(...data.apps.map((tool) => {
+  tiles.replaceChildren(...data.apps.filter((tool) => tool.tile !== false).map((tool) => {
     const a = document.createElement("a");
     a.className = "tile" + (tool.state === "not_set_up" ? " off" : "");
     a.href = `/${tool.id}/`;
