@@ -24,7 +24,7 @@ function show(data) {
     const badge = document.createElement("span");
     const inUse = tool.state === "running" && tool.memory >= 1e9; // a model is loaded
     badge.className = `badge ${inUse ? "running" : tool.state === "running" ? "ready" : tool.state}`;
-    badge.textContent = inUse ? `In use · ${(tool.memory / 1e9).toFixed(0)} GB` : WORDS[tool.state] || tool.state;
+    badge.textContent = inUse ? `In use · ${(tool.memory / 2 ** 30).toFixed(0)} GB` : WORDS[tool.state] || tool.state;
     a.append(name, about, badge);
     return a;
   }));

@@ -7,7 +7,7 @@
   "_safety_models": "The folder inside models_dir holding the nudity checkers, shared by every tool that checks pictures or videos. Each tool is told where it is when it starts.",
   "safety_models": "SafetyModels",
 
-  "_apps": "The tiles, in order. folder: the tool's folder (with its own start.py and .venv). port: where it runs on this computer only (the hub passes its pages through). models: its folder inside models_dir. about: the line on the tile. tile: false = no tile (a helper the hub starts itself, like Speech for the mic buttons).",
+  "_apps": "The tiles, in order. folder: the tool's folder (with its own start.py and .venv). port: where it runs on this computer only (the hub passes its pages through). models: its folder inside models_dir. about: the line on the tile. tile: false = no tile (a helper the hub starts itself).",
   "apps": [
     {"id": "image", "name": "Image AI", "folder": "apps/image", "port": 8110, "models": "ImageModels",
      "about": "Pictures from a prompt, themes, library"},
@@ -17,9 +17,12 @@
      "about": "Ask the local models, bulk jobs, pipelines"},
     {"id": "movie", "name": "Movie AI", "folder": "apps/movie", "port": 8410, "models": "MovieModels",
      "about": "Short videos from a prompt"},
-    {"id": "speech", "name": "Speech", "folder": "apps/speech", "port": 8510, "models": "SoundModels",
-     "about": "Turns what you say into text for the mic buttons", "tile": false}
+    {"id": "talk", "name": "Talk", "folder": "apps/talk", "port": 8510, "models": "SoundModels",
+     "about": "Talk with your local AI: it listens, answers out loud and does things"}
   ],
+
+  "_autostart": "Tools started with the hub (by id), on this machine: Talk adds itself while Always listening is on.",
+  "autostart": [],
 
   "_start_seconds": "How long a tool may take to start before the hub gives up.",
   "start_seconds": 120

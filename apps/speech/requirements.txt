@@ -1,5 +1,0 @@
-# Speech: Whisper through MLX (Apple's framework), so Mac only.
-# mlx-whisper brings PyTorch along (it uses it for a few small parts).
-fastapi>=0.115
-uvicorn>=0.30
-mlx-whisper==0.4.3

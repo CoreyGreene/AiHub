@@ -79,6 +79,7 @@ def start(app: dict) -> None:
         "AIHUB": "1",
         "AIHUB_MODELS_DIR": str(models),
         "AIHUB_SAFETY_DIR": str(settings.folder("models_dir") / settings.get()["safety_models"]),
+        "AIHUB_URL": f"http://127.0.0.1:{os.environ.get('AIHUB_PORT', '8000')}",  # the hub, for tools that use others
     }
     log = open(log_path(app), "a")
     log.write(f"\n==== {time.strftime('%Y-%m-%d %H:%M:%S')} starting {app['name']}\n")

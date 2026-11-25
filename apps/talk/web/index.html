@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Talk</title>
+  <link rel="stylesheet" href="talk.css">
+</head>
+<body>
+  <main>
+    <h1>Talk</h1>
+    <p class="muted">Tap and talk. It listens, answers out loud and can do things for you: make a picture or a video,
+      start or stop a tool, say what's running. Tap again to end.</p>
+
+    <button id="talk" type="button" class="talk-button" aria-live="polite">
+      <span class="ring"></span><span id="talk-label">Talk</span>
+    </button>
+    <p id="state" class="state muted">Tap to start</p>
+    <p id="note" class="note" hidden></p>
+
+    <section class="card">
+      <label class="switch-row">
+        <span>
+          <strong>Always listening</strong>
+          <span id="listen-about" class="muted small">On this Mac, through its own mic and speakers: say the wake word any time to start talking, no page needed. Only the wake word is listened for until then.</span>
+        </span>
+        <input id="always" type="checkbox" role="switch">
+      </label>
+      <p id="listen-state" class="muted small" hidden></p>
+      <p id="listen-message" class="note left" hidden></p>
+    </section>
+
+    <section class="card">
+      <label class="label" for="voice">Voice</label>
+      <div class="row">
+        <select id="voice" class="field"></select>
+        <button id="hear" type="button" class="button">Hear it</button>
+      </div>
+      <p id="voice-about" class="muted small"></p>
+    </section>
+
+    <section class="card">
+      <div class="row spread">
+        <h2>Conversation</h2>
+        <button id="clear" type="button" class="button small" hidden>Start over</button>
+      </div>
+      <div id="log" class="log"><p class="muted">What you both say shows here.</p></div>
+    </section>
+  </main>
+  <script type="module" src="talk.js"></script>
+</body>
+</html>

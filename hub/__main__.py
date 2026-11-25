@@ -4,6 +4,7 @@ Normally started through start.py, which sets up .venv first.
 """
 
 import argparse
+import os
 import socket
 
 import uvicorn
@@ -29,6 +30,7 @@ def main() -> None:
     if args.host == "0.0.0.0" and (ip := lan_address()):
         print(f"  From your phone:  http://{ip}:{args.port}")
     print("  Stop with Ctrl+C (stops the tools too)\n", flush=True)
+    os.environ["AIHUB_PORT"] = str(args.port)  # the tools it starts are told where it is (AIHUB_URL)
     uvicorn.run("hub.app:app", host=args.host, port=args.port, log_level="warning")
 
 

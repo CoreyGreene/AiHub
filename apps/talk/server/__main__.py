@@ -17,7 +17,7 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8500)
     args = parser.parse_args()
-    print(f"\nSpeech is running on http://{args.host}:{args.port}\n  Stop with Ctrl+C\n", flush=True)
+    print(f"\nTalk is running on http://{args.host}:{args.port}\n  Stop with Ctrl+C\n", flush=True)
     uvicorn.run("server.app:app", host=args.host, port=args.port, log_level="warning")
 
 

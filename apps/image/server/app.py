@@ -108,6 +108,7 @@ class GenerateRequest(BaseModel):
     count: int = 1
     words: ThemeWords | None = None  # Advanced: in place of the theme's own
     custom: CustomChoice | None = None
+    staging: str = ""  # put the pictures in this Staging group (Library → Staging) instead of New, e.g. Talk's
 
 
 @app.get("/api/themes")
@@ -310,7 +311,7 @@ def generate(req: GenerateRequest) -> dict:
     """Adds a picture to the queue; the page then asks /api/jobs/{job} for progress."""
     theme_id, theme, prompt = _job_parts(req)
     try:
-        return {"job": jobs.submit(theme_id, theme, prompt, req.count)}
+        return {"job": jobs.submit(theme_id, theme, prompt, req.count, staging=req.staging.strip()[:60])}
     except jobs.QueueFull as err:
         raise HTTPException(429, str(err))
 

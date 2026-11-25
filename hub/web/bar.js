@@ -32,7 +32,9 @@
   document.body.prepend(bar);
 
   const IN_USE = 1e9; // bytes: more than this means a model is loaded
-  const gb = (bytes) => (bytes / 1e9 >= 10 ? (bytes / 1e9).toFixed(0) : (bytes / 1e9).toFixed(1)) + " GB";
+  // GB as Activity Monitor counts them (1 GB = 2^30 bytes), so a 128 GB Mac shows 128, not 137
+  const GB = 2 ** 30;
+  const gb = (bytes) => (bytes / GB >= 10 ? (bytes / GB).toFixed(0) : (bytes / GB).toFixed(1)) + " GB";
   const make = (tag, cls, text) => {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -110,7 +112,7 @@
   }
   load();
   // --- 🎤 next to every prompt box (every <textarea>, in every tool) ---
-  // Tap to record, tap again to stop; Speech (Whisper, on this Mac) writes
+  // Tap to record, tap again to stop; Talk (Whisper, on this Mac) writes
   // what was said into the box, after anything already there. Browsers only
   // allow the mic on a secure page (https, or localhost on the Mac itself),
   // so elsewhere the button isn't added.
@@ -173,7 +175,7 @@
               note.hidden = false;
             }
           } catch (err) {
-            note.textContent = err.message || "Couldn't reach Speech. Is the hub running?";
+            note.textContent = err.message || "Couldn't reach Talk. Is the hub running?";
             note.hidden = false;
           }
           btn.disabled = false;

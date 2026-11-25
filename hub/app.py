@@ -14,9 +14,10 @@ import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
-from . import apps
+from . import apps, settings
 
 WEB = Path(__file__).resolve().parent / "web"
 BAR = b'<script src="/hub/bar.js" defer></script>'
@@ -31,6 +32,9 @@ client: httpx.AsyncClient
 async def lifespan(_app):
     global client
     client = httpx.AsyncClient(timeout=httpx.Timeout(None, connect=5), follow_redirects=False)
+    for app_id in settings.get().get("autostart", []):  # e.g. Talk, while Always listening is on
+        if (tool := apps.find(app_id)) and apps.set_up(tool):
+            apps.start(tool)
     yield
     await client.aclose()
     apps.stop_all()
@@ -74,6 +78,19 @@ def start(app_id: str):
     return {"state": apps.state(tool)}
 
 
+class AutostartRequest(BaseModel):
+    on: bool
+
+
+@app.post("/hub/api/apps/{app_id}/autostart")
+def autostart(app_id: str, req: AutostartRequest):
+    """Start this tool with the hub from now on (or not): Talk's Always listening uses it."""
+    _app_or_404(app_id)
+    ids = [i for i in settings.get().get("autostart", []) if i != app_id] + ([app_id] if req.on else [])
+    settings.set_local("autostart", ids)
+    return {"autostart": ids}
+
+
 @app.post("/hub/api/apps/{app_id}/stop")
 def stop(app_id: str):
     tool = _app_or_404(app_id)
@@ -83,20 +100,20 @@ def stop(app_id: str):
 
 @app.post("/hub/api/listen")
 async def listen(request: Request):
-    """The mic buttons: a recording in, its words out. Speech (a helper tool,
-    no tile) does the work; it's started here the first time it's needed."""
-    speech = apps.find("speech")
-    if not speech or not apps.set_up(speech):
-        return JSONResponse({"detail": "Speech isn't set up yet."}, 409)
+    """The mic buttons: a recording in, its words out. Talk (apps/talk, which
+    has Whisper) does the work; it's started here the first time it's needed."""
+    talk = apps.find("talk")
+    if not talk or not apps.set_up(talk):
+        return JSONResponse({"detail": "Talk isn't set up yet."}, 409)
     data = await request.body()
-    if apps.state(speech) != "running":
-        apps.start(speech)  # also tries again after a failed start
-        while apps.state(speech) == "starting":
+    if apps.state(talk) != "running":
+        apps.start(talk)  # also tries again after a failed start
+        while apps.state(talk) == "starting":
             await asyncio.sleep(0.5)
-        if apps.state(speech) != "running":
-            return JSONResponse({"detail": "Speech didn't start. Its log is in logs/speech.log."}, 503)
+        if apps.state(talk) != "running":
+            return JSONResponse({"detail": "Talk didn't start. Its log is in logs/talk.log."}, 503)
     answer = await client.post(
-        f"http://127.0.0.1:{speech['port']}/api/transcribe", content=data,
+        f"http://127.0.0.1:{talk["port"]}/api/transcribe", content=data,
         headers={"content-type": request.headers.get("content-type", "audio/webm")},
     )
     return JSONResponse(answer.json(), answer.status_code)

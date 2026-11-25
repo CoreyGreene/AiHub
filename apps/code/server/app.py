@@ -4,11 +4,13 @@ The same API is for the page and, later, for Claude (an MCP connector that calls
 queue, stop, and read past conversations.
 """
 
+import json
+import threading
 import time
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -361,6 +363,38 @@ async def bulk_delete(run_id: str) -> dict:
     if not _bulk(bulk.delete, run_id):
         raise HTTPException(404, "That run is gone.")
     return {"deleted": True}
+
+
+class ChatRequest(BaseModel):
+    messages: list[dict]
+    model: str = ""         # "" = the model already loaded, else the first in the list
+    thinking: str = "off"   # a thinking level (off = answer straight away, for talking)
+    tools: list[dict] = []  # OpenAI-style tool definitions; the caller runs the tools itself
+
+
+@app.post("/api/chat")
+async def chat(req: ChatRequest):
+    """A plain streaming chat with the model Code AI runs, for Talk: no files, no History, no queue. The answer
+    comes as lines of JSON as it's written: {"answer": text}, {"tool": call}, then {"finish": reason}. While a
+    question is being answered on the Ask or Bulk tabs, the model it uses is the one used here."""
+    loaded = models.loaded()
+    busy = any(j["status"] in jobs.ACTIVE for j in jobs.listing())
+    model_id = loaded["id"] if loaded["id"] and (busy or not req.model) else (req.model or (settings.models() or [{}])[0].get("id"))
+    m = settings.model(model_id or "")
+    if m is None:
+        raise HTTPException(400, "That model isn't on this computer.")
+
+    def lines():
+        try:
+            models.ensure(model_id)
+            stop = threading.Event()
+            for kind, piece in models.stream(req.messages, settings.template(m, req.thinking), stop, req.tools or None):
+                if kind in ("answer", "tool", "finish"):
+                    yield json.dumps({kind: piece}) + "\n"
+        except models.ModelError as err:
+            yield json.dumps({"error": str(err)}) + "\n"
+
+    return StreamingResponse(lines(), media_type="application/x-ndjson")
 
 
 @app.post("/api/model/unload")

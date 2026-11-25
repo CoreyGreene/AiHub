@@ -14,7 +14,7 @@ the top of every page shows which tools are running, how much memory each uses, 
 | 3D AI | `apps/3d` | Pictures into textured 3D models with TRELLIS.2 (items and props) |
 | Code AI | `apps/code` | Ask the local language models; bulk runs, pipelines; an MCP connector for Claude |
 | Movie AI | `apps/movie` | Short videos with sound (LTX-2.5 on the Mac; Wan), from a prompt or a start picture |
-| Speech | `apps/speech` | No tile: Whisper for the 🎤 buttons; the hub starts it when a mic is first used |
+| Talk | `apps/talk` | Talk with your local AI: it hears (Whisper), thinks (Code AI's model), does things and answers out loud; Always listening for a wake word on the Mac. Also the 🎤 buttons' hearing |
 
 Each tool came from its own repo, history and all (`git subtree`), and keeps its own `AGENTS.md` and `README.md`.
 
@@ -54,8 +54,10 @@ Ctrl+C stops the hub and every tool it started.
   Code AI keeps its own connector (`apps/code/connector`). Register it in Claude's MCP settings with the
   hub's `.venv/bin/python` and the script's full path.
 - **Mic buttons:** `bar.js` adds a 🎤 under every `<textarea>` (also ones added later) when the page is a secure
-  context (https or localhost). The recording goes to `/hub/api/listen`, which starts Speech if needed and passes it
+  context (https or localhost). The recording goes to `/hub/api/listen`, which starts Talk if needed and passes it
   on; the words are added to the box.
+- **Autostart:** `autostart` in `hub/settings.local.json` lists tools started with the hub (Talk adds itself while
+  Always listening is on: `POST /hub/api/apps/{id}/autostart`). Tools are told the hub's address (`AIHUB_URL`).
 - **Settings:** `hub/settings.json` (shared: tiles, ports, models folders) + `hub/settings.local.json` (this machine).
 
 ## Rules

@@ -132,6 +132,7 @@ The page uses it, and so does Claude (the MCP connector below).
 | --- | --- |
 | `GET /api/status` | `memory` (total, used, the model's share, GB), `model` (loaded, loading), `queue` (answering, waiting) |
 | `GET /api/models` | The models on this computer, and the default |
+| `POST /api/chat` `{messages, model, thinking, tools}` | A plain streaming chat with the model (for Talk): no files, no History, no queue. Lines of JSON as it's written: `{answer}`, `{tool}`, then `{finish}`. While a question is being answered, the loaded model is used |
 | `GET /api/checks?folder=` | The checks set for a work folder: `{checks: [{name, about, command}]}` |
 | `POST /api/ask` `{prompt, model, thinking, can_edit, can_run, folder, conversation, source}` | Ask: a new conversation when `conversation` is empty. Answers `{job, conversation}` at once. `folder`: its work folder (the tools see only that one). `can_run` (default true): it may run commands, with a work folder only. `source`: `you` or `claude` |
 | `GET /api/jobs/{job}` | Progress: `status` waiting (with `ahead`) / loading / thinking / answering / done / stopped / failed, the `thinking` and `answer` so far, `tokens`, `seconds`, `per_second` |

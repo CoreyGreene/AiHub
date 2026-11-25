@@ -1,0 +1,13 @@
+# Talk: Whisper (hearing) and the voices through MLX (Apple's framework), so Mac only.
+# mlx-whisper brings PyTorch along (it uses it for a few small parts).
+fastapi>=0.115
+uvicorn>=0.30
+httpx>=0.27
+mlx-whisper==0.4.3
+mlx-audio==0.6.8
+# Kokoro's English pronunciation (and spaCy's small English model, which it needs)
+misaki[en]==0.9.4
+en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+# Always listening: the wake word (openWakeWord, its models in SoundModels/openWakeWord), on the processor
+openwakeword==0.6.0
+onnxruntime==1.32.0

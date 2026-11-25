@@ -1,4 +1,4 @@
-"""Start Speech (turns what you say into text for the mic buttons).
+"""Start Talk (talk with your local AI; also the mic buttons' hearing).
 
     python3 start.py              # port 8500
     python3 start.py --port 9000  # another port
@@ -43,13 +43,13 @@ def ensure_venv() -> None:
 
 def main() -> None:
     if sys.version_info < (3, 10):
-        sys.exit("Speech needs Python 3.10 or newer (this is %d.%d)." % sys.version_info[:2])
+        sys.exit("Talk needs Python 3.10 or newer (this is %d.%d)." % sys.version_info[:2])
 
-    parser = argparse.ArgumentParser(description="Start Speech.")
-    parser.add_argument("--port", type=int, default=int(os.environ.get("SPEECH_PORT", 8500)))
+    parser = argparse.ArgumentParser(description="Start Talk.")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("TALK_PORT", 8500)))
     parser.add_argument(
         "--host",
-        default=os.environ.get("SPEECH_HOST", "127.0.0.1"),
+        default=os.environ.get("TALK_HOST", "127.0.0.1"),
         help="127.0.0.1 = this computer only (default; the hub passes it through)",
     )
     args = parser.parse_args()
