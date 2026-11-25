@@ -1,6 +1,6 @@
 // Create → Start picture: themes that can (LTX) begin the video from a
-// picture. It's sent to the server as soon as it's chosen; Generate sends
-// its id. Shown only for those themes.
+// picture, and Custom when its model can. It's sent to the server as soon
+// as it's chosen; Generate sends its id. Shown only where it can be used.
 
 import { chosenTheme, whenThemeChanges } from "./theme-picker.js";
 
@@ -16,6 +16,15 @@ const els = {
 };
 
 let picture = null; // { id, image } once the server has it
+let customTakesPicture = false; // the Custom tab's model can use one (from the server)
+
+fetch("api/settings")
+  .then((res) => res.json())
+  .then((data) => {
+    customTakesPicture = Boolean(data.custom_start_picture);
+    showStartField();
+  })
+  .catch(() => {});
 
 // The id to send with Generate, or "" (none, or this theme can't use one).
 export function startPictureId() {
@@ -23,7 +32,8 @@ export function startPictureId() {
 }
 
 function usable() {
-  return els.view.dataset.mode !== "custom" && Boolean(chosenTheme()?.start_picture);
+  if (els.view.dataset.mode === "custom") return customTakesPicture;
+  return Boolean(chosenTheme()?.start_picture);
 }
 
 export function showStartField() {

@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import generation, gpu, jobs, lock, settings, themes, uploads, videos
+from .backends import TAKES_PICTURE
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 # Changes on every server start. The page asks for app.css and app.js with
@@ -295,8 +296,6 @@ def generate(req: GenerateRequest) -> dict:
         theme = {**theme, "prompt": _prompt_template(w.prompt_before, w.prompt_after), "negative": _tidy(w.negative)}
     image = None
     if req.start_picture:
-        from .backends import TAKES_PICTURE
-
         if theme["backend"] not in TAKES_PICTURE:
             raise HTTPException(400, "This theme can't begin from a picture. Pick an LTX theme, or remove the picture.")
         image = videos.start_picture(req.start_picture)
@@ -528,6 +527,8 @@ def get_settings() -> dict:
         "device": device,
         "device_name": DEVICE_NAMES.get(device, device),
         "max_videos": settings.get()["max_videos"],
+        # The Custom tab's backend can begin from a start picture (LTX).
+        "custom_start_picture": settings.get()["custom"]["backend"] in TAKES_PICTURE,
     }
 
 
