@@ -7,6 +7,7 @@ import { addVideos, finishGrid, gridProgress, startGrid } from "./pick-grid.js";
 import { openViewer } from "./viewer.js";
 import { themeWords } from "./theme-words.js";
 import { customValues, fillCustom } from "./custom.js";
+import { startPictureId } from "./start-picture.js";
 
 const els = {
   form: document.getElementById("make"),
@@ -85,7 +86,7 @@ async function onGenerate(event) {
     const res = await fetch("api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ theme, prompt, count, words, custom }),
+      body: JSON.stringify({ theme, prompt, count, words, custom, start_picture: startPictureId() }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail);

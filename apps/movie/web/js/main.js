@@ -11,6 +11,7 @@ import { loadLibrary } from "./library.js";
 import { loadSettings } from "./settings.js";
 import { startQueueList } from "./queue-list.js";
 import { loadThemeInfo } from "./theme-info.js";
+import { showStartField } from "./start-picture.js";
 
 // Tabs: Create, Library, Theme, Workflows, and the Settings gear. The address ends in
 // #create, #library and so on, so the phone's Back button works too.
@@ -44,6 +45,7 @@ function showCreateMode(mode) {
   document.getElementById("view-create").dataset.mode = mode;
   if (mode === "custom") fillCustom();
   if (mode === "advanced") showThemeWords();
+  showStartField();
   document.querySelectorAll("#view-create [data-subview]").forEach((el) => {
     if (el.dataset.subview === mode) el.setAttribute("aria-current", "page");
     else el.removeAttribute("aria-current");

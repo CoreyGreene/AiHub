@@ -32,7 +32,12 @@ def load() -> dict[str, dict]:
 
 def public_list() -> list[dict]:
     """What the page needs for the theme picker."""
-    return [{"id": tid, "name": t["name"], "hint": t.get("hint", "")} for tid, t in load().items()]
+    from .backends import TAKES_PICTURE
+
+    return [
+        {"id": tid, "name": t["name"], "hint": t.get("hint", ""), "start_picture": t.get("backend") in TAKES_PICTURE}
+        for tid, t in load().items()
+    ]
 
 
 def get(theme_id: str) -> dict | None:

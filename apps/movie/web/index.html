@@ -58,6 +58,18 @@
         <span id="prompt-error" class="error-line" hidden>Type a prompt first: describe the video you want, and what moves.</span>
       </label>
 
+      <div id="start-field" class="field" hidden>
+        <span class="label">Start picture <span class="optional">(optional)</span></span>
+        <p class="hint-line">The video begins from this picture. Say in the prompt what moves.</p>
+        <img id="start-image" class="start-image" alt="The start picture" hidden>
+        <div class="start-actions">
+          <label class="button" for="start-file"><span id="start-choose">Choose a picture</span></label>
+          <input id="start-file" class="visually-hidden" type="file" accept="image/*">
+          <button id="start-remove" type="button" class="button" hidden>Remove</button>
+        </div>
+        <span id="start-error" class="error-line" hidden></span>
+      </div>
+
       <div class="field">
         <label class="label" for="character">Character name <span class="optional">(optional)</span></label>
         <div class="name-row">

@@ -2,10 +2,12 @@
 
     outputs/new/<id>.mp4                 just made, not saved yet
     outputs/characters/<folder>/<id>.mp4 saved to a character
+    outputs/start-pictures/<id>.png      pictures a video can begin from
     ...each with <id>.jpg beside it (the first frame, shown before it plays)
     and <id>.json: theme, prompt, seed, frames, fps, character, time.
 """
 
+import io
 import json
 import re
 import shutil
@@ -26,6 +28,30 @@ def _characters() -> Path:
     return settings.folder("outputs_dir") / "characters"
 
 
+def keep_start_picture(data: bytes) -> str:
+    """Keep a picture sent to begin videos from (any common format, made a
+    PNG). Returns its id. Raises ValueError if it isn't a picture."""
+    from PIL import Image, UnidentifiedImageError
+
+    try:
+        with Image.open(io.BytesIO(data)) as opened:
+            picture = opened.convert("RGB")
+    except (UnidentifiedImageError, OSError) as err:
+        raise ValueError("That file isn't a picture.") from err
+    folder = settings.folder("outputs_dir") / "start-pictures"
+    folder.mkdir(parents=True, exist_ok=True)
+    pic_id = uuid.uuid4().hex
+    picture.save(folder / f"{pic_id}.png")
+    return pic_id
+
+
+def start_picture(pic_id: str) -> Path | None:
+    if not ID_PATTERN.match(pic_id):
+        return None
+    path = settings.folder("outputs_dir") / "start-pictures" / f"{pic_id}.png"
+    return path if path.is_file() else None
+
+
 def urls(vid_id: str) -> dict:
     """Where the page gets a video and its first frame."""
     return {"file": f"api/videos/{vid_id}", "poster": f"api/videos/{vid_id}/poster"}
@@ -33,23 +59,37 @@ def urls(vid_id: str) -> dict:
 
 def keep_new(frames: list, fps: int, info: dict) -> str:
     """Save a freshly made video (its frames, as PIL images) into outputs/new
-    as an .mp4, with its first frame as a .jpg, and return its id."""
+    as an .mp4, with its first frame as a .jpg, and return its id. If the
+    backend made the .mp4 itself (info["_file"], with sound), that file is
+    kept as it is."""
     import imageio.v3 as iio  # comes with the video packages
     import numpy as np
 
     folder = _new()
     folder.mkdir(parents=True, exist_ok=True)
     vid_id = uuid.uuid4().hex
-    # H.264 in yuv420p plays on every phone; quality 8 of 10 keeps detail.
-    iio.imwrite(
-        folder / f"{vid_id}.mp4",
-        np.stack([np.asarray(f.convert("RGB")) for f in frames]),
-        fps=fps, codec="libx264", quality=8, pixelformat="yuv420p",
-    )
+    made = info.pop("_file", None)
+    if made:
+        shutil.move(str(made), folder / f"{vid_id}.mp4")
+    else:
+        # H.264 in yuv420p plays on every phone; quality 8 of 10 keeps detail.
+        iio.imwrite(
+            folder / f"{vid_id}.mp4",
+            np.stack([np.asarray(f.convert("RGB")) for f in frames]),
+            fps=fps, codec="libx264", quality=8, pixelformat="yuv420p",
+        )
     frames[0].convert("RGB").save(folder / f"{vid_id}.jpg", quality=90)
     info = {"id": vid_id, **info, "made": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     (folder / f"{vid_id}.json").write_text(json.dumps(info, indent=2), encoding="utf-8")
     return vid_id
+
+
+def read_frames(path: Path) -> list:
+    """A video file's frames, as PIL images (for the safety check)."""
+    import imageio.v3 as iio
+    from PIL import Image
+
+    return [Image.fromarray(frame) for frame in iio.imiter(path)]
 
 
 def find(vid_id: str, suffix: str = ".mp4") -> Path | None:

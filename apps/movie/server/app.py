@@ -110,6 +110,7 @@ class GenerateRequest(BaseModel):
     count: int = 1
     words: ThemeWords | None = None  # Advanced: in place of the theme's own
     custom: CustomChoice | None = None
+    start_picture: str = ""  # an id from /api/start-pictures (themes that can begin from one)
 
 
 @app.get("/api/themes")
@@ -292,10 +293,46 @@ def generate(req: GenerateRequest) -> dict:
         # The theme's words as changed on the Advanced tab (the file stays as it is).
         w = req.words
         theme = {**theme, "prompt": _prompt_template(w.prompt_before, w.prompt_after), "negative": _tidy(w.negative)}
+    image = None
+    if req.start_picture:
+        from .backends import TAKES_PICTURE
+
+        if theme["backend"] not in TAKES_PICTURE:
+            raise HTTPException(400, "This theme can't begin from a picture. Pick an LTX theme, or remove the picture.")
+        image = videos.start_picture(req.start_picture)
+        if image is None:
+            raise HTTPException(400, "That start picture isn't there any more. Pick it again.")
     try:
-        return {"job": jobs.submit(theme_id, theme, prompt, req.count)}
+        return {"job": jobs.submit(theme_id, theme, prompt, req.count, image)}
     except jobs.QueueFull as err:
         raise HTTPException(429, str(err))
+
+
+MAX_PICTURE_BYTES = 40 * 1024 * 1024
+
+
+@app.post("/api/start-pictures")
+async def add_start_picture(request: Request) -> dict:
+    """Create → Start picture: the picture is the request's body. Kept in
+    outputs/start-pictures/ so a video can begin from it."""
+    data = await request.body()
+    if not data:
+        raise HTTPException(400, "Pick a picture first.")
+    if len(data) > MAX_PICTURE_BYTES:
+        raise HTTPException(400, "That picture is too big (40 MB at most).")
+    try:
+        pic_id = videos.keep_start_picture(data)
+    except ValueError as err:
+        raise HTTPException(400, str(err))
+    return {"id": pic_id, "image": f"api/start-pictures/{pic_id}"}
+
+
+@app.get("/api/start-pictures/{pic_id}")
+def get_start_picture(pic_id: str):
+    path = videos.start_picture(pic_id)
+    if path is None:
+        raise HTTPException(404, "That picture isn't here any more.")
+    return FileResponse(path)
 
 
 @app.get("/api/jobs/{job_id}")

@@ -772,3 +772,11 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
   }
 }
 .theme-card .actions { grid-template-columns: 1fr; margin-top: 8px; }
+
+/* Create → Start picture (themes that can begin a video from one). */
+.start-image { display: block; width: 100%; max-height: 320px; object-fit: contain; background: #fff; border-radius: 10px; margin-bottom: 8px; }
+.start-image[hidden] { display: none; }
+.start-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.start-actions .button { padding: 0 18px; }
+.start-actions .button[hidden] { display: none; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

@@ -10,7 +10,7 @@ let chosen = null; // the theme that will be used
 let shown = []; // themes in the open list, after searching
 let active = -1; // which of `shown` is highlighted
 
-let onChange = () => {};
+const listeners = [];
 
 export function chosenTheme() {
   return chosen;
@@ -18,7 +18,7 @@ export function chosenTheme() {
 
 // Call fn(theme) whenever a different theme is picked.
 export function whenThemeChanges(fn) {
-  onChange = fn;
+  listeners.push(fn);
 }
 
 export function resetTheme() {
@@ -88,7 +88,7 @@ function choose(theme) {
   input.value = theme.name;
   hint.textContent = theme.hint;
   closeList();
-  if (changed) onChange(theme);
+  if (changed) listeners.forEach((fn) => fn(theme));
 }
 
 input.addEventListener("focus", () => {

@@ -109,9 +109,9 @@ Any key starting with `_` is a note and is ignored when making videos.
 | `backend` | Runs | State |
 | --- | --- | --- |
 | `diffusers-wan` | Wan 2.1 / 2.2 text-to-video models (a diffusers-format folder) with PyTorch on CUDA, Apple (MPS) or CPU | works; tested with Wan 2.1 1.3B on a 12 GB card |
+| `ltx-mlx` | LTX-2.5 (a folder in the ltx-2-mlx layout) with MLX: video **and sound**, from a prompt or a start picture. Mac only; needs ffmpeg (`brew install ffmpeg`). Uses `width`, `height` (steps of 64), `frames` (8k + 1, or 0 = the model picks the length) and `fps`; it always does 8 + 3 steps | works on a Mac Studio |
 
-More backends (MLX for the Mac, other video models) will be added in
-`server/backends/`; a theme picks one by name.
+More backends can be added in `server/backends/`; a theme picks one by name.
 
 ## What always gets added (you don't put this in the theme)
 

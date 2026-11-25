@@ -1,0 +1,16 @@
+{
+  "_notes": "A starting point for an LTX-2.5 theme (Mac only, MLX). Copy this file up one folder (into server/theme/), rename it, and change the words. The model is a folder in the ltx-2-mlx layout (for example mlx-community/ltx-2.5-mlx on Hugging Face; read its licence). It makes the sound too. steps, guidance and scheduler don't apply (it always does 8 + 3 steps). frames: 8k + 1 (121 is 5 seconds at 24 fps), or 0 to let the model pick the length from the prompt.",
+
+  "name": "My LTX Theme",
+  "hint": "Video with sound; can start from a picture",
+
+  "backend": "ltx-mlx",
+  "model": "my-ltx-model",
+
+  "prompt": "{prompt}. 2D cartoon animation, clean ink outlines, bright flat colours, smooth motion",
+
+  "width": 1024,
+  "height": 576,
+  "frames": 121,
+  "fps": 24
+}

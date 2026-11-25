@@ -6,8 +6,9 @@ file, and runs every video through the nudity check (server/safety.py).
 """
 
 import random
+from pathlib import Path
 
-from . import backends, safety, settings
+from . import backends, safety, settings, videos
 
 BLOCKED_MESSAGE = "This video didn't pass the safety check. Try changing the prompt."
 
@@ -62,14 +63,15 @@ MODEL_TYPES = (".safetensors", ".gguf")
 def choices() -> dict:
     """What a theme can choose from when it is changed on the Theme page:
     the model and LoRA files that are here, and the samplers. Video models
-    often come as a folder (diffusers format, with model_index.json inside)
-    rather than one file; those are listed too."""
+    often come as a folder (diffusers format, with model_index.json inside,
+    or LTX's MLX layout, with embedded_config.json) rather than one file;
+    those are listed too."""
     def files(folder, folders=False):
         if not folder.is_dir():
             return []
         return sorted(
             p.name for p in folder.iterdir()
-            if (p.is_file() and p.suffix in MODEL_TYPES) or (folders and (p / "model_index.json").is_file())
+            if (p.is_file() and p.suffix in MODEL_TYPES) or (folders and any((p / f).is_file() for f in ("model_index.json", "embedded_config.json")))
         )
     return {
         "models": files(settings.folder("models_dir"), folders=True),
@@ -78,7 +80,7 @@ def choices() -> dict:
     }
 
 
-def _request(theme: dict, prompt: str, seed: int) -> dict:
+def _request(theme: dict, prompt: str, seed: int, image=None) -> dict:
     models = settings.folder("models_dir")
     loras = settings.folder("loras_dir")
     negative = ", ".join(n for n in (theme.get("negative"), settings.get()["safety"]["negative"]) if n)
@@ -90,24 +92,30 @@ def _request(theme: dict, prompt: str, seed: int) -> dict:
         "negative": negative,
         **{key: _setting(theme, key) for key in DEFAULTS},
         "seed": seed,
+        "image": image,  # a start picture (a file path), for backends that take one
         "low_memory": settings.get()["use_3060_settings"],
     }
 
 
-def generate(theme: dict, prompt: str, on_progress) -> tuple:
+def generate(theme: dict, prompt: str, on_progress, image=None) -> tuple:
     """Make a video. Returns (frames, details). Raises Blocked if every try
     fails the nudity check, backends.NotReady while video making isn't set up.
+    image: a start picture (file path), for backends that take one (LTX).
+    A backend that makes the .mp4 itself (with sound) gives its path, which
+    comes back as details["_file"] for videos.keep_new to keep as it is.
 
     on_progress(stage, done, total): stage is "loading", "drawing" or "checking".
     """
     backend = backends.get(theme["backend"], settings.device(), alone=settings.get()["use_3060_settings"])
     tries = settings.get()["safety"]["tries"]
     for attempt in range(1, tries + 1):
-        req = _request(theme, prompt, random.randrange(2**31))
+        req = _request(theme, prompt, random.randrange(2**31), image)
         if not backend.is_loaded(req):
             on_progress("loading", 0, 0)
-        frames = backend.make(req, lambda done, total: on_progress("drawing", done, total))
+        made = backend.make(req, lambda done, total: on_progress("drawing", done, total))
         on_progress("checking", 0, 0)
+        file = made if isinstance(made, Path) else None
+        frames = videos.read_frames(file) if file else made
         if safety.is_safe(frames):
             # Enough to make it again (Library → Copy settings), even if
             # the theme changes later.
@@ -124,8 +132,12 @@ def generate(theme: dict, prompt: str, on_progress) -> tuple:
                 "frames": len(frames),
                 "fps": req["fps"],
                 "tries": attempt,
+                **({"_file": file, "sound": True} if file else {}),
+                **({"start_picture": True} if image else {}),
             }
             return frames, details
+        if file:
+            file.unlink(missing_ok=True)
         print(f"Nudity check stopped try {attempt} of {tries}")
     raise Blocked(BLOCKED_MESSAGE)
 

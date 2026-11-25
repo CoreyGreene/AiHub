@@ -9,9 +9,12 @@ prompt, get a video. It's built for one person, used mostly from a phone.
 The server runs the video model on the same machine (an NVIDIA card, Apple
 Silicon or the CPU). A sister project of ImageAi, built the same way.
 
-**Video model:** Wan through diffusers (`server/backends/diffusers_wan.py`),
-tested with Wan 2.1 1.3B on a 12 GB card. Until PyTorch is installed, jobs
-end as `not_ready` and the page says "Not connected yet".
+**Video models:** Wan through diffusers (`server/backends/diffusers_wan.py`),
+tested with Wan 2.1 1.3B on a 12 GB card; and on a Mac, LTX-2.5 through MLX
+(`server/backends/ltx_mlx.py`, the ltx-2-mlx port; needs ffmpeg), which makes
+the sound too and can begin from a start picture (the video takes the
+picture's shape). Until PyTorch is installed, jobs end as `not_ready` and the
+page says "Not connected yet".
 
 ## Run it
 
@@ -32,8 +35,11 @@ for where they go and how to write a theme.
   no build step: edit a file, reload.
 - **Videos:** `server/generation.py` is the only way in. Behind it, each
   way of running a model is a small backend in `server/backends/` with the
-  same shape (`Backend(device).make(req, on_step)` → a list of frames); a
-  theme names its backend. `server/videos.py` writes the `.mp4` and its
+  same shape (`Backend(device).make(req, on_step)` → a list of frames, or
+  the finished .mp4 with sound for LTX); a theme names its backend.
+- **Start pictures:** Create → Start picture sends it to
+  `/api/start-pictures` (kept in `outputs/start-pictures/`); Generate sends
+  its id. Only themes whose backend is in `backends.TAKES_PICTURE` show it. `server/videos.py` writes the `.mp4` and its
   first frame (`.jpg`).
 - **Queue:** `server/jobs.py` makes one video job at a time; the page
   asks for progress. The model stays loaded, and is let go when idle.

@@ -4,11 +4,12 @@ Every backend has the same shape:
 
     backend = Backend(device)
     frames = backend.make(request, on_step)  # a list of PIL images, in order
+                                             # (or the .mp4 it made, with sound: LTX)
     backend.unload()                         # free the graphics memory
 
 where request is a dict with model / model_config / loras (full paths),
 prompt, negative, width, height, frames, fps, steps, guidance, scheduler,
-seed, and low_memory (the "Use 3060 settings" switch), and on_step(done,
+seed, image (a start picture's path, or None), and low_memory (the "Use 3060 settings" switch), and on_step(done,
 total) reports progress.
 
 A backend listed here as None is planned; asking for it raises NotReady,
@@ -21,7 +22,12 @@ import importlib
 MODULES = {
     # Wan 2.1 (and Wan 2.2 text-to-video) through diffusers / PyTorch: cuda, mps or cpu.
     "diffusers-wan": "server.backends.diffusers_wan",
+    # LTX-2.5 through MLX: video with sound, from a prompt or a start picture (Mac only).
+    "ltx-mlx": "server.backends.ltx_mlx",
 }
+
+# Backends that can begin a video from a start picture.
+TAKES_PICTURE = {"ltx-mlx"}
 
 NOT_READY_MESSAGE = (
     "Making videos isn't set up on this computer yet: the video packages "
