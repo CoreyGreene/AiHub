@@ -907,33 +907,6 @@ button, .button, a, input, select, textarea, label, .viewer { touch-action: mani
   .exp-compare img { width: 220px; height: 220px; }
 }
 
-/* Library: search box, and characters or items. */
+/* Library: the search box over the characters (or items). */
 .library-filter { display: grid; gap: 10px; margin: 12px 0 4px; }
 .library-filter[hidden] { display: none; }
-@media (min-width: 760px) {
-  .library-filter { grid-template-columns: 1fr auto; align-items: center; }
-}
-.kind-toggle {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  padding: 4px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-}
-.kind-toggle label {
-  position: relative;
-  display: grid;
-  place-items: center;
-  min-height: 40px;
-  padding: 0 18px;
-  font-weight: 600;
-  color: var(--muted);
-  border-radius: 9px;
-  cursor: pointer;
-}
-.kind-toggle input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
-.kind-toggle label:hover { color: var(--text); }
-.kind-toggle label:has(input:checked) { color: var(--text); background: var(--note-bg); }
-.kind-toggle label:has(input:focus-visible) { outline: 2px solid var(--accent); }

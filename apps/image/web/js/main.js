@@ -30,7 +30,7 @@ const onShow = {
 
 function showView() {
   // "#create/advanced" = the Create tab, its Advanced sub-tab.
-  const [name, sub, more] = location.hash.slice(1).split("/");
+  const [name, sub, more, last] = location.hash.slice(1).split("/");
   const view = document.getElementById(`view-${name}`) ? name : "create";
   document.querySelectorAll(".view").forEach((el) => (el.hidden = el.id !== `view-${view}`));
   document.querySelectorAll("[data-view]").forEach((el) => {
@@ -38,7 +38,7 @@ function showView() {
     else el.removeAttribute("aria-current");
   });
   if (view === "create") showCreateMode(["advanced", "custom"].includes(sub) ? sub : "standard");
-  onShow[view]?.(sub, more);
+  onShow[view]?.(sub, more, last);
 }
 
 // Inside Create: Standard, Advanced and Custom share one form. Advanced adds

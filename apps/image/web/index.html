@@ -133,6 +133,7 @@
   <main id="view-library" class="view" hidden>
     <nav class="subtabs" aria-label="Library part">
       <a href="#library" class="subtab" data-place="characters">Characters</a>
+      <a href="#library/_items" class="subtab" data-place="items">Items</a>
       <a href="#library/_staging" class="subtab" data-place="staging">Staging</a>
     </nav>
     <section class="card">
@@ -154,15 +155,10 @@
           </button>
         </div>
       </div>
-      <!-- The list of characters: search by name, and characters or items
-           (an item is any name that starts with the word "Item"). -->
+      <!-- The list of characters (or items: any name that starts with the word "Item"): search by name. -->
       <div id="library-filter" class="library-filter" hidden>
         <input id="library-search" class="text-input" type="search" placeholder="Search characters"
                aria-label="Search by name" autocomplete="off" enterkeyhint="search">
-        <div class="kind-toggle" role="radiogroup" aria-label="Show">
-          <label><input type="radio" name="library-kind" value="characters" checked><span>Characters</span></label>
-          <label><input type="radio" name="library-kind" value="items"><span>Items</span></label>
-        </div>
       </div>
       <p id="library-count" class="muted" hidden></p>
       <div id="library-list" class="library-grid">

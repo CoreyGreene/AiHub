@@ -13,9 +13,10 @@ import { openViewer } from "./viewer.js";
 import { pickCharacter } from "./character-picker.js";
 
 const STAGING = "_staging";
-let place = "characters"; // or "staging"
+const ITEMS = "_items";
+let place = "characters"; // or "items" (characters whose name starts with "Item") or "staging"
 const api = () => (place === "staging" ? "api/staging" : "api/characters");
-const listHash = () => (place === "staging" ? `#library/${STAGING}` : "#library");
+const listHash = () => (place === "staging" ? `#library/${STAGING}` : place === "items" ? `#library/${ITEMS}` : "#library");
 const groupHash = (folder) => `${listHash()}/${encodeURIComponent(folder)}`;
 
 const list = document.getElementById("library-list");
@@ -35,17 +36,10 @@ try {
   if (["thumbs", "dates"].includes(saved)) layout = saved;
 } catch {}
 
-// The list of characters: a search box, and characters or items. An item is
-// any character whose name starts with the word "Item" ("Item Fridge").
+// The list of characters (or items: the Items tab) with a search box. An item
+// is any character whose name starts with the word "Item" ("Item Fridge").
 const filterBar = document.getElementById("library-filter");
 const search = document.getElementById("library-search");
-const kindButtons = document.querySelectorAll('input[name="library-kind"]');
-const KIND_KEY = "imageai.libraryKind";
-let kind = "characters"; // or "items"; remembered like the layout
-try {
-  if (localStorage.getItem(KIND_KEY) === "items") kind = "items";
-} catch {}
-for (const b of kindButtons) b.checked = b.value === kind;
 let everyone = []; // every character from the server, before the filter
 const isItem = (name) => /^items?\b/i.test(name.trim());
 
@@ -230,11 +224,13 @@ function dayName(day) {
 // Staging has no "by date" view: it shows as full pictures there.
 const layoutHere = () => (place === "staging" && layout === "dates" ? "full" : layout);
 
-// #library[/<folder>[/<date>]] or #library/_staging[/<folder>]
-export function loadLibrary(first, second) {
+// #library[/<folder>[/<date>]], #library/_items[/<folder>[/<date>]] or #library/_staging[/<folder>]
+export function loadLibrary(first, second, third) {
   window.scrollTo(0, 0);
-  place = first === STAGING ? "staging" : "characters";
-  const [folder, date] = place === "staging" ? [second, ""] : [first, second];
+  const was = place;
+  place = first === STAGING ? "staging" : first === ITEMS ? "items" : "characters";
+  if (place !== was) search.value = ""; // a search is for the tab it was typed on
+  const [folder, date] = place === "characters" ? [first, second] : place === "staging" ? [second, ""] : [second, third];
   for (const tab of document.querySelectorAll("#view-library [data-place]")) {
     if (tab.dataset.place === place) tab.setAttribute("aria-current", "page");
     else tab.removeAttribute("aria-current");
@@ -247,7 +243,7 @@ async function showAll() {
   setSelecting(false);
   pageFor = ""; // opening a character again starts at page 1
   const staging = place === "staging";
-  title.textContent = staging ? "Staging" : "Library";
+  title.textContent = staging ? "Staging" : place === "items" ? "Items" : "Characters";
   back.hidden = layoutButtons.hidden = true;
   filterBar.hidden = staging;
   count.hidden = !staging;
@@ -275,7 +271,7 @@ async function showAll() {
 
 // The characters (or items) whose name has the search words in it.
 function showFiltered() {
-  const items = kind === "items";
+  const items = place === "items";
   search.placeholder = items ? "Search items" : "Search characters";
   const words = search.value.trim().toLowerCase();
   const found = everyone.filter((c) => isItem(c.name) === items && c.name.toLowerCase().includes(words));
@@ -292,15 +288,6 @@ function showFiltered() {
 }
 
 search.addEventListener("input", showFiltered);
-for (const b of kindButtons) {
-  b.addEventListener("change", () => {
-    kind = b.value;
-    try {
-      localStorage.setItem(KIND_KEY, kind);
-    } catch {}
-    showFiltered();
-  });
-}
 
 function card(character) {
   const item = document.createElement("a");
@@ -325,7 +312,7 @@ async function showCharacter(folder, date = "", message = "") {
   back.href = date ? groupHash(folder) : listHash();
   back.textContent = date
     ? "← All dates"
-    : place === "staging" ? "← All of staging" : kind === "items" ? "← All items" : "← All characters";
+    : place === "staging" ? "← All of staging" : place === "items" ? "← All items" : "← All characters";
   title.textContent = "…";
   count.hidden = true;
   showLayout();
