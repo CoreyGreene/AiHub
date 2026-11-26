@@ -74,7 +74,17 @@
         <input id="rename-input" class="text-input" type="text" maxlength="60">
         <button id="rename-save" type="button" class="button small-button">Save</button>
       </div>
-      <div class="viewer-box">
+      <div id="compare-bar" class="compare-bar wide-only">
+        <button id="compare-toggle" type="button" class="button small-button" aria-pressed="false">Compare</button>
+        <select id="compare-with" class="text-input compare-with" aria-label="Compare with" hidden></select>
+        <span id="compare-note" class="muted small" hidden>Both the same height, turning together; the lines are tenths of their height.</span>
+      </div>
+      <div id="compare-box" class="compare-box" hidden>
+        <figure><model-viewer id="compare-left" interaction-prompt="none" camera-controls touch-action="pan-y" exposure="1" environment-image="neutral" shadow-intensity="0.6"></model-viewer><figcaption id="compare-left-name"></figcaption></figure>
+        <figure><model-viewer id="compare-right" interaction-prompt="none" camera-controls touch-action="pan-y" exposure="1" environment-image="neutral" shadow-intensity="0.6"></model-viewer><figcaption id="compare-right-name"></figcaption></figure>
+        <div class="compare-lines" aria-hidden="true"></div>
+      </div>
+      <div class="viewer-box" id="viewer-box">
         <model-viewer id="viewer" camera-controls touch-action="pan-y" shadow-intensity="0.6" exposure="1"
                       environment-image="neutral" interaction-prompt="none" auto-rotate auto-rotate-delay="2500"></model-viewer>
         <div id="viewer-note" class="viewer-note" hidden></div>

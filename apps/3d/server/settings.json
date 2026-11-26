@@ -2,6 +2,8 @@
   "_about": "MeshAi settings shared by every machine. Put this machine's own paths in server/settings.local.json (git-ignored); it is laid over this file.",
   "trellis_dir": "../../../trellis-mac",
   "_trellis_dir": "The TRELLIS.2 Mac port (github.com/shivampkumar/trellis-mac), set up with its own .venv and a local-model/ folder. Relative to this tool's folder (apps/3d, so ../../../trellis-mac sits beside Ai-Hub), or a full path.",
+  "_references": "Models to compare others with (the model page's Compare, on a wide screen), each {name, path to a .glb}. Set in settings.local.json, since they're this machine's files (for example a game's main character).",
+  "references": [],
   "library_dir": "library",
   "logs_dir": "logs",
   "max_queue": 500,

@@ -145,6 +145,31 @@ def delete_version(slug: str, version: str) -> dict:
     return {"ok": True, "model_left": library.get(slug) is not None}
 
 
+# ---------- references: models to compare others with ----------
+
+def _references() -> list[tuple[str, Path]]:
+    out = []
+    for r in settings.get().get("references", []):
+        path = Path(r.get("path", "")).expanduser()
+        if path.suffix.lower() == ".glb" and path.is_file():
+            out.append((r.get("name") or path.stem, path))
+    return out
+
+
+@app.get("/api/references")
+def references() -> list[dict]:
+    """The models to compare with (settings: references), for the model page's Compare."""
+    return [{"id": i, "name": name, "url": f"references/{i}.glb"} for i, (name, _) in enumerate(_references())]
+
+
+@app.get("/references/{index}.glb")
+def reference_file(index: int):
+    found = _references()
+    if not 0 <= index < len(found):
+        raise HTTPException(404)
+    return FileResponse(found[index][1], media_type="model/gltf-binary")
+
+
 @app.get("/files/{slug}/{rest:path}")
 def files(slug: str, rest: str):
     base = (library.root() / slug).resolve()

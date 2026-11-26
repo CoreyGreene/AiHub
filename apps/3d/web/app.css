@@ -247,3 +247,26 @@ model-viewer { display: block; width: 100%; height: min(70vh, 560px); --poster-c
   #view-make { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
   .library-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
 }
+
+/* The model page's Compare (wide screens): a reference and this model side by side, the same height. */
+.compare-bar { display: flex; gap: 10px; align-items: center; margin: 4px 0 10px; flex-wrap: wrap; }
+.compare-with { width: auto; min-width: 200px; }
+.compare-box { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.compare-box[hidden] { display: none; }
+.compare-box figure { margin: 0; }
+.compare-box model-viewer { width: 100%; height: 560px; background: radial-gradient(circle at 50% 40%, #2a2a38, #1b1b24); border-radius: 12px; }
+.compare-box figcaption { text-align: center; color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+/* Tenths of the figures' height. compare.js frames each figure from 10% to 90% of the view's height
+   (56 px to 504 px of 560), so a line every 44.8 px from the top of the head to the feet. */
+.compare-lines { position: absolute; left: 0; right: 0; top: 56px; height: 449px; pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.16) 0 1px, transparent 1px 44.8px); }
+@media (max-width: 759px) { .wide-only { display: none !important; } }
+
+/* Library cards: the model in 3D (clicks go to the card's link), and the page buttons. */
+.model .card-model { display: block; width: 100%; height: auto; aspect-ratio: 1; background: #fff; pointer-events: none;
+  --poster-color: #fff; }
+.pager { grid-column: 1 / -1; display: grid; gap: 10px; margin-top: 6px; }
+.pager-numbers { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px; }
+.pager-numbers .page-number { min-width: 40px; }
+.pager-numbers .page-number[aria-current] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pager-arrows { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

@@ -2,6 +2,7 @@
 // switch between its versions, download, delete, rename, make more.
 
 import { api, askFirst, el, plural, postJson, showError } from "./api.js";
+import { compareWith, stopComparing } from "./compare.js";
 
 const listCard = document.getElementById("library-list-card");
 const list = document.getElementById("library-list");
@@ -33,6 +34,7 @@ export function showLibrary(slug) {
   clearTimeout(timer);
   showError(modelError, null);
   if (slug) return openModel(slug);
+  stopComparing();
   model = null;
   modelCard.hidden = true;
   listCard.hidden = false;
@@ -51,6 +53,11 @@ async function loadList() {
 
 const busy = (v) => v.status === "waiting" || v.status === "working";
 
+// PAGE models a page, each shown in 3D (its newest version, turning); the list remembers its page when you open
+// a model and come back, and a new search starts at page 1.
+const PAGE = 20;
+let page = 0;
+
 function drawList() {
   const words = search.value.trim().toLowerCase();
   const found = everyone.filter((m) => m.name.toLowerCase().includes(words));
@@ -59,19 +66,72 @@ function drawList() {
       "No models yet. Make one on the Make tab, or many on the Bulk tab."));
     return;
   }
-  list.replaceChildren(...found.map(card));
+  const pages = Math.ceil(found.length / PAGE);
+  page = Math.min(page, pages - 1);
+  list.replaceChildren(...found.slice(page * PAGE, (page + 1) * PAGE).map(card));
+  if (pages > 1) list.append(pager(pages));
 }
-search.addEventListener("input", drawList);
+search.addEventListener("input", () => {
+  page = 0;
+  drawList();
+});
+
+function pager(pages) {
+  const bar = el("nav", "pager");
+  bar.setAttribute("aria-label", "Pages");
+  const go = (to) => {
+    page = to;
+    drawList();
+    list.scrollIntoView();
+  };
+  const button = (text, to, cls = "button small-button") => {
+    const b = el("button", cls, text);
+    b.type = "button";
+    b.disabled = to < 0 || to >= pages;
+    b.addEventListener("click", () => go(to));
+    return b;
+  };
+  const numbers = el("div", "pager-numbers");
+  let last = -1;
+  for (let n = 0; n < pages; n++) {
+    if (pages > 7 && n > 0 && n < pages - 1 && Math.abs(n - page) > 1) continue;
+    if (n - last > 1) numbers.append(el("span", "muted", "…"));
+    last = n;
+    const b = button(String(n + 1), n, "button small-button page-number");
+    if (n === page) b.setAttribute("aria-current", "page");
+    numbers.append(b);
+  }
+  const arrows = el("div", "pager-arrows");
+  arrows.append(button("← Previous", page - 1), button("Next →", page + 1));
+  bar.append(numbers, arrows);
+  return bar;
+}
 
 function card(m) {
   const a = el("a", "model");
   a.href = `#library/${encodeURIComponent(m.slug)}`;
-  const img = el("img");
-  img.alt = "";
-  img.loading = "lazy";
-  img.src = m.cover;
+  const newest = m.versions.filter((v) => v.status === "done").at(-1);
+  let look;
+  if (newest) {
+    // the model itself, turning slowly; its picture shows until it's loaded
+    look = document.createElement("model-viewer");
+    look.className = "card-model";
+    look.setAttribute("src", newest.url);
+    look.setAttribute("poster", m.cover);
+    look.setAttribute("loading", "lazy");
+    look.setAttribute("auto-rotate", "");
+    look.setAttribute("rotation-per-second", "20deg");
+    look.setAttribute("interaction-prompt", "none");
+    look.setAttribute("environment-image", "neutral");
+    look.setAttribute("exposure", "1");
+  } else {
+    look = el("img");
+    look.alt = "";
+    look.loading = "lazy";
+    look.src = m.cover;
+  }
   const making = m.versions.filter(busy).length;
-  a.append(img, el("h3", "", m.name),
+  a.append(look, el("h3", "", m.name),
     el("p", "muted", plural(m.count, "version") + (making ? ` · ${making} being made` : "")));
   return a;
 }
@@ -129,6 +189,7 @@ function showChosen() {
     viewerNote.textContent = !v ? "No versions." : v.status === "failed" ? `This version failed: ${v.message || "unknown error"}`
       : "This version is still being made. It appears here when it's done.";
   }
+  compareWith(model.name, ready ? v.url : "");
   download.setAttribute("aria-disabled", String(!ready));
   download.href = ready ? v.url : "#";
   download.download = ready ? `${model.slug}-${model.versions.indexOf(v) + 1}.glb` : "";
