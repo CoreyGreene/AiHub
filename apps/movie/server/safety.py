@@ -2,8 +2,9 @@
 through it before anyone sees it, and there is no switch to turn it off.
 
 Two small picture checkers (from the settings) each give a 0..1 "not safe"
-score to frames taken from the video (one in every few, and the last); the
-video is flagged if either checker reaches the threshold on any frame. They
+score to frames taken from the video (one in every few, and the last). A
+frame's score is the two averaged; the video is flagged when enough frames
+reach the threshold, or one is very high (check() says how). They
 run on the CPU so they don't take graphics memory from the video model.
 
 The checkers need PyTorch and transformers, which come with the video
@@ -52,6 +53,18 @@ def sample(frames: list) -> list:
     return picked
 
 
+def scores(frames: list) -> list[list[float]]:
+    """Each checker's "not safe" score (0..1) for each checked frame: [checker][frame]."""
+    import torch
+
+    rgb = [frame.convert("RGB") for frame in sample(frames)]
+    out = []
+    with torch.no_grad():
+        for model, processor, nsfw in _load():
+            out.append([float(x) for x in model(**processor(images=rgb, return_tensors="pt")).logits.softmax(-1)[:, nsfw]])
+    return out
+
+
 def score(frames: list) -> float:
     """0..1: the highest "not safe" score of any checker on any checked frame."""
     import torch
@@ -65,5 +78,24 @@ def score(frames: list) -> float:
     return worst
 
 
+def check(frames: list) -> tuple[bool, str]:
+    """(safe, what the checkers said, for the log). A checked frame's score is the average of the checkers, so
+    one checker's flicker can't block a video on its own. Not safe: `frames_needed` or more checked frames at
+    `threshold` or above, or any one at `sure` or above. (The checkers flicker frame to frame on harmless
+    videos of people, one of them up to 0.5 and more on a single frame; real nudity scores high on both, frame
+    after frame.)"""
+    s = settings.get()["safety"]
+    table = scores(frames)
+    per_frame = [sum(col) / len(col) for col in zip(*table)]
+    flagged = sum(1 for x in per_frame if x >= s["threshold"])
+    worst = max(per_frame)
+    safe = flagged < s["frames_needed"] and worst < s["sure"]
+    names = [Path(n).name.split("-")[0] for n in s["checkers"]]
+    said = (f"worst frame {worst:.2f} (frame {per_frame.index(worst) + 1} of {len(per_frame)}), "
+            f"{flagged} at {s['threshold']} or more; " +
+            ", ".join(f"{name} up to {max(row):.2f}" for name, row in zip(names, table)))
+    return safe, said
+
+
 def is_safe(frames: list) -> bool:
-    return score(frames) < settings.get()["safety"]["threshold"]
+    return check(frames)[0]

@@ -116,7 +116,8 @@ def generate(theme: dict, prompt: str, on_progress, image=None) -> tuple:
         on_progress("checking", 0, 0)
         file = made if isinstance(made, Path) else None
         frames = videos.read_frames(file) if file else made
-        if safety.is_safe(frames):
+        safe, said = safety.check(frames)
+        if safe:
             # Enough to make it again (Library → Copy settings), even if
             # the theme changes later.
             details = {
@@ -138,7 +139,7 @@ def generate(theme: dict, prompt: str, on_progress, image=None) -> tuple:
             return frames, details
         if file:
             file.unlink(missing_ok=True)
-        print(f"Nudity check stopped try {attempt} of {tries}")
+        print(f"Nudity check stopped try {attempt} of {tries} ({said})", flush=True)
     raise Blocked(BLOCKED_MESSAGE)
 
 
