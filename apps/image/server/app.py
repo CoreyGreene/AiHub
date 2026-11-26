@@ -543,6 +543,15 @@ def staging_group(folder: str) -> dict:
     return _with_theme_names(found)
 
 
+@app.delete("/api/staging/{folder}")
+def staging_delete(folder: str) -> dict:
+    """Library → Staging → a group's ✕: every picture in the group, gone for good (the page asks first)."""
+    found = pictures.character(folder, "staging")
+    if found is None:
+        raise HTTPException(404, "That group isn't in staging any more.")
+    return {"deleted": pictures.delete_saved([p["id"] for p in found["pictures"]])}
+
+
 class ApproveRequest(BaseModel):
     ids: list[str]
     character: str

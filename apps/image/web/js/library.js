@@ -157,13 +157,33 @@ function afterMoving(gone, message = "") {
   else showCharacter(folderShown, dateShown, message);
 }
 
-// Staging: add the chosen pictures to a character (they leave staging).
+// A staging group's name as a character's: without a run's marks at the end, like " v2", " (no prop)" or
+// " (fixed)": "Captain Barnacle v2" -> "Captain Barnacle".
+export function characterName(group) {
+  let name = (group || "").trim();
+  for (let last = ""; last !== name; ) {
+    last = name;
+    name = name.replace(/\s*\([^()]*\)\s*$/, "").replace(/\s+v\d+$/i, "").trim();
+  }
+  return name || (group || "").trim();
+}
+
+// Staging: add the chosen pictures to a character (they leave staging). The name starts as the group's.
 selectApprove.addEventListener("click", () => {
   selectActions.hidden = true;
   approveBox.hidden = false;
+  approveName.value = characterName(nameShown);
   approveName.focus();
+  approveName.select(); // typing replaces it; Enter keeps it
 });
 document.getElementById("approve-no").addEventListener("click", showChosen);
+// Enter in the name box is the same as Add (when pictures are chosen).
+approveName.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.isComposing && chosen.size) {
+    event.preventDefault();
+    document.getElementById("approve-yes").click();
+  }
+});
 document.getElementById("approve-pick").addEventListener("click", () => pickCharacter(approveName));
 document.getElementById("approve-yes").addEventListener("click", async () => {
   const character = approveName.value.trim();
@@ -259,7 +279,9 @@ async function showAll() {
       return;
     }
     if (staging) {
-      list.replaceChildren(...characters.map(card));
+      // characters first, then items (names starting with "Item"), each in the order the server gave
+      const ordered = [...characters.filter((c) => !isItem(c.name)), ...characters.filter((c) => isItem(c.name))];
+      list.replaceChildren(...ordered.map(card));
       return;
     }
     everyone = characters;
@@ -269,14 +291,30 @@ async function showAll() {
   }
 }
 
-// The characters (or items) whose name has the search words in it.
+// The characters (or items) whose name has the search words in it, a page at a time: 50 on a phone, 100 on a
+// wider screen. Each list remembers its page (coming back from a character returns to it); a new search starts at
+// page 1.
+const listPageSize = () => (matchMedia("(min-width: 760px)").matches ? 100 : 50);
+const listPage = { characters: 0, items: 0 };
+
 function showFiltered() {
   const items = place === "items";
   search.placeholder = items ? "Search items" : "Search characters";
   const words = search.value.trim().toLowerCase();
   const found = everyone.filter((c) => isItem(c.name) === items && c.name.toLowerCase().includes(words));
   if (found.length) {
-    list.replaceChildren(...found.map(card));
+    const size = listPageSize();
+    const pages = Math.ceil(found.length / size);
+    const page = Math.min(listPage[place] || 0, pages - 1);
+    listPage[place] = page;
+    list.replaceChildren(...found.slice(page * size, (page + 1) * size).map(card));
+    if (pages > 1) {
+      list.append(pagerBar(pages, page, (to) => {
+        listPage[place] = to;
+        showFiltered();
+        list.scrollIntoView();
+      }));
+    }
     return;
   }
   const note = document.createElement("p");
@@ -287,7 +325,10 @@ function showFiltered() {
   list.replaceChildren(note);
 }
 
-search.addEventListener("input", showFiltered);
+search.addEventListener("input", () => {
+  listPage[place] = 0; // a new search starts at page 1
+  showFiltered();
+});
 
 function card(character) {
   const item = document.createElement("a");
@@ -297,7 +338,51 @@ function card(character) {
   item.querySelector("img").src = character.cover;
   item.querySelector("h3").textContent = character.name;
   item.querySelector("p").textContent = pictures(character.count);
+  if (place === "staging") item.append(deleteGroupButton(character, item));
   return item;
+}
+
+// Staging: a ✕ on each group, to clear out the ones you don't want. A first tap asks "Delete?";
+// a second within a few seconds deletes the whole group (its pictures, for good).
+function deleteGroupButton(group, item) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "card-delete";
+  b.textContent = "✕";
+  b.setAttribute("aria-label", `Delete ${group.name}`);
+  let sure = null;
+  b.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!sure) {
+      b.textContent = "Delete?";
+      b.classList.add("sure");
+      sure = setTimeout(() => {
+        sure = null;
+        b.textContent = "✕";
+        b.classList.remove("sure");
+      }, 4000);
+      return;
+    }
+    clearTimeout(sure);
+    b.disabled = true;
+    b.textContent = "…";
+    try {
+      const res = await fetch(`api/staging/${encodeURIComponent(group.folder)}`, { method: "DELETE" });
+      if (!res.ok) throw new Error((await res.json()).detail);
+      item.remove();
+      if (!list.querySelector(".character")) {
+        list.innerHTML = `<p class="muted">Nothing here. Start a workflow on the Workflows tab; its pictures show up here.</p>`;
+      }
+    } catch (err) {
+      b.disabled = false;
+      b.textContent = "Didn't delete";
+      setTimeout(() => (b.textContent = "✕"), 3000);
+      b.classList.remove("sure");
+      sure = null;
+    }
+  });
+  return b;
 }
 
 async function showCharacter(folder, date = "", message = "") {
@@ -371,11 +456,7 @@ function showPage(all, size, about) {
   count.textContent = pages > 1 ? `${about} Showing ${from + 1}–${from + shown.length}.` : about;
   list.replaceChildren(...shown.map(pictureCard));
   if (pages === 1) return;
-
-  const bar = document.createElement("nav");
-  bar.className = "pager";
-  bar.setAttribute("aria-label", "Pages");
-  const go = (to) => {
+  list.append(pagerBar(pages, pageShown, (to) => {
     pageShown = to;
     if (selecting) {
       chosen.clear(); // choosing is per page
@@ -383,7 +464,15 @@ function showPage(all, size, about) {
     }
     showPage(all, size, about);
     list.scrollIntoView();
-  };
+  }));
+}
+
+// Page buttons: a button per page (all of them when there are few, otherwise the first, the last and the ones
+// next to this page, with … between, so it fits one line on a phone), and Previous / Next. go(n) shows page n.
+function pagerBar(pages, current, go) {
+  const bar = document.createElement("nav");
+  bar.className = "pager";
+  bar.setAttribute("aria-label", "Pages");
   const button = (text, to, className = "button") => {
     const b = document.createElement("button");
     b.type = "button";
@@ -393,18 +482,15 @@ function showPage(all, size, about) {
     b.addEventListener("click", () => go(to));
     return b;
   };
-  // A button per page: all of them when there are few, otherwise the
-  // first, the last and the ones next to this page, with … between (so
-  // it fits one line on a phone).
   const numbers = document.createElement("div");
   numbers.className = "pager-numbers";
   let last = -1;
   for (let n = 0; n < pages; n++) {
-    if (pages > 7 && n > 0 && n < pages - 1 && Math.abs(n - pageShown) > 1) continue;
+    if (pages > 7 && n > 0 && n < pages - 1 && Math.abs(n - current) > 1) continue;
     if (n - last > 1) numbers.append(Object.assign(document.createElement("span"), { className: "muted", textContent: "…" }));
     last = n;
     const b = button(String(n + 1), n, "button page-number");
-    if (n === pageShown) {
+    if (n === current) {
       b.setAttribute("aria-current", "page");
       b.setAttribute("aria-label", `Page ${n + 1}, shown now`);
     } else b.setAttribute("aria-label", `Page ${n + 1}`);
@@ -412,9 +498,9 @@ function showPage(all, size, about) {
   }
   const arrows = document.createElement("div");
   arrows.className = "pager-arrows";
-  arrows.append(button("← Previous", pageShown - 1), button("Next →", pageShown + 1));
+  arrows.append(button("← Previous", current - 1), button("Next →", current + 1));
   bar.append(numbers, arrows);
-  list.append(bar);
+  return bar;
 }
 
 // The pictures grouped by day, newest day first.

@@ -337,6 +337,15 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
 .character h3 { margin: 8px 10px 0; font-size: 1rem; }
 .character p { margin: 2px 10px 10px; font-size: 0.85rem; }
 .character:hover, .character:focus-visible { border-color: var(--accent); }
+.character { position: relative; }
+/* Staging: the ✕ on a group (first tap: "Delete?", second: deletes it). */
+.card-delete {
+  position: absolute; top: 6px; right: 6px; min-width: 36px; min-height: 36px; padding: 0 10px;
+  font: 600 0.9rem system-ui, sans-serif; color: #fff; background: rgba(22, 22, 29, 0.75);
+  border: 1px solid var(--line); border-radius: 999px; cursor: pointer;
+}
+.card-delete:hover { border-color: #d9534f; }
+.card-delete.sure { background: #d9534f; border-color: #d9534f; }
 
 /* Character name box with "Pick" beside it. */
 .name-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
@@ -357,6 +366,8 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
 .chooser-head h2 { margin: 0; }
 .chooser-head .button { width: 48px; }
 .chooser > p { margin: 6px 0 14px; }
+/* the search box stays at the top while the list scrolls */
+.chooser-search { position: sticky; top: -1px; z-index: 1; margin-bottom: 12px; box-shadow: 0 6px 10px -4px var(--card); }
 .choice-list { display: flex; flex-direction: column; gap: 8px; }
 .choice {
   min-height: 52px;
@@ -908,5 +919,5 @@ button, .button, a, input, select, textarea, label, .viewer { touch-action: mani
 }
 
 /* Library: the search box over the characters (or items). */
-.library-filter { display: grid; gap: 10px; margin: 12px 0 4px; }
+.library-filter { display: grid; gap: 10px; margin: 12px 0 16px; }
 .library-filter[hidden] { display: none; }
