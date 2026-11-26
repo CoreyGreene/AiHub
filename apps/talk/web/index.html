@@ -26,8 +26,27 @@
         </span>
         <input id="always" type="checkbox" role="switch">
       </label>
+      <div class="device-row">
+        <label class="small" for="mic">Microphone
+          <select id="mic" class="field"></select></label>
+        <label class="small" for="speakers">Speakers
+          <select id="speakers" class="field"></select></label>
+      </div>
       <p id="listen-state" class="muted small" hidden></p>
       <p id="listen-message" class="note left" hidden></p>
+      <details id="phrase-training" class="phrase-training" hidden>
+        <summary>Train wake and goodbye phrases</summary>
+        <p class="muted small">Turn Always listening off, then record examples using the microphone chosen above. Say each phrase once per recording. Examples stay on this Mac.</p>
+        <label class="label" for="phrase-kind">Phrase</label>
+        <select id="phrase-kind" class="field"></select>
+        <p id="phrase-count" class="muted small"></p>
+        <div class="row phrase-buttons">
+          <button type="button" id="phrase-record" class="button">Record example</button>
+          <button type="button" id="phrase-test" class="button">Test phrase</button>
+          <button type="button" id="phrase-clear" class="button">Clear examples</button>
+        </div>
+        <p id="phrase-status" class="small" role="status"></p>
+      </details>
     </section>
 
     <section class="card">

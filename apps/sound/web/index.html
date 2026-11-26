@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#15131c">
+  <title>Sound AI</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="app.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <main>
+    <header class="masthead">
+      <div><h1>Sound AI</h1><p>Make sound effects from a prompt.</p></div>
+      <nav aria-label="Sound AI views">
+        <button type="button" id="create-tab" aria-controls="create" aria-current="page">Create</button>
+        <button type="button" id="library-tab" aria-controls="library">Library <span id="library-count"></span></button>
+      </nav>
+    </header>
+
+    <section id="create">
+      <form id="generate-form" class="panel">
+        <label for="prompt">Describe the sound</label>
+        <textarea id="prompt" required rows="4" maxlength="1500"
+          placeholder="Three heavy bootsteps across a hollow metal floor, with a short echo"></textarea>
+        <div class="form-footer">
+          <div class="model-field">
+            <label for="model">Model</label>
+            <select id="model" required><option value="">Loading model…</option></select>
+          </div>
+          <div class="duration">
+            <label for="seconds">Length</label>
+            <div class="duration-input"><input type="number" id="seconds" min="1" max="30" step="0.5" value="3" required><span>sec</span></div>
+          </div>
+          <button type="submit" id="generate" class="primary" disabled>Generate sound</button>
+        </div>
+        <div class="job" id="job" hidden>
+          <progress id="progress" max="8" aria-label="Generation progress"></progress>
+          <p id="job-status" role="status"></p>
+        </div>
+      </form>
+
+      <section aria-labelledby="recent-title" class="results">
+        <div class="section-head">
+          <h2 id="recent-title">Recent sounds</h2>
+          <button type="button" class="remove" id="delete-recent" hidden>Delete all recent sounds</button>
+        </div>
+        <div class="recent-confirm" id="recent-confirm" hidden>
+          <p>Delete all unsaved sounds?</p>
+          <div class="clip-actions">
+            <button type="button" class="remove" id="confirm-delete-recent">Delete all unsaved</button>
+            <button type="button" id="cancel-delete-recent">Cancel</button>
+          </div>
+        </div>
+        <p id="recent-status" class="clip-status" role="status" hidden></p>
+        <div id="recent" class="clip-list"></div>
+      </section>
+    </section>
+
+    <section id="library" class="results" hidden>
+      <div class="section-head library-head">
+        <h2>Saved sounds</h2>
+        <input type="search" id="search" aria-label="Search saved sounds" placeholder="Search sounds">
+      </div>
+      <div id="saved" class="clip-list"></div>
+    </section>
+    <p id="notice" role="status" class="notice" hidden></p>
+  </main>
+
+  <template id="clip-template">
+    <article class="clip">
+      <div class="clip-head"><h3></h3><span class="length"></span></div>
+      <p class="clip-prompt"></p>
+      <audio controls preload="none"></audio>
+      <form class="save-form">
+        <label class="sr-only"><span class="label-text">Sound name</span><input maxlength="100" required placeholder="Name this sound"></label>
+        <button class="primary" type="submit">Save to Library</button>
+      </form>
+      <div class="clip-actions">
+        <a class="download">Download WAV</a>
+        <button type="button" class="reuse">Use prompt</button>
+        <button type="button" class="remove">Delete</button>
+      </div>
+      <p class="clip-status" role="status" hidden></p>
+    </article>
+  </template>
+</body>
+</html>

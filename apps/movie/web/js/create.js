@@ -13,6 +13,7 @@ const els = {
   form: document.getElementById("make"),
   prompt: document.getElementById("prompt"),
   promptError: document.getElementById("prompt-error"),
+  length: document.getElementById("video-length"),
   character: document.getElementById("character"),
   characterError: document.getElementById("character-error"),
   button: document.getElementById("generate"),
@@ -69,6 +70,7 @@ async function onGenerate(event) {
   // keyboard can hide).
   els.promptError.hidden = Boolean(prompt);
   if (!prompt) return;
+  if (!els.length.validity.valid) return showNote("Check the length", "Enter a number between 1 and 60.25 seconds, or leave it blank.");
 
   const advanced = isAdvanced();
   const count = advanced ? Number(els.count.value) : 1;
@@ -86,7 +88,10 @@ async function onGenerate(event) {
     const res = await fetch("api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ theme, prompt, count, words, custom, start_picture: startPictureId() }),
+      body: JSON.stringify({
+        theme, prompt, count, words, custom, start_picture: startPictureId(),
+        seconds: els.length.value ? els.length.valueAsNumber : null,
+      }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail);
@@ -262,6 +267,7 @@ async function onSave() {
 // its character, ready to tweak and Generate again.
 export function startFrom(recipe) {
   els.prompt.value = recipe.prompt;
+  els.length.value = "";
   els.promptError.hidden = true;
   els.character.value = recipe.character;
   els.characterError.hidden = true;
@@ -279,6 +285,7 @@ export function startFrom(recipe) {
 export function startOver() {
   resetTheme();
   els.prompt.value = "";
+  els.length.value = "";
   els.promptError.hidden = true;
   els.character.value = "";
   els.characterError.hidden = true;

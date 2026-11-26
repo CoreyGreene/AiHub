@@ -58,6 +58,13 @@
         <span id="prompt-error" class="error-line" hidden>Type a prompt first: describe the video you want, and what moves.</span>
       </label>
 
+      <div class="field">
+        <label class="label" for="video-length">Length in seconds</label>
+        <input id="video-length" class="text-input" type="number" inputmode="decimal" min="1" max="60.25"
+               step="any" placeholder="Default length" aria-describedby="video-length-hint">
+        <p id="video-length-hint" class="hint-line">Leave blank for the default. At 24 frames a second, up to 10 seconds.</p>
+      </div>
+
       <div id="start-field" class="field" hidden>
         <span class="label">Start picture <span class="optional">(optional)</span></span>
         <p class="hint-line">The video begins from this picture. Say in the prompt what moves.</p>

@@ -48,3 +48,12 @@ h2 { margin: 0; font-size: 1.1rem; }
 .switch-row input:checked { background: var(--accent); }
 .switch-row input:checked::after { left: 23px; }
 .note.left { text-align: left; }
+
+/* Always listening's microphone and speakers */
+.device-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.device-row label { display: grid; gap: 4px; color: var(--muted); }
+@media (max-width: 480px) { .device-row { grid-template-columns: 1fr; } }
+.phrase-training { margin-top: 12px; }
+.phrase-training summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
+.phrase-training select { width: 100%; }
+.phrase-buttons { flex-wrap: wrap; }

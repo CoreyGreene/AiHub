@@ -52,7 +52,7 @@ async function build(from) {
       field("Words after your prompt", f.after),
       field("What to avoid", f.negative, "The safety words are always added too"),
       pair(field("Width", f.width), field("Height", f.height)),
-      pair(field("Frames", f.frames), field("Frames a second", f.fps)),
+      pair(field("Default frames", f.frames, "Used when Length is blank"), field("Frames a second", f.fps)),
       lengthNote(f.frames, f.fps),
       pair(field("Steps", f.steps, "More = more detail, slower"), field("Guidance", f.guidance, "How closely it follows the prompt")),
       field("Sampler", f.sampler)

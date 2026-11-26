@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from . import generation, gpu, jobs, lock, settings, themes, uploads, videos
 from .backends import TAKES_PICTURE
@@ -111,6 +111,7 @@ class GenerateRequest(BaseModel):
     count: int = 1
     words: ThemeWords | None = None  # Advanced: in place of the theme's own
     custom: CustomChoice | None = None
+    seconds: float | None = Field(default=None, ge=1, le=60.25)
     start_picture: str = ""  # an id from /api/start-pictures (themes that can begin from one)
 
 
@@ -151,8 +152,8 @@ def _check_video_settings(req, found: dict) -> None:
     for label, value in (("Width", req.width), ("Height", req.height)):
         if not 256 <= value <= 1920 or value % 16:
             raise HTTPException(400, f"{label} must be 256 to 1920, and divide by 16.")
-    if not 1 <= req.frames <= 241:
-        raise HTTPException(400, "Frames must be 1 to 241.")
+    if not 1 <= req.frames <= generation.MAX_FRAMES:
+        raise HTTPException(400, f"Frames must be 1 to {generation.MAX_FRAMES}.")
     if not 4 <= req.fps <= 60:
         raise HTTPException(400, "Frames a second must be 4 to 60.")
     if not 1 <= req.steps <= 100:
@@ -294,6 +295,11 @@ def generate(req: GenerateRequest) -> dict:
         # The theme's words as changed on the Advanced tab (the file stays as it is).
         w = req.words
         theme = {**theme, "prompt": _prompt_template(w.prompt_before, w.prompt_after), "negative": _tidy(w.negative)}
+    if req.seconds is not None:
+        try:
+            theme = {**theme, "frames": generation.frames_for_length(theme, req.seconds)}
+        except ValueError as err:
+            raise HTTPException(400, str(err)) from err
     image = None
     if req.start_picture:
         if theme["backend"] not in TAKES_PICTURE:

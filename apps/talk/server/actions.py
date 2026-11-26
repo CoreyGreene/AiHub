@@ -130,6 +130,78 @@ def how_are_jobs() -> str:
     return "; ".join(said) or "None of the tools with a queue is running."
 
 
+# ---------- notes: things said aloud, added to a file (playtest notes and the like) ----------
+
+def _slug(name: str) -> str:
+    import re
+
+    return re.sub(r"[^a-z0-9]+", "-", (name or "").lower().replace("notes", "").replace("file", "")).strip("-")
+
+
+def _notes_file(name: str):
+    """(name, path) of the notes called name. Names in settings' notes ({name: path}, e.g. game -> the game's
+    docs/playtest-notes.md) go where they say; any other name is its own file in notes_folder (made when first
+    used); no name is the general notes there (notes.md)."""
+    from pathlib import Path
+
+    files = {_slug(k): v for k, v in (settings.get().get("notes") or {}).items()}
+    key = _slug(name)
+    if key in files:
+        return key, Path(files[key]).expanduser()
+    folder = Path(settings.get()["notes_folder"]).expanduser()
+    if not folder.is_absolute():
+        folder = settings.ROOT / folder
+    return (key or "general"), folder / f"{key or 'notes'}.md"
+
+
+def list_notes() -> str:
+    """Which notes there are, and how many lines each has."""
+    from pathlib import Path
+
+    found = {}
+    for name, path in (settings.get().get("notes") or {}).items():
+        found[_slug(name)] = Path(path).expanduser()
+    folder = Path(settings.get()["notes_folder"]).expanduser()
+    for path in sorted(folder.glob("*.md")) if folder.is_dir() else []:
+        found.setdefault("general" if path.stem == "notes" else path.stem, path)
+    said = []
+    for name, path in found.items():
+        n = sum(1 for line in path.read_text(encoding="utf-8").splitlines() if line.startswith("- ")) \
+            if path.exists() else 0
+        if n:
+            said.append(f"{name} ({n})")
+    return ("Notes: " + ", ".join(said)) if said else "There are no notes yet."
+
+
+def add_note(note: str, file: str = "") -> str:
+    """Add a note to the end of a notes file, under a heading for today, with the time."""
+    note = " ".join((note or "").split()).strip()
+    if not note:
+        return "There was nothing to note."
+    name, path = _notes_file(file)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = path.read_text(encoding="utf-8") if path.exists() else (
+        f"# {name.replace('-', ' ').capitalize()} notes\n\nSaid aloud to Talk, newest at the bottom: one line each, "
+        "the date above, the time before each.\n")
+    day = time.strftime("%Y-%m-%d (%A)")
+    if f"\n## {day}\n" not in text:
+        text = text.rstrip("\n") + f"\n\n## {day}\n\n"
+    text = text.rstrip("\n") + f"\n- {time.strftime('%H:%M')} {note}\n"
+    path.write_text(text, encoding="utf-8")
+    count = sum(1 for line in text.splitlines() if line.startswith("- "))
+    return f"Added to the {name} notes ({count} so far): {note}"
+
+
+def read_notes(file: str = "", how_many: int = 5) -> str:
+    """The last few notes in a notes file, and how many there are."""
+    name, path = _notes_file(file)
+    if not path.exists():
+        return f"The {name} notes are empty."
+    notes = [line[2:] for line in path.read_text(encoding="utf-8").splitlines() if line.startswith("- ")]
+    last = notes[-max(1, min(int(how_many or 5), 20)):]
+    return f"{len(notes)} {name} notes in all. The last {len(last)}: " + " | ".join(last)
+
+
 def _def(name, about, props=None, required=None):
     return {"type": "function", "function": {"name": name, "description": about, "parameters": {
         "type": "object", "properties": props or {}, "required": required or []}}}
@@ -146,9 +218,17 @@ DEFINITIONS = [
     _def("make_video", "Make a short video with sound in Movie AI from a description of what happens.",
          {"prompt": {"type": "string"}}, ["prompt"]),
     _def("how_are_jobs", "How the queues are going: pictures, videos and Code AI questions waiting or being made."),
+    _def("add_note", "Add a note to a notes file, for later. note: what the user said, in their words, tidied only a "
+         "little. file: the name of the notes the user said (\"my game notes\" -> game, \"grocery list\" -> grocery, "
+         "\"ideas\" -> ideas); each name is its own file, made when first used. Leave file empty when they named none.",
+         {"note": {"type": "string"}, "file": {"type": "string"}}, ["note"]),
+    _def("read_notes", "Read back the last few notes in one notes file (by its name, as for add_note), and how many.",
+         {"file": {"type": "string"}, "how_many": {"type": "integer"}}),
+    _def("list_notes", "Which notes files there are, and how many notes each has."),
 ]
 _RUN = {"whats_running": whats_running, "start_tool": start_tool, "stop_tool": stop_tool,
-        "make_picture": make_picture, "make_video": make_video, "how_are_jobs": how_are_jobs}
+        "make_picture": make_picture, "make_video": make_video, "how_are_jobs": how_are_jobs,
+        "add_note": add_note, "read_notes": read_notes, "list_notes": list_notes}
 
 
 def run(name: str, arguments) -> str:

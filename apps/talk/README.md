@@ -10,15 +10,28 @@ hearing behind the 🎤 buttons on every prompt box.
 - **The Talk page:** tap Talk and talk. It hears when you stop, answers, then listens again; talk over it to
   interrupt it; tap to end. The mic works on a secure page, so for now on the Mac itself (`localhost`).
 - **Always listening:** a switch on the page. Talk then listens on the Mac through its own microphone for the wake
-  word (`wake_word_said`, "Hey Jarvis" for now) and answers out of its speakers, no page needed. Until it hears
-  the wake word only the tiny wake word model runs, and nothing said is kept. After the wake word: a chime, what
-  you say, its answer, and it waits a few seconds for a follow-up before a falling chime. Saying the wake word while
+  phrase (`wake_phrase`, "Hello Octavia": short stretches of speech are checked by Whisper; or a wake word model,
+  `wake_mode`) and answers out of its speakers, no page needed. "Hello Octavia, what's running?" works in one
+  breath. Nothing said is kept until it hears the wake phrase. After the wake word: a chime, what
+  you say, its answer, and it waits a few seconds for a follow-up before a falling chime. Say "Goodbye Octavia"
+  or "Bye Octavia" on its own while Talk is listening to end the conversation early and go back to waiting for
+  "Hello Octavia".
+  Saying the wake word while
   it talks stops it. While it's on, AiHub starts Talk with itself.
+- **Train wake and goodbye phrases:** turn Always listening off, then open the training section on the
+  Talk page. Record at least five examples of each phrase you want to train. Use Test phrase with a new
+  recording, then turn Always listening back on. Talk compares short recordings with your examples
+  when the transcript misses the phrase. The examples are stored locally as sound features.
 
 ## What it can do when asked
 
 Say what's running and the Mac's memory; start or stop Image AI, 3D AI, Code AI or Movie AI; make a picture (with a
-theme) or a video; say how the queues are going. Each is a small function in `server/actions.py` that calls AiHub.
+theme) or a video; say how the queues are going; **take notes**: "add to my grocery notes: milk and eggs" adds a
+line (with the time, under the day) to that name's file, `notes_folder/grocery.md`, made when first used ("make a
+note: ..." with no name: `notes.md`). "What notes do I have?" lists them; "what's in my game notes?" reads them
+back. `notes` in `server/settings.local.json` can send a name elsewhere (e.g. game → the game's
+`docs/playtest-notes.md`, so Claude can later turn them into tasks). Each action is a small function in
+`server/actions.py`.
 
 ## Voices
 

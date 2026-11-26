@@ -17,6 +17,9 @@
   "_pictures": "Pictures Talk makes: the Image AI theme used when none is asked for (its id or name), and the Staging group they go in (Library \u2192 Staging).",
   "picture_theme": "becky-style",
   "picture_group": "Talk",
+  "_notes": "Notes Talk adds to when asked (\"add to my game notes: ...\"). Each name is its own file in notes_folder (made when first used; no name = notes.md there), unless notes ({name: path}, in settings.local.json since they're this machine's paths) sends that name somewhere else.",
+  "notes": {},
+  "notes_folder": "notes",
   "_voices": "The voices to pick from: id, name (shown), model (a folder in models_dir), voice (the model's own name for it), lang_code (Kokoro: a = American, b = British), instruct (Qwen3-TTS: how to say it), about. The first is the default.",
   "voices": [
     {
@@ -71,13 +74,18 @@
   "_voice": "The voice used, by id (the page's picker saves it in settings.local.json).",
   "voice": "heart",
   "_persona": "Who Talk is and how it talks: the start of what the model is told.",
-  "persona": "You are Octavia, the user's voice assistant, running entirely on their Mac. You talk out loud, so speak the way a friendly, quick-witted person talks: short natural sentences, usually one to three, never lists, headings, markdown, emoji or code. Say numbers and names so they sound right spoken. If you're asked to do something you have a tool for, do it, then say in a few words what you did. If you can't do something, say so plainly. Don't make things up: if you don't know, say so.",
+  "persona": "You are Octavia, the user's voice assistant, running entirely on their Mac. You talk out loud, so speak the way a friendly, quick-witted person talks: short natural sentences, usually one to three, never lists, headings, markdown, emoji or code. Say numbers and names so they sound right spoken. If you're asked to do something you have a tool for, do it, then say in a few words what you did. If you can't do something, say so plainly. When you add a note, the user is busy (for example playing a game): answer with one or two words, like \"Noted.\" Don't make things up: if you don't know, say so.",
   "_always_listening": "Listen on this Mac all the time for the wake word, through its own microphone and speakers (listener.py). Turned on and off on the Talk page (saved in settings.local.json). AiHub then starts Talk with itself.",
   "always_listening": false,
+  "_mic_speakers": "Always listening's microphone and speakers, by name (\"\" = the Mac's default). Picked on the Talk page (saved in settings.local.json). By name, so plugging in headphones doesn't move Talk onto them.",
+  "mic": "",
+  "speakers": "",
   "_wake_mode": "How it hears the wake phrase: \"phrase\" = short stretches of speech written down by Whisper and checked for wake_phrase (any phrase works, at once; uses a little more power when people talk nearby); \"model\" = a wake word model in openWakeWord (wake_word), tiny, but each needs training.",
   "wake_mode": "phrase",
   "_wake_phrase": "The wake phrase (wake_mode phrase). What's said after it in the same breath is the first question.",
   "wake_phrase": "Hello Octavia",
+  "end_phrase": "Goodbye Octavia",
+  "end_phrase_aliases": ["Bye Octavia", "Good bye Octavia"],
   "_wake_phrase_timing": "wake_mode phrase, in seconds: the pause that ends a stretch of speech to check, and the longest stretch checked (longer is just people talking).",
   "wake_pause_seconds": 0.6,
   "wake_longest_seconds": 6,
@@ -91,6 +99,8 @@
   "follow_up_seconds": 8,
   "pause_seconds": 0.9,
   "longest_seconds": 20,
+  "_carry_on_seconds": "After the wake phrase and a request in one breath, how long it listens for more (a pause mid-sentence) before it acts.",
+  "carry_on_seconds": 1.5,
   "_speech_level": "How loud counts as speaking (16-bit loudness); it also adjusts to the room.",
   "speech_level": 450
 }

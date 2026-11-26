@@ -22,10 +22,19 @@ DEFAULTS = {
     "width": 832, "height": 480, "frames": 81, "fps": 16,
     "steps": 30, "guidance": 5.0, "scheduler": "default",
 }
+MAX_FRAMES = 241
 
 
 def _setting(theme: dict, key: str):
     return theme.get(key, DEFAULTS[key])
+
+
+def frames_for_length(theme: dict, seconds: float) -> int:
+    fps = _setting(theme, "fps")
+    if seconds * fps > MAX_FRAMES:
+        raise ValueError(f"At {fps} frames a second, the longest video is about {MAX_FRAMES / fps:.1f} seconds.")
+    stride = {"ltx-mlx": 8, "diffusers-wan": 4}.get(theme["backend"], 1)
+    return round((seconds * fps - 1) / stride) * stride + 1
 
 
 def describe(theme: dict) -> dict:

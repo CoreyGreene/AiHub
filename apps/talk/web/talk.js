@@ -326,8 +326,10 @@ async function showListening(data) {
   data ||= await fetch("api/listening").then((r) => r.json()).catch(() => null);
   if (!data) return;
   always.checked = data.on;
+  updatePhraseTraining();
   $("listen-about").textContent = `On this Mac, through its own mic and speakers: say "${data.wake_word}" any time ` +
-    "to start talking, no page needed. Only the wake word is listened for until then.";
+    "to start talking, no page needed." +
+    (data.end_phrase ? ` Say "${data.end_phrase}" on its own to end the conversation.` : "");
   const words = STATE_WORDS[data.state] || data.state;
   $("listen-state").textContent = words ? `Now: ${words}` : "";
   $("listen-state").hidden = !words;
@@ -354,8 +356,123 @@ always.addEventListener("change", async () => {
   }
 });
 
+// Always listening's microphone and speakers (on the Mac), picked by name.
+const micSelect = $("mic");
+const speakerSelect = $("speakers");
+
+async function loadDevices() {
+  const data = await fetch("api/devices").then((r) => r.json()).catch(() => null);
+  if (!data) return;
+  const fill = (select, names, picked) => {
+    const options = [new Option("The Mac's default", ""), ...names.map((n) => new Option(n, n))];
+    if (picked && !names.includes(picked)) options.push(new Option(`${picked} (not connected)`, picked));
+    select.replaceChildren(...options);
+    select.value = picked;
+  };
+  fill(micSelect, data.inputs, data.mic);
+  fill(speakerSelect, data.outputs, data.speakers);
+}
+
+async function saveDevices() {
+  micSelect.disabled = speakerSelect.disabled = true;
+  try {
+    await fetch("api/devices", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mic: micSelect.value, speakers: speakerSelect.value }) });
+    await loadDevices();
+    showListening();
+  } finally {
+    micSelect.disabled = speakerSelect.disabled = false;
+  }
+}
+micSelect.addEventListener("change", saveDevices);
+speakerSelect.addEventListener("change", saveDevices);
+
+// ---------- personal phrase examples ----------
+
+const phraseKind = $("phrase-kind");
+const phraseRecord = $("phrase-record");
+const phraseTest = $("phrase-test");
+const phraseClear = $("phrase-clear");
+const phraseStatus = $("phrase-status");
+let phraseTraining = null, phraseBusy = false, confirmClear = false;
+
+function updatePhraseTraining() {
+  if (!phraseTraining) return;
+  const { counts, minimum, wake_mode } = phraseTraining;
+  const kind = phraseKind.value;
+  const unavailable = kind === "wake" && wake_mode !== "phrase";
+  const ready = counts[kind] >= minimum;
+  $("phrase-count").textContent = unavailable ? "Wake examples need phrase mode." :
+    ready ? `${counts[kind]} examples saved. Ready to test.` : `${counts[kind]} of ${minimum} examples saved.`;
+  phraseKind.disabled = phraseBusy;
+  phraseRecord.disabled = phraseBusy || always.checked || unavailable;
+  phraseTest.disabled = phraseRecord.disabled || !ready;
+  phraseClear.disabled = phraseBusy;
+}
+
+async function loadPhraseTraining() {
+  try {
+    const res = await fetch("api/phrase-examples");
+    if (!res.ok) return;
+    phraseTraining = await res.json();
+    phraseKind.replaceChildren(...Object.entries(phraseTraining.phrases)
+      .map(([kind, phrase]) => new Option(phrase, kind)));
+    $("phrase-training").hidden = false;
+    updatePhraseTraining();
+  } catch { /* The Talk server may still be starting. */ }
+}
+
+async function trainPhrase(action) {
+  if (phraseBusy) return;
+  if (action === "clear" && !confirmClear) {
+    confirmClear = true;
+    phraseClear.textContent = "Confirm clear";
+    phraseStatus.textContent = "This clears the examples for both phrases.";
+    return;
+  }
+  confirmClear = false;
+  phraseClear.textContent = "Clear examples";
+  phraseBusy = true;
+  updatePhraseTraining();
+  const kind = phraseKind.value;
+  phraseStatus.textContent = action === "clear" ? "Clearing…" : "Get ready…";
+  try {
+    if (action !== "clear") {
+      await new Promise((resolve) => setTimeout(resolve, 650));
+      phraseStatus.textContent = `Recording for 3 seconds. Say “${phraseTraining.phrases[kind]}” once.`;
+    }
+    const url = action === "clear" ? "api/phrase-examples" :
+      `api/phrase-examples/${kind}?test=${action === "test"}`;
+    const res = await fetch(url, { method: action === "clear" ? "DELETE" : "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    if (action === "test") {
+      const heard = data.heard ? `Whisper heard “${data.heard}”.` : "Whisper didn’t hear clear words.";
+      const result = data.matched ? "Your voice examples matched." :
+        data.whisper_matched ? "Whisper recognized the phrase on its own." :
+          "Neither method recognized the phrase.";
+      phraseStatus.textContent = `${result} ${heard}`;
+    } else {
+      phraseTraining = data;
+      phraseStatus.textContent = action === "clear" ? "Examples cleared." : "Example saved.";
+    }
+  } catch (err) {
+    phraseStatus.textContent = err.message || "Couldn’t use the microphone.";
+  } finally {
+    phraseBusy = false;
+    updatePhraseTraining();
+  }
+}
+
+phraseKind.addEventListener("change", updatePhraseTraining);
+phraseRecord.addEventListener("click", () => trainPhrase("record"));
+phraseTest.addEventListener("click", () => trainPhrase("test"));
+phraseClear.addEventListener("click", () => trainPhrase("clear"));
+
 setState("idle");
 loadVoices();
+loadDevices();
+loadPhraseTraining();
 shownLog = Date.now();
 showListening();
 setInterval(showListening, 2000);

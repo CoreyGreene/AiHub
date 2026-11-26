@@ -17,6 +17,8 @@
      "about": "Ask the local models, bulk jobs, pipelines"},
     {"id": "movie", "name": "Movie AI", "folder": "apps/movie", "port": 8410, "models": "MovieModels",
      "about": "Short videos from a prompt"},
+    {"id": "sound", "name": "Sound AI", "folder": "apps/sound", "port": 8610, "models": "SoundModels",
+     "about": "Sound effects from a prompt, with a WAV library"},
     {"id": "talk", "name": "Talk", "folder": "apps/talk", "port": 8510, "models": "SoundModels",
      "about": "Talk with your local AI: it listens, answers out loud and does things"}
   ],
