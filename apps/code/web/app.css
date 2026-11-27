@@ -442,6 +442,104 @@ select.text-input { appearance: auto; }
 
 /* the folder / file picker (picker.js) */
 .picked-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+#editor-path { margin: 0; }
+#editor-path, #editor-message { overflow-wrap: anywhere; }
+#ask-chat[hidden] { display: none; }
+#editor-panel:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  height: max(320px, calc(100dvh - 16px - env(safe-area-inset-bottom)));
+  scroll-margin-top: 8px;
+}
+#editor-panel .result-head { flex-wrap: wrap; gap: 8px; }
+#editor-panel .result-head .picked-row { margin-left: auto; }
+.editor-buffer {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  margin: 12px 0 8px;
+  border-radius: 10px;
+  background: var(--bg);
+}
+#editor-text {
+  position: relative;
+  display: block;
+  height: 100%;
+  min-height: 0;
+  background: transparent;
+  resize: none;
+  overflow: auto;
+  overscroll-behavior: contain;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  line-height: 24px;
+  tab-size: 4;
+}
+#editor-highlights {
+  position: absolute;
+  inset: 1px;
+  overflow: hidden;
+  border-radius: 9px;
+  pointer-events: none;
+}
+#editor-highlights span {
+  position: absolute;
+  inset-inline: 0;
+  border-inline-start: 3px solid var(--editor-line-color);
+  background: var(--editor-line-fill);
+}
+.editor-you { --editor-line-color: #79d99b; --editor-line-fill: #20382e; }
+.editor-ai { --editor-line-color: #85b6ff; --editor-line-fill: #233452; }
+#editor-key { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-inline-start: auto; }
+#editor-key span { color: var(--editor-line-color); }
+
+@media (min-width: 800px) {
+  body:has(#view-ask:not([hidden]) #editor-panel:not([hidden])) {
+    display: flex;
+    flex-direction: column;
+    height: max(360px, 100dvh);
+    padding-bottom: 16px;
+  }
+  #view-ask:has(#editor-panel:not([hidden])) {
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  #view-ask .create-area:has(#editor-panel:not([hidden])) {
+    grid-template-columns: minmax(290px, 2fr) minmax(0, 3fr);
+    grid-template-rows: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-areas: "form editor" "chat editor";
+    align-items: stretch;
+    gap: 16px;
+  }
+  #view-ask .create-area:has(#editor-panel:not([hidden])) > form {
+    grid-area: form;
+    position: static;
+    overflow: auto;
+  }
+  #editor-panel:not([hidden]) {
+    grid-area: editor;
+    height: auto;
+    min-height: 0;
+  }
+  .create-area:has(#editor-panel:not([hidden])) #ask-chat {
+    grid-area: chat;
+    min-height: 0;
+    overflow: auto;
+  }
+  #view-ask .create-area:has(#editor-panel:not([hidden]) ~ #ask-chat[hidden]) {
+    grid-template-columns: minmax(290px, 1fr) minmax(0, 2.55fr);
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "form editor";
+  }
+}
+@media (min-width: 1100px) {
+  #view-ask .create-area:has(#editor-panel:not([hidden])) {
+    grid-template-columns: minmax(290px, 1fr) minmax(0, 1.55fr) minmax(260px, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "form editor chat";
+  }
+}
 .picked-path { font-size: 0.9rem; overflow-wrap: anywhere; }
 #bulk-file-name { display: block; margin-bottom: 8px; }
 #bulk-folder-shown { flex: 1; min-width: 0; }

@@ -35,7 +35,8 @@ HIDDEN = ("stop", "changes", "messages", "on_done", "folders", "work_folder")  #
 
 
 def submit(conv_id: str | None, model_id: str, prompt: str, source: str = "you", thinking_level: str = "",
-           can_edit: bool = False, bulk: dict | None = None, work_folder: str = "", can_run: bool = False) -> str:
+           can_edit: bool = False, bulk: dict | None = None, work_folder: str = "", can_run: bool = False,
+           editor_path: str = "") -> str:
     """Queue a question in a conversation (the question is already saved in it). bulk: a bulk item's
     {run, index, messages, folders, on_done} instead of a conversation. work_folder: the conversation's one
     folder (Ask → Work folder): its tools see only that folder, like a bulk job's."""
@@ -48,6 +49,7 @@ def submit(conv_id: str | None, model_id: str, prompt: str, source: str = "you",
             raise QueueFull(f"The queue is full ({most} questions). Try again when some are answered.")
         _jobs[job_id] = {
             "status": "waiting", "conversation": conv_id, "model": model_id, "prompt": prompt, "source": source,
+            "editor_path": editor_path,
             "thinking_level": thinking_level, "can_edit": can_edit, "changes": tools.Changes() if can_edit else None,
             "steps": [], "thinking": "", "answer": "", "tokens": 0, "seconds": 0, "per_second": 0, "message": "",
             "stop": threading.Event(), "queued": time.time(),
@@ -90,6 +92,14 @@ def queue() -> dict:
         working = sum(1 for j in _jobs.values() if j["status"] in ACTIVE[1:])
         waiting = sum(1 for j in _jobs.values() if j["status"] == "waiting")
     return {"working": working, "waiting": waiting}
+
+
+def save_editor(path: str, text: str, revision: str) -> dict:
+    # Hold the queue lock through the save so a question can't start in between.
+    with _lock:
+        if any(j["status"] in ACTIVE for j in _jobs.values()):
+            raise tools.EditorConflict("Code AI is still working. Wait for it to finish before saving.")
+        return tools.save_editor(path, text, revision)
 
 
 def listing() -> list[dict]:
@@ -155,9 +165,18 @@ def _answer(job_id: str, job: dict):
     template = settings.template(m, job["thinking_level"])
     budget = settings.budget(m, job["thinking_level"])
     thought = 0  # thinking tokens so far, for the budget
-    messages = [{"role": "system", "content": tools.instructions(job["can_edit"], job.get("work_folder", ""), job.get("can_run", False))}]
+    instructions = tools.instructions(job["can_edit"], job.get("work_folder", ""), job.get("can_run", False))
+    has_editor = bool(job["conversation"]) and job["source"] == "you"
+    if has_editor:
+        instructions += ("\nUse open_editor when the user asks to open or show a file for live editing. "
+                         "It shows one file at a time. Read it separately before making changes.")
+        if job["editor_path"]:
+            instructions += f"\nThe user has this file open in the editor: {json.dumps(job['editor_path'])}."
+    messages = [{"role": "system", "content": instructions}]
     messages += job["messages"] if job["messages"] is not None else _conversation(job["conversation"])
     definitions = tools.DEFINITIONS + (tools.EDIT_DEFINITIONS if job["can_edit"] else [])
+    if has_editor:
+        definitions = definitions + [tools.EDITOR_DEFINITION]
     if checks.for_folder(job.get("work_folder", "")):
         definitions = definitions + [tools.CHECK_DEFINITION]
     if job.get("can_run"):
@@ -219,7 +238,10 @@ def _answer(job_id: str, job: dict):
         for call in calls:
             name = call["function"]["name"]
             arguments = call["function"].get("arguments") or "{}"
-            result, summary, ok = tools.run(name, arguments, job["changes"], job.get("can_run", False))
+            result, summary, ok = tools.run(
+                name, arguments, job["changes"], job.get("can_run", False),
+                open_editor=(lambda path: _update(job_id, editor_path=path)) if has_editor else None,
+            )
             if not ok and any(s["tool"] == name and s["arguments"] == _short(arguments) and not s["ok"] for s in job["steps"]):
                 # the same call failed before: say so plainly, or a small model can try it again and again
                 result += " (You tried exactly this before and it failed the same way: do something different.)"

@@ -5,6 +5,7 @@
 import { render } from "./markdown.js";
 import { refreshStatus } from "./status.js";
 import { pick } from "./picker.js";
+import { connectEditor, editorHasDraft, editorPath, openEditor, setEditorBusy } from "./editor.js";
 
 const form = document.getElementById("ask-form");
 const modelSelect = document.getElementById("model");
@@ -19,6 +20,7 @@ const promptError = document.getElementById("prompt-error");
 const askButton = document.getElementById("ask-button");
 const newButton = document.getElementById("new-button");
 const stopButton = document.getElementById("stop-button");
+const chat = document.getElementById("ask-chat");
 const thread = document.getElementById("thread");
 const title = document.getElementById("result-title");
 
@@ -61,6 +63,7 @@ async function showChecks() {
   line.hidden = false;
 }
 setWorkFolder(localStorage.getItem("codeai-work-folder") || "");
+connectEditor(() => workFolder);
 document.getElementById("work-folder-choose").addEventListener("click", async () => {
   const path = await pick({ mode: "folder", start: workFolder });
   if (path) setWorkFolder(path);
@@ -187,7 +190,7 @@ function fillAnswer(el, a, live) {
 }
 
 // What it looked at: one line per tool it used ("Read ~/Desktop/notes.txt: 40 lines").
-const VERB = { list_files: "Listed", find_files: "Looked for", read_file: "Read", search: "Searched" };
+const VERB = { list_files: "Listed", find_files: "Looked for", read_file: "Read", search: "Searched", open_editor: "Opened" };
 
 export function stepText(s) {
   const a = s.arguments || {};
@@ -281,12 +284,14 @@ function setBusy(busy) {
   askButton.disabled = busy;
   askButton.textContent = busy ? "Answering…" : "Ask";
   stopButton.hidden = !busy;
+  setEditorBusy(busy);
 }
 
 async function follow(jobId, el) {
   job = jobId;
   const mine = ++following;
   setBusy(true);
+  let shownFile = editorPath(workFolder);
   while (mine === following) {
     let a;
     try {
@@ -300,6 +305,11 @@ async function follow(jobId, el) {
     if (mine !== following) return;
     a.model_name = models.find((m) => m.id === a.model)?.name;
     fillAnswer(el, a, true);
+    if (a.editor_path && a.editor_path !== shownFile) {
+      shownFile = a.editor_path;
+      await openEditor(shownFile);
+      if (mine !== following) return;
+    }
     if (!["waiting", "loading", "thinking", "looking", "answering"].includes(a.status)) break;
     await new Promise((r) => setTimeout(r, POLL_MS));
   }
@@ -318,6 +328,7 @@ async function follow(jobId, el) {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (askButton.disabled) return;
   const text = prompt.value.trim();
   promptError.hidden = true;
   if (!text) {
@@ -325,18 +336,29 @@ form.addEventListener("submit", async (event) => {
     promptError.hidden = false;
     return;
   }
+  if (editorHasDraft()) {
+    promptError.textContent = "Save or discard your edits before asking.";
+    promptError.hidden = false;
+    return;
+  }
   askButton.disabled = true;
+  setEditorBusy(true);
   let res;
   try {
     res = await fetch("api/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: text, model: modelSelect.value, thinking: thinkingField.hidden ? "" : thinkingSelect.value, can_edit: canEdit.checked, can_run: canRun.checked && !!workFolder, folder: workFolder, conversation }),
+      body: JSON.stringify({
+        prompt: text, model: modelSelect.value, thinking: thinkingField.hidden ? "" : thinkingSelect.value,
+        can_edit: canEdit.checked, can_run: canRun.checked && !!workFolder,
+        folder: workFolder, conversation, editor_path: editorPath(workFolder),
+      }),
     });
   } catch {
     promptError.textContent = "Can't reach the server.";
     promptError.hidden = false;
     askButton.disabled = false;
+    setEditorBusy(false);
     return;
   }
   const data = await res.json();
@@ -344,6 +366,7 @@ form.addEventListener("submit", async (event) => {
     promptError.textContent = data.detail || "That didn't work.";
     promptError.hidden = false;
     askButton.disabled = false;
+    setEditorBusy(false);
     return;
   }
   if (!conversation) {
@@ -357,7 +380,13 @@ form.addEventListener("submit", async (event) => {
   thread.append(questionEl(text, "you", canEdit.checked, workFolder, canRun.checked && !!workFolder));
   const el = answerEl();
   thread.append(el);
-  if (matchMedia("(max-width: 799px)").matches) thread.lastElementChild.previousElementSibling.scrollIntoView({ behavior: "smooth" });
+  if (!chat.hidden) {
+    if (matchMedia("(max-width: 799px)").matches) {
+      thread.lastElementChild.previousElementSibling.scrollIntoView({ behavior: "smooth" });
+    } else {
+      chat.scrollTop = chat.scrollHeight;
+    }
+  }
   follow(data.job, el);
   refreshStatus();
 });

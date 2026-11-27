@@ -22,6 +22,7 @@ import json
 import shutil
 import threading
 import uuid
+from collections import OrderedDict
 from contextlib import contextmanager
 import os
 import re
@@ -70,7 +71,7 @@ def folders() -> list[dict]:
     return out
 
 
-def browse(raw: str = "", ext: str = "") -> dict:
+def browse(raw: str = "", ext: str = "", include_files: bool = False) -> dict:
     """For the page's folder picker: the folders (and, with ext like ".json", those files) in a folder inside the
     allowed ones. No folder: the allowed folders themselves. up: the folder above, or "" at the top."""
     if not raw:
@@ -91,7 +92,7 @@ def browse(raw: str = "", ext: str = "") -> dict:
             continue
         if e.is_dir():
             subs.append({"name": e.name, "path": str(e)})
-        elif ext and e.suffix.lower() == ext.lower() and e.is_file():
+        elif (include_files or (ext and e.suffix.lower() == ext.lower())) and e.is_file():
             files.append({"name": e.name, "path": str(e)})
     return {"path": str(path), "name": path.name, "up": up, "folders": subs, "files": files}
 
@@ -229,6 +230,10 @@ def _sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+_editor_lock = threading.Lock()
+_editor_writes: OrderedDict[Path, tuple[str, str]] = OrderedDict()
+
+
 class Changes:
     """The files one answer changed, each backed up first (in backups/<id>/), so the answer can be undone."""
 
@@ -252,13 +257,20 @@ class Changes:
         self.files.append(entry)
         return entry
 
-    def write(self, path: Path, text: str, runnable: bool = False) -> str:
-        _refuse_git_script(path, text, runnable)
+    def write(self, path: Path, text: str, runnable: bool = False, *,
+              mark_scripts: bool = True, author: str = "ai") -> str:
+        _refuse_git_script(path, text, runnable or (not mark_scripts and bool(path.stat().st_mode & 0o111)))
         entry = self._entry(path)
-        path.write_text(text, encoding="utf-8")
+        with _editor_lock:
+            path.write_text(text, encoding="utf-8")
+            entry["after"] = _sha(path.read_bytes())
+            _editor_writes[path] = (entry["after"], author)
+            _editor_writes.move_to_end(path)
+            if len(_editor_writes) > 512:
+                _editor_writes.popitem(last=False)
         # asked for, or a script (a #! first line, or .command / .sh / .zsh): marked runnable
-        made = self._runnable(path, entry) if runnable or text.startswith("#!") or path.suffix in RUNNABLE else False
-        entry["after"] = _sha(path.read_bytes())
+        is_script = text.startswith("#!") or path.suffix in RUNNABLE
+        made = self._runnable(path, entry) if runnable or (mark_scripts and is_script) else False
         diff = difflib.unified_diff(entry["before"].splitlines(), text.splitlines(),
                                     "before" if entry["existed"] else "(new file)", path.name, lineterm="", n=2)
         entry["diff"] = "\n".join(list(diff)[2:])[:20000]
@@ -296,8 +308,51 @@ def _check_writable(path: Path) -> None:
         raise ToolError(f"{path} is inside a folder that's never changed ({', '.join(sorted(NO_WRITE))}).")
     if path.is_dir():
         raise ToolError(f"{path} is a folder.")
+    if path.exists() and not path.is_file():
+        raise ToolError(f"{path} isn't a regular file.")
     if path.exists() and not _is_text(path):
         raise ToolError(f"{path} isn't a text file: it won't be changed.")
+
+
+class EditorConflict(ToolError):
+    pass
+
+
+def editor_file(raw: str) -> dict:
+    file = _resolve(raw)
+    _check_writable(file)
+    with _editor_lock:
+        with file.open("rb") as stream:
+            data = stream.read(MAX_WRITE + 1)
+        if len(data) > MAX_WRITE:
+            raise ToolError("This file is too large for the editor (1 MB at most).")
+        revision = _sha(data)
+        written_revision, author = _editor_writes.get(file, ("", ""))
+        if revision != written_revision:
+            _editor_writes.pop(file, None)
+            author = ""
+    if b"\0" in data:
+        raise ToolError("Pick a text file for the editor.")
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as err:
+        raise ToolError("This file isn't saved as UTF-8 text.") from err
+    return {"path": str(file), "text": text, "revision": revision, "author": author}
+
+
+def save_editor(raw: str, text: str, revision: str) -> dict:
+    current = editor_file(raw)
+    if current["revision"] != revision:
+        raise EditorConflict("The file changed on disk. Reload it before saving.")
+    file = Path(current["path"])
+    old = current["text"]
+    if "\r\n" in old and "\n" not in old.replace("\r\n", ""):
+        text = text.replace("\r\n", "\n").replace("\n", "\r\n")
+    if "\0" in text or len(text.encode("utf-8")) > MAX_WRITE:
+        raise ToolError("The editor saves text files up to 1 MB.")
+    if text != old:
+        Changes().write(file, text, mark_scripts=False, author="you")
+    return {**editor_file(raw), "syntax_error": syntax.check(file)}
 
 
 def write_file(path: str, content: str, changes: Changes, runnable: bool = False) -> tuple[str, str]:
@@ -394,6 +449,8 @@ EDIT_DEFINITIONS = [
           {"path": _PATH, "old_text": {"type": "string"}, "new_text": {"type": "string"}},
           ["path", "old_text", "new_text"]),
 ]
+EDITOR_DEFINITION = _tool("open_editor", "Open an existing text file in the user's live editor. "
+                          "Use read_file separately for its contents.", {"path": _PATH}, ["path"])
 CHECK_DEFINITION = _tool(
     "run_check", "Run one of this project's checks (the user set them: building, tests, a checker) to test your "
     "work, and get its output. Run one after changing files, and fix what it reports.",
@@ -441,12 +498,19 @@ _ALIASES = {"folder": "path", "dir": "path", "directory": "path", "file": "path"
             "executable": "runnable", "cmd": "command", "shell": "command"}
 
 
-def run(name: str, arguments: str, changes: Changes | None = None, can_run: bool = False) -> tuple[str, str, bool]:
+def run(name: str, arguments: str, changes: Changes | None = None, can_run: bool = False,
+        open_editor=None) -> tuple[str, str, bool]:
     """Run a tool the model asked for: (result for the model, a short summary for the page, ok). changes: this
     answer's Changes when it may change files, else None. can_run: it may run commands (run_command)."""
     try:
         args = json.loads(arguments or "{}") if isinstance(arguments, str) else dict(arguments or {})
         allowed = {**_RUN, **(_EDIT if changes else {}), **({"run_command": run_command} if can_run else {})}
+        if open_editor is not None:
+            def open_file(path: str) -> tuple[str, str]:
+                file = editor_file(path)["path"]
+                open_editor(file)
+                return f"Opened {file} in the live editor.", "opened in the live editor"
+            allowed["open_editor"] = open_file
         if name == "run_command" and not can_run:
             raise ToolError("Running commands is switched off for this question.")
         if name in _EDIT and not changes:

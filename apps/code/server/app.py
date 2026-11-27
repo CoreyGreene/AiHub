@@ -12,7 +12,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from . import bulk, checks, history, jobs, memory, models, pipelines, saved, settings, tools
 
@@ -60,6 +60,7 @@ class AskRequest(BaseModel):
     can_edit: bool = False  # may it change files for this question (backed up first; Undo puts them back)
     folder: str = ""        # its work folder: the tools see only this one (inside the allowed ones); "" = all of them
     can_run: bool = True    # may it run commands (with a work folder only, in a sandbox: checks.py)
+    editor_path: str = ""   # the text file currently open in the Ask page
 
 
 @app.post("/api/ask")
@@ -78,8 +79,6 @@ async def ask(req: AskRequest) -> dict:
         if jobs.for_conversation(req.conversation):
             raise HTTPException(409, "It's still answering the last question in this conversation.")
         conv_id = req.conversation
-    else:
-        conv_id = history.create(prompt, model_id)["id"]
     source = "claude" if req.source == "claude" else "you"
     work = ""
     if req.folder:
@@ -89,11 +88,20 @@ async def ask(req: AskRequest) -> dict:
         if ".git" in found.parts:
             raise HTTPException(400, "A .git folder can't be a work folder.")
         work = str(found)
+    editor_path = ""
+    if req.editor_path:
+        try:
+            with tools.scoped([work] if work else None):
+                editor_path = tools.editor_file(req.editor_path)["path"]
+        except (tools.ToolError, OSError) as err:
+            raise HTTPException(400, str(err)) from err
+    if not req.conversation:
+        conv_id = history.create(prompt, model_id)["id"]
     history.add(conv_id, {"role": "user", "content": prompt, "from": source, "can_edit": req.can_edit,
                           "folder": work, "can_run": bool(work and req.can_run), "time": time.time()})
     try:
         job_id = jobs.submit(conv_id, model_id, prompt, source, req.thinking, req.can_edit, work_folder=work,
-                             can_run=req.can_run)
+                             can_run=req.can_run, editor_path=editor_path)
     except jobs.QueueFull as err:
         raise HTTPException(429, str(err))
     return {"job": job_id, "conversation": conv_id}
@@ -220,12 +228,43 @@ async def list_checks(folder: str = "") -> dict:
 
 
 @app.get("/api/browse")
-async def browse(path: str = "", ext: str = "") -> dict:
+async def browse(path: str = "", ext: str = "", include_files: bool = False, folder: str = "") -> dict:
     """The page's folder picker: folders (and ext files, e.g. .json) inside the allowed folders."""
     try:
-        return tools.browse(path, ext)
+        root = tools.inside_allowed(folder) if folder else None
+        if folder and root is None:
+            raise tools.ToolError("That work folder isn't inside your allowed folders.")
+        with tools.scoped([str(root)] if root else None):
+            return tools.browse(path, ext, include_files)
     except tools.ToolError as err:
         raise HTTPException(400, str(err))
+
+
+class EditorSave(BaseModel):
+    path: str
+    revision: str
+    text: str = Field(max_length=tools.MAX_WRITE)
+
+
+@app.get("/api/editor")
+def editor(path: str, revision: str = "") -> dict:
+    try:
+        file = tools.editor_file(path)
+    except (tools.ToolError, OSError) as err:
+        raise HTTPException(400, str(err)) from err
+    if file["revision"] == revision:
+        del file["text"]
+    return {**file, "busy": any(jobs.queue().values())}
+
+
+@app.put("/api/editor")
+def editor_save(req: EditorSave) -> dict:
+    try:
+        return jobs.save_editor(req.path, req.text, req.revision)
+    except tools.EditorConflict as err:
+        raise HTTPException(409, str(err)) from err
+    except (tools.ToolError, OSError) as err:
+        raise HTTPException(400, str(err)) from err
 
 
 @app.get("/api/bulk/file")

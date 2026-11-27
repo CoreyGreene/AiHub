@@ -42,6 +42,12 @@ only is looked for in the hub's models folder (`GeneralModels`) under AiHub, or 
   what it read.
 - **Work folder** (optional): point a conversation at one folder, a project for example. Its tools then see only
   that folder, to read and to change; nothing outside it, not even through a shortcut. The conversation keeps it.
+- **Live editor:** in Ask, choose **Open file** or ask Code AI to open a file in the live editor. It shows one
+  UTF-8 text file at a time and refreshes from disk while Code AI works. When the queue is idle, you can type and
+  **Save changes**. Save or discard a draft before asking Code AI to continue. Turn on **Can change files** before
+  asking it to edit. The file scrolls inside the editor. Use **Hide chat** for more editing room and **Show chat**
+  to bring the conversation back. Your changed lines are green and Code AI's file edits are blue while the file
+  stays open.
 - **Checking its work:** after every change it checks the file's syntax (Python, JSON, shell scripts, JavaScript;
   C/C++ when the project has a compile_commands.json) and fixes what it broke. With a work folder and **Can run
   commands** (on by default), it can also run its work (the script it wrote, the tests, a build) and fix what fails.

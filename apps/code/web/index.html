@@ -65,6 +65,11 @@
           <span id="work-checks" class="hint-line" hidden></span>
         </div>
 
+        <div class="field">
+          <button id="editor-open" type="button" class="button">Open file</button>
+          <p id="editor-open-error" class="error-line" role="status" hidden></p>
+        </div>
+
         <label class="switch-row edit-switch">
           <span>
             <strong>Can change files</strong>
@@ -85,7 +90,36 @@
         <button id="new-button" type="button" class="button new-button" hidden>New conversation</button>
       </form>
 
-      <section class="card result" aria-live="polite">
+      <section id="editor-panel" class="card" aria-labelledby="editor-title" hidden>
+        <div class="result-head">
+          <h2 id="editor-title">Live editor</h2>
+          <div class="picked-row">
+            <button id="editor-chat-toggle" type="button" class="button"
+                    aria-controls="ask-chat" aria-expanded="true">Hide chat</button>
+            <button id="editor-close" type="button" class="button">Close</button>
+          </div>
+        </div>
+        <p id="editor-path" class="picked-path"></p>
+        <div class="picked-row">
+          <p id="editor-state" class="hint-line" role="status"></p>
+          <div id="editor-key" class="hint-line" aria-label="Line colors">
+            <span class="editor-you">Your edits</span>
+            <span class="editor-ai">AI edits</span>
+          </div>
+        </div>
+        <div class="editor-buffer">
+          <div id="editor-highlights" aria-hidden="true"></div>
+          <textarea id="editor-text" aria-label="File contents" aria-describedby="editor-key" spellcheck="false"
+                    autocapitalize="off" autocorrect="off" wrap="off" data-aihub-mic="off" readonly></textarea>
+        </div>
+        <div class="picked-row">
+          <button id="editor-save" type="button" class="button" disabled>Save changes</button>
+          <button id="editor-discard" type="button" class="button" hidden>Discard draft</button>
+        </div>
+        <p id="editor-message" class="hint-line" role="status" hidden></p>
+      </section>
+
+      <section id="ask-chat" class="card result" aria-live="polite">
         <div class="result-head">
           <h2 id="result-title">Answer</h2>
           <button id="stop-button" type="button" class="button small-button" hidden>Stop</button>
