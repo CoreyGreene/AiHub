@@ -42,7 +42,7 @@ POST /api/refresh    ask every light how it is now
 ## Set up and run
 
 ```bash
-cd ~/Documents/repos/Ai-Hub/apps/lights
+cd apps/lights                         # from the Ai-Hub folder
 python3 start.py                       # makes .venv on the first run; normally AiHub starts it
 .venv/bin/python halo.py login         # once per HALO Home account (adds, never replaces)
 ```
