@@ -341,6 +341,41 @@ async function showListening(data) {
   if (fresh.length) shownLog = fresh[fresh.length - 1].time * 1000;
 }
 
+// Code AI's model, kept loaded for talking (server/thinker.py); asks before replacing a bigger one.
+async function showThinking(data) {
+  data ||= await fetch("api/thinking-model").then((r) => r.json()).catch(() => null);
+  if (!data) return;
+  const m = data.model || "The talking model";
+  const words = {
+    starting: `Getting ${m} ready…`,
+    loading: `Loading ${m} so answers come right away…`,
+    ready: `${m} is loaded and ready.`,
+    none: `${m} isn't loaded right now (something else needed the room). It loads when you talk.`,
+    busy: `Code AI is busy. ${m} loads when it's done.`,
+    bigger: `Code AI has ${data.bigger} loaded, which is bigger than ${m}. Load ${m} for talking?`,
+    kept: `Keeping ${data.bigger} loaded. ${m} loads when you talk.`,
+    failed: `Couldn't load ${m}: ${data.message}`,
+  }[data.state] || "";
+  $("think-state").textContent = words;
+  $("think").hidden = !words;
+  $("think-ask").hidden = data.state !== "bigger";
+  $("think-load").textContent = `Load ${m}`;
+  $("think-keep").textContent = `Keep ${data.bigger}`;
+}
+
+for (const [id, load] of [["think-load", true], ["think-keep", false]]) {
+  $(id).addEventListener("click", async () => {
+    $(id).disabled = true;
+    try {
+      const data = await fetch("api/thinking-model", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ load }) }).then((r) => r.json());
+      showThinking(data);
+    } finally {
+      $(id).disabled = false;
+    }
+  });
+}
+
 always.addEventListener("change", async () => {
   always.disabled = true;
   const on = always.checked;
@@ -476,3 +511,5 @@ loadPhraseTraining();
 shownLog = Date.now();
 showListening();
 setInterval(showListening, 2000);
+showThinking();
+setInterval(showThinking, 3000);

@@ -7,6 +7,8 @@ and answers out loud (voice.py), a sentence at a time. Also the hub's mic button
     POST /api/voice  {id}       pick the voice (kept on this machine)
     POST /api/say    {text, voice}        that text said, as audio/wav (to hear a voice)
     POST /api/turn   {history, text, voice}  one turn, as lines of JSON as it goes (brain.py says which)
+    GET  /api/thinking-model     {state, model, bigger, message}: Code AI's model, kept loaded (thinker.py says which)
+    POST /api/thinking-model {load}  when a bigger model is loaded: load the talking model anyway, or keep it
     GET  /api/listening          Always listening: {on, state, message, wake_word, log}
     POST /api/listening {on}     turn it on or off (kept on this machine)
     GET  /api/devices            {inputs, outputs, mic, speakers}: the microphones and speakers, and the ones picked
@@ -22,7 +24,7 @@ from fastapi.responses import Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import brain, devices, ears, phrase_examples, settings, voice
+from . import brain, devices, ears, phrase_examples, settings, thinker, voice
 from .listener import LISTENER, _wav, _words, match
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -53,6 +55,7 @@ def _unloader():
 
 
 threading.Thread(target=_unloader, daemon=True).start()
+thinker.start()  # Code AI's model, loaded now and kept loaded while Talk runs
 if settings.get()["always_listening"]:
     LISTENER.start()
 
@@ -135,6 +138,20 @@ def turn(req: TurnRequest):
             stopped.set()
 
     return StreamingResponse(lines(), media_type="application/x-ndjson")
+
+
+@app.get("/api/thinking-model")
+def thinking_model() -> dict:
+    return thinker.status()
+
+
+class ThinkingModelRequest(BaseModel):
+    load: bool  # True: load the talking model over the bigger one; False: keep the bigger one
+
+
+@app.post("/api/thinking-model")
+def answer_thinking_model(req: ThinkingModelRequest) -> dict:
+    return thinker.answer(req.load)
 
 
 @app.get("/api/listening")

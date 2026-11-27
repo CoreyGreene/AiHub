@@ -9,6 +9,7 @@ import random
 from pathlib import Path
 
 from . import backends, safety, settings, videos
+from .aihub_room import make_room
 
 BLOCKED_MESSAGE = "This video didn't pass the safety check. Try changing the prompt."
 
@@ -120,6 +121,7 @@ def generate(theme: dict, prompt: str, on_progress, image=None) -> tuple:
     for attempt in range(1, tries + 1):
         req = _request(theme, prompt, random.randrange(2**31), image)
         if not backend.is_loaded(req):
+            make_room("movie", req["model"])
             on_progress("loading", 0, 0)
         made = backend.make(req, lambda done, total: on_progress("drawing", done, total))
         on_progress("checking", 0, 0)

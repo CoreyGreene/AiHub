@@ -49,6 +49,10 @@ Ctrl+C stops the hub and every tool it started.
   models are named in `trellis-mac/local-model/pipeline.json` (TRELLIS's own file, outside this repo). The nudity
   checkers are in one shared folder, `safety_models` in `hub/settings.json` (`SafetyModels`); the hub gives every tool
   `AIHUB_SAFETY_DIR`, and Image AI and Movie AI load their checkers from it.
+- **Making room:** Talk keeps Code AI's Gemma loaded while it runs; Code AI runs it beside its working model when
+  both fit with `headroom_gb` (16) free. Before Image, Movie, 3D or Sound AI load a model, they call
+  `POST /hub/api/make-room` (`aihub_room.py` in each); only if it won't fit does Code AI let go of models it isn't
+  using (Gemma last).
 - **Connector:** `connector/aihub_mcp.py` is an MCP server (stdio, standard library only) that gives Claude
   Image AI and 3D AI tools: themes, make, workflows, Staging, save pictures, approve; 3D make, bulk, status,
   models. It calls the hub's pass-through (`/image/…`, `/3d/…`) and starts a stopped tool through the hub.

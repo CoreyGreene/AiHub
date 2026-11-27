@@ -57,3 +57,5 @@ h2 { margin: 0; font-size: 1.1rem; }
 .phrase-training summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
 .phrase-training select { width: 100%; }
 .phrase-buttons { flex-wrap: wrap; }
+.think-buttons { flex-wrap: wrap; margin-top: 10px; }
+.think-buttons .button { flex: 1 1 140px; }

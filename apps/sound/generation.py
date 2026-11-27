@@ -73,6 +73,9 @@ def load():
     from stable_audio_3.factory import create_diffusion_cond_from_config
 
     folder = model_folder()
+    from aihub_room import make_room
+
+    make_room("sound", folder)
     config = json.loads((folder / "model_config.json").read_text())
     for entry in config["model"]["conditioning"]["configs"]:
         if entry["type"] == "t5gemma":

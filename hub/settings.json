@@ -4,6 +4,9 @@
   "_models_dir": "The folder holding every AI model, one folder inside it per kind (each tool's models below). Relative to this project's folder, or a full path (~ allowed). Each tool is told its own folder when it starts.",
   "models_dir": "models",
 
+  "_headroom_gb": "Memory kept free when a tool loads a model. If a model won't fit with this much left, the hub asks Code AI to let go of models it's holding but not using (Talk's Gemma last).",
+  "headroom_gb": 16,
+
   "_safety_models": "The folder inside models_dir holding the nudity checkers, shared by every tool that checks pictures or videos. Each tool is told where it is when it starts.",
   "safety_models": "SafetyModels",
 

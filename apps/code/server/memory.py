@@ -2,7 +2,7 @@
 
     total: how much of the memory macOS lets the GPU use
     used:  memory locked for the GPU by every program (vm_stat's "wired")
-    mine:  what the model program takes (its footprint, from top)
+    mine:  what the model programs take (its footprint, from top)
 
 Measured in a background thread every few seconds (top takes about a second), so the page never waits for it.
 """
@@ -50,8 +50,8 @@ def _loop():
     total = _total()
     while True:
         try:
-            pid = models.loaded()["pid"]
-            _latest.update(total_gb=total, used_gb=_wired(), mine_gb=_footprint(pid) if pid else 0.0)
+            mine = sum(_footprint(pid) for pid in models.pids())
+            _latest.update(total_gb=total, used_gb=_wired(), mine_gb=mine)
         except Exception:
             pass
         time.sleep(3)

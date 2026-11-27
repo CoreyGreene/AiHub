@@ -7,6 +7,7 @@ queue, stop, and read past conversations.
 import json
 import threading
 import time
+import traceback
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -415,10 +416,16 @@ class ChatRequest(BaseModel):
 async def chat(req: ChatRequest):
     """A plain streaming chat with the model Code AI runs, for Talk: no files, no History, no queue. The answer
     comes as lines of JSON as it's written: {"answer": text}, {"tool": call}, then {"finish": reason}. While a
-    question is being answered on the Ask or Bulk tabs, the model it uses is the one used here."""
+    question is being answered on the Ask or Bulk tabs and the model asked for isn't loaded, the one answering it is
+    used here."""
     loaded = models.loaded()
     busy = any(j["status"] in jobs.ACTIVE for j in jobs.listing())
-    model_id = loaded["id"] if loaded["id"] and (busy or not req.model) else (req.model or (settings.models() or [{}])[0].get("id"))
+    if req.model and models.is_ready(req.model):
+        model_id = req.model  # Talk's model, kept loaded beside the queue's
+    elif loaded["id"] and (busy or not req.model):
+        model_id = loaded["id"]
+    else:
+        model_id = req.model or (settings.models() or [{}])[0].get("id")
     m = settings.model(model_id or "")
     if m is None:
         raise HTTPException(400, "That model isn't on this computer.")
@@ -427,7 +434,7 @@ async def chat(req: ChatRequest):
         try:
             models.ensure(model_id)
             stop = threading.Event()
-            for kind, piece in models.stream(req.messages, settings.template(m, req.thinking), stop, req.tools or None):
+            for kind, piece in models.stream(model_id, req.messages, settings.template(m, req.thinking), stop, req.tools or None):
                 if kind in ("answer", "tool", "finish"):
                     yield json.dumps({kind: piece}) + "\n"
         except models.ModelError as err:
@@ -436,11 +443,65 @@ async def chat(req: ChatRequest):
     return StreamingResponse(lines(), media_type="application/x-ndjson")
 
 
+class WarmRequest(BaseModel):
+    model: str
+    load: bool = True    # load it now; False: only renew the hold on it
+    force: bool = False  # load it even over a bigger model
+
+
+def _warm(model_id: str) -> None:
+    try:
+        models.ensure(model_id)
+    except models.ModelError:
+        traceback.print_exc()
+
+
+@app.post("/api/model/warm")
+def warm(req: WarmRequest) -> dict:
+    """For Talk: hold this model in memory (models.keep, renewed every minute while Talk runs) and load it now,
+    beside the loaded one if both fit. state: ready / loading / none (not loaded, load False) / bigger (it would
+    push out a bigger model: not unless force; "bigger" names it) / busy (it would push out the model answering a
+    question: ask again)."""
+    m = settings.model(req.model)
+    if m is None:
+        raise HTTPException(400, "That model isn't on this computer.")
+    models.keep(req.model)
+    answer = {"model": m["name"]}
+    if req.model in models.loaded_ids():
+        return {**answer, "state": "ready" if models.is_ready(req.model) else "loading"}
+    if not req.load:
+        return {**answer, "state": "none"}
+    if not models.fits(req.model):
+        queued = jobs.listing()
+        bigger = [i for i in [*models.loaded_ids(), *(j["model"] for j in queued)]
+                  if i != req.model and models.size(i) > models.size(req.model)]
+        if bigger and not req.force:
+            other = settings.model(bigger[0]) or {}
+            return {**answer, "state": "bigger", "bigger": other.get("name", bigger[0])}
+        if queued:
+            return {**answer, "state": "busy"}
+    threading.Thread(target=_warm, args=(req.model,), daemon=True).start()
+    return {**answer, "state": "loading"}
+
+
+class RoomRequest(BaseModel):
+    bytes: int  # how much memory another tool needs freed
+
+
+@app.post("/api/model/make-room")
+def make_room(req: RoomRequest) -> dict:
+    """For the hub, when another tool is about to load a model that won't fit: let go of models no question is
+    using, Talk's last. {"let_go": [names]}."""
+    in_use = {j["model"] for j in jobs.listing() if j["status"] != "waiting"}
+    return {"let_go": models.let_go(req.bytes, in_use)}
+
+
 @app.post("/api/model/unload")
 async def unload() -> dict:
     """Let go of the model now (Settings), unless it's answering."""
     if jobs.queue()["working"]:
         raise HTTPException(409, "It's answering a question. Stop it first.")
+    models.keep(None)
     models.unload()
     return {"unloaded": True}
 

@@ -42,6 +42,7 @@ The page's picker saves the one used.
 ## How it's built
 
 - `server/app.py`: the routes (listed at its top). `server/ears.py`: Whisper. `server/voice.py`: the voices.
+- `server/thinker.py`: keeps Code AI's model loaded while Talk runs, so answers never wait for it to load. Talk starts Code AI and loads it when Talk starts, and renews the hold every minute; anything else may still let it go. If a bigger model is loaded, the Talk page asks before replacing it.
 - `server/brain.py`: one turn. It streams the answer from Code AI's `/api/chat` through AiHub, speaks each sentence
   as soon as it's complete, and runs the actions the model asks for.
 - `server/listener.py`: Always listening (sounddevice for the mic and speakers, openWakeWord for the wake word).

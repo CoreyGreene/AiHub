@@ -131,12 +131,16 @@ def _update(job_id: str, **changes):
 
 
 def _next_job() -> str:
-    """Wait for the next question. If none comes for a while, let go of the model first, then keep waiting."""
-    try:
-        return _queue.get(timeout=max(settings.get()["unload_after_minutes"] * 60, 1))
-    except queue_module.Empty:
-        models.unload()
-        return _queue.get()
+    """Wait for the next question. If none comes for a while, let go of the model first (unless Talk
+    holds it), then keep waiting."""
+    while True:
+        try:
+            return _queue.get(timeout=max(settings.get()["unload_after_minutes"] * 60, 1))
+        except queue_module.Empty:
+            models.unload(but=models.kept())
+            if models.loaded_ids():
+                continue  # Talk's model, held (models.keep): keep it
+            return _queue.get()
 
 
 def _work():
@@ -192,7 +196,7 @@ def _answer(job_id: str, job: dict):
         calls, said, first, latest = [], "", 0.0, 0.0
         # the last step has no tools, so it must answer with what it found
         cut = (lambda: thought >= budget) if budget else (lambda: False)
-        for kind, piece in models.stream(messages, template, job["stop"], None if last else definitions, cut):
+        for kind, piece in models.stream(job["model"], messages, template, job["stop"], None if last else definitions, cut):
             if kind == "finish":
                 finish = piece
                 break

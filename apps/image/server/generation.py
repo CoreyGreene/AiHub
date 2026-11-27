@@ -9,6 +9,7 @@ import random
 import time
 
 from . import backends, pictures, safety, settings
+from .aihub_room import make_room
 
 BLOCKED_MESSAGE = "This picture didn't pass the safety check. Try changing the prompt."
 
@@ -123,6 +124,7 @@ def generate(theme: dict, prompt: str, on_progress, seed: int | None = None, alo
         req = _request(theme, prompt, random.randrange(2**31) if seed is None else seed + attempt - 1)
         loads = not backend.is_loaded(req)
         if loads:
+            make_room("image", req.get("model") or req.get("folder"))
             on_progress("loading", 0, 0)
         started = time.monotonic()
         image = backend.make(req, lambda done, total: on_progress("drawing", done, total))
@@ -185,6 +187,8 @@ def edit(pic_id: str, instruction: str, on_progress) -> tuple:
             "seed": random.randrange(2**31),
             "low_memory": low,
         }
+        if not backend.is_loaded(req):
+            make_room("image", req["folder"])
         on_progress("loading", 0, 0)  # when squeezed, the parts load in turns each time
         result = backend.make(req, lambda done, total: on_progress("drawing", done, total))
         on_progress("checking", 0, 0)

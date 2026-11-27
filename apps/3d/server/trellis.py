@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 
 from . import settings
+from .aihub_room import make_room
 
 MARK = "@@MESHAI "
 WORKER = Path(__file__).with_name("trellis_worker.py")
@@ -60,9 +61,31 @@ def log_path() -> Path:
     return path / "trellis.log"
 
 
+def _model_paths(folder: Path) -> list[Path]:
+    """What the worker loads: local-model/ and the folders its pipeline.json names (for AiHub's make-room)."""
+    found = [folder / "local-model"]
+
+    def walk(value):
+        if isinstance(value, dict):
+            for v in value.values():
+                walk(v)
+        elif isinstance(value, list):
+            for v in value:
+                walk(v)
+        elif isinstance(value, str) and value.startswith("/") and Path(value).exists():
+            found.append(Path(value))
+
+    try:
+        walk(json.loads((folder / "local-model" / "pipeline.json").read_text()))
+    except (OSError, ValueError):
+        pass
+    return found
+
+
 def _start() -> None:
     global _proc, _idle_watch
     folder, python = _paths()
+    make_room("3d", *_model_paths(folder))
     env = dict(os.environ, PYTORCH_ENABLE_MPS_FALLBACK="1", PYTHONUNBUFFERED="1")
     log = open(log_path(), "a", encoding="utf-8")
     log.write(f"\n===== worker started {time.ctime()} =====\n")

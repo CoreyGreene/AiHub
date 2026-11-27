@@ -15,7 +15,8 @@ function queueText({ working, waiting }) {
 
 function modelText(model) {
   if (!model.id) return "No model loaded";
-  return model.state === "loading" ? `Loading ${model.name}…` : model.name;
+  const name = model.state === "loading" ? `Loading ${model.name}…` : model.name;
+  return (model.also || []).length ? `${name} + ${model.also.join(", ")}` : name;
 }
 
 async function refresh() {

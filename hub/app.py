@@ -98,6 +98,27 @@ def stop(app_id: str):
     return {"state": apps.state(tool)}
 
 
+class RoomRequest(BaseModel):
+    tool: str = ""  # who's asking (it never frees its own)
+    bytes: int      # the size of the model it's about to load
+
+
+@app.post("/hub/api/make-room")
+async def make_room(req: RoomRequest):
+    """A tool is about to load a model. If it won't fit with headroom_gb of memory still free, Code AI lets go of
+    models it holds but isn't using (Talk's Gemma last). Otherwise nothing is let go. {"let_go": [names]}."""
+    mac = apps.mac_memory()
+    short = req.bytes + settings.get().get("headroom_gb", 16) * 2**30 - (mac["total"] - mac["used"])
+    code = apps.find("code")
+    if short <= 0 or not code or req.tool == "code" or apps.state(code) != "running":
+        return {"let_go": []}
+    try:
+        answer = await client.post(f"http://127.0.0.1:{code['port']}/api/model/make-room", json={"bytes": short})
+        return {"let_go": answer.json().get("let_go", [])}
+    except (httpx.HTTPError, ValueError):
+        return {"let_go": []}
+
+
 @app.post("/hub/api/listen")
 async def listen(request: Request):
     """The mic buttons: a recording in, its words out. Talk (apps/talk, which

@@ -40,6 +40,8 @@
   "_memory": "prompt_cache_size: past conversations the model server keeps ready (each takes memory; the model tests showed 10 can grow to over 100 GB). cache_gb: MLX's cache of freed memory.",
   "prompt_cache_size": 2,
   "cache_gb": 4,
+  "_headroom_gb": "Memory left free when a model loads. Talk's model stays loaded beside another one only while this much is still free; else it's let go to make room.",
+  "headroom_gb": 16,
 
   "_max_queue": "Most questions waiting or being answered at once.",
   "max_queue": 100,
