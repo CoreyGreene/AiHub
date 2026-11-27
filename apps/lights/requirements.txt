@@ -1,0 +1,5 @@
+# Lights AI: Bluetooth (bleak), the CSRMesh crypto (recsrmesh), and a small web server.
+fastapi>=0.115
+uvicorn>=0.30
+bleak>=0.22
+recsrmesh==0.3.0

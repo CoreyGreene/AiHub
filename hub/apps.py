@@ -73,7 +73,7 @@ def start(app: dict) -> None:
     """Start the tool if it isn't running yet; returns at once (it starts in the background)."""
     if state(app) in ("running", "starting") or not set_up(app):
         return
-    models = settings.folder("models_dir") / app["models"]
+    models = settings.folder("models_dir") / app.get("models", "")  # Lights AI has no models
     env = {
         **os.environ,
         "AIHUB": "1",

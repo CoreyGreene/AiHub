@@ -9,7 +9,8 @@ import httpx
 
 from . import settings
 
-NAMES = {"image": "Image AI", "3d": "3D AI", "code": "Code AI", "movie": "Movie AI", "talk": "Talk"}
+NAMES = {"image": "Image AI", "3d": "3D AI", "code": "Code AI", "movie": "Movie AI", "talk": "Talk",
+         "lights": "Lights AI"}
 
 
 def _hub(method: str, path: str, body: dict | None = None, timeout: float = 30) -> dict:
@@ -202,6 +203,39 @@ def read_notes(file: str = "", how_many: int = 5) -> str:
     return f"{len(notes)} {name} notes in all. The last {len(last)}: " + " | ".join(last)
 
 
+def lights_status() -> str:
+    """Which lights and groups there are, and how each light is, from Lights AI."""
+    _running("lights", wait=30)
+    data = _hub("GET", "/lights/api/lights")
+    if not data.get("ready"):
+        return "No lights are set up in Lights AI yet."
+    out = []
+    for home in data["homes"]:
+        if not home["connected"]:
+            out.append(f"Lights AI is still connecting to {home['name']}.")
+        said = []
+        for light in home["lights"]:
+            if light["on"] is None:
+                said.append(f"{light['name']}: no answer yet")
+            elif not light["on"]:
+                said.append(f"{light['name']}: off")
+            else:
+                warm = f", {light['kelvin']} kelvin" if light.get("has_temp") and light.get("kelvin") else ""
+                said.append(f"{light['name']}: on at {light['brightness']} percent{warm}")
+        out.append("; ".join(said) + ".")
+        if home["groups"]:
+            out.append("Groups: " + ", ".join(g["name"] for g in home["groups"]) + ".")
+    return " ".join(out)
+
+
+def set_lights(lights=None, on: bool | None = None, brightness: float | None = None,
+               kelvin: int | None = None) -> str:
+    """Turn lights on or off, dim them and/or change their colour temperature, through Lights AI."""
+    _running("lights", wait=30)
+    body = {"lights": lights or "all", "on": on, "brightness": brightness, "kelvin": kelvin}
+    return _hub("POST", "/lights/api/set", {k: v for k, v in body.items() if v is not None}, timeout=60)["message"]
+
+
 def _def(name, about, props=None, required=None):
     return {"type": "function", "function": {"name": name, "description": about, "parameters": {
         "type": "object", "properties": props or {}, "required": required or []}}}
@@ -225,10 +259,22 @@ DEFINITIONS = [
     _def("read_notes", "Read back the last few notes in one notes file (by its name, as for add_note), and how many.",
          {"file": {"type": "string"}, "how_many": {"type": "integer"}}),
     _def("list_notes", "Which notes files there are, and how many notes each has."),
+    _def("lights_status", "The house lights (HALO Home): their names, the groups, and whether each light is on, how "
+         "bright and how warm. Use it when asked about the lights, or to learn their names."),
+    _def("set_lights", "Change the house lights. lights: which ones, as the user named them, a light or a group "
+         "(e.g. [\"fireplace\", \"stair\"], [\"main 3\"]), or [\"all\"] for every light. Then only what the user asked "
+         "to change: on (true or false), brightness (1 to 100 percent; \"dim it\" with no number: about 30), kelvin "
+         "(colour temperature, 2700 = warm to 5000 = cool daylight; \"warmer\": 2700, \"cooler\": 4000 or more). "
+         "Turning a light on with no brightness puts it back to how bright it was.",
+         {"lights": {"type": "array", "items": {"type": "string"}},
+          "on": {"type": "boolean"},
+          "brightness": {"type": "number"},
+          "kelvin": {"type": "integer"}}, ["lights"]),
 ]
 _RUN = {"whats_running": whats_running, "start_tool": start_tool, "stop_tool": stop_tool,
         "make_picture": make_picture, "make_video": make_video, "how_are_jobs": how_are_jobs,
-        "add_note": add_note, "read_notes": read_notes, "list_notes": list_notes}
+        "add_note": add_note, "read_notes": read_notes, "list_notes": list_notes,
+        "lights_status": lights_status, "set_lights": set_lights}
 
 
 def run(name: str, arguments) -> str:

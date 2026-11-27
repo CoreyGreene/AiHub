@@ -1,0 +1,60 @@
+/* Lights AI. Same look as the other tools. Phone first. */
+:root { --bg: #16161d; --card: #20202a; --line: #34343f; --text: #ececf1; --muted: #9a9aa8; --accent: #7c6cff;
+  --on: #f5b942; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0 auto; max-width: 720px; background: var(--bg); color: var(--text);
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 0 16px calc(24px + env(safe-area-inset-bottom)); }
+h1 { margin: 12px 0 4px; font-size: 1.6rem; }
+h2 { margin: 0; font-size: 1.1rem; }
+h3 { margin: 24px 0 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.muted { color: var(--muted); }
+.small { font-size: 0.85rem; }
+.note { color: #ff8a80; }
+.row { display: flex; gap: 8px; align-items: center; }
+.row.spread { justify-content: space-between; }
+.top { margin-top: 4px; }
+.button { min-height: 48px; padding: 0 16px; font: inherit; font-weight: 700; color: var(--text); background: none;
+  border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.button.small { min-height: 36px; font-size: 0.9rem; }
+.button:hover { border-color: var(--accent); }
+
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-top: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s; }
+.card.is-on { border-color: color-mix(in srgb, var(--on) 55%, var(--line)); box-shadow: 0 0 24px -10px var(--on); }
+.card.all { border-width: 2px; }
+
+/* The on/off switch: big enough to tap */
+.power { appearance: none; width: 64px; height: 38px; border-radius: 19px; border: 0; background: var(--line);
+  position: relative; cursor: pointer; flex: none; transition: background 0.2s; }
+.power span { position: absolute; top: 4px; left: 4px; width: 30px; height: 30px; border-radius: 50%; background: #fff;
+  transition: left 0.2s; }
+.power.on { background: var(--on); }
+.power.on span { left: 30px; }
+.power.mixed { background: color-mix(in srgb, var(--on) 40%, var(--line)); }
+.power.mixed span { left: 17px; }
+
+.slider { display: block; margin-top: 14px; }
+.slider output { color: var(--muted); font-variant-numeric: tabular-nums; }
+input[type="range"] { width: 100%; height: 36px; margin: 2px 0 0; accent-color: var(--on); background: none; cursor: pointer; }
+input.b { accent-color: var(--on); }
+input.k { appearance: none; height: 12px; margin: 14px 0 10px; border-radius: 6px;
+  background: linear-gradient(90deg, #ffb35c, #ffe2b8 45%, #f4f6ff 75%, #cfe0ff); }
+input.k::-webkit-slider-thumb { appearance: none; width: 28px; height: 28px; border-radius: 50%; background: #fff;
+  border: 3px solid var(--bg); box-shadow: 0 0 0 1px var(--line); }
+input.k::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 3px solid var(--bg); }
+
+.presets { gap: 6px; margin-top: 4px; }
+.presets .button { flex: 1; min-width: 0; padding: 0 4px; }
+.presets .button.picked { border-color: var(--on); color: var(--on); }
+/* While it connects: no cards (they'd show guesses), just this */
+.loading { display: grid; justify-items: center; text-align: center; gap: 8px; padding: 36px 16px; }
+.loading p { margin: 0; max-width: 32ch; }
+.spinner { width: 44px; height: 44px; margin-bottom: 8px; border-radius: 50%; border: 4px solid var(--line);
+  border-top-color: var(--on); animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading.problem .spinner { animation: none; border-color: #ff8a80; }
+
+/* Lost the link after it had been connected: keep the cards, but grey them until it's back */
+#homes.offline { opacity: 0.5; pointer-events: none; }
+
+[hidden] { display: none !important; }

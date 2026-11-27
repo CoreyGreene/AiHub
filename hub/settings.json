@@ -20,7 +20,9 @@
     {"id": "sound", "name": "Sound AI", "folder": "apps/sound", "port": 8610, "models": "SoundModels",
      "about": "Sound effects from a prompt, with a WAV library"},
     {"id": "talk", "name": "Talk", "folder": "apps/talk", "port": 8510, "models": "SoundModels",
-     "about": "Talk with your local AI: it listens, answers out loud and does things"}
+     "about": "Talk with your local AI: it listens, answers out loud and does things"},
+    {"id": "lights", "name": "Lights AI", "folder": "apps/lights", "port": 8710,
+     "about": "Your HALO lights: on, off, dim and warm, over Bluetooth"}
   ],
 
   "_autostart": "Tools started with the hub (by id), on this machine: Talk adds itself while Always listening is on.",

@@ -25,7 +25,7 @@ hearing behind the 🎤 buttons on every prompt box.
 
 ## What it can do when asked
 
-Say what's running and the Mac's memory; start or stop Image AI, 3D AI, Code AI or Movie AI; make a picture (with a
+Say what's running and the Mac's memory; **the lights** through Lights AI: "turn off the fireplace and stair lights", "dim Main 3 to 40", "make all the lights warm", "are any lights on?"; start or stop Image AI, 3D AI, Code AI or Movie AI; make a picture (with a
 theme) or a video; say how the queues are going; **take notes**: "add to my grocery notes: milk and eggs" adds a
 line (with the time, under the day) to that name's file, `notes_folder/grocery.md`, made when first used ("make a
 note: ..." with no name: `notes.md`). "What notes do I have?" lists them; "what's in my game notes?" reads them

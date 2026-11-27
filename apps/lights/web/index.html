@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Lights AI</title>
+  <link rel="stylesheet" href="lights.css">
+</head>
+<body>
+  <main>
+    <div class="row spread top">
+      <h1>Lights</h1>
+      <button class="button small" id="refresh" type="button">Refresh</button>
+    </div>
+    <p class="muted" id="status" hidden></p>
+    <p class="note" id="note" hidden></p>
+
+    <div class="card loading" id="loading">
+      <div class="spinner" aria-hidden="true"></div>
+      <h2>Connecting to your lights…</h2>
+      <p class="muted small" id="loading-note">Finding a light in range and asking how each one is. This takes about 10 seconds.</p>
+    </div>
+
+    <section id="homes" hidden></section>
+  </main>
+
+  <template id="card">
+    <div class="card light">
+      <div class="row spread">
+        <div>
+          <h2 class="name"></h2>
+          <span class="muted small state"></span>
+        </div>
+        <button class="power" type="button" aria-label="On or off"><span></span></button>
+      </div>
+      <label class="slider">
+        <span class="row spread"><span>Brightness</span><output class="b-out"></output></span>
+        <input class="b" type="range" min="1" max="100" step="1">
+      </label>
+      <label class="slider temp">
+        <span class="row spread"><span>Warm ↔ Cool</span><output class="k-out"></output></span>
+        <input class="k" type="range" step="100">
+      </label>
+      <div class="row presets temp"></div>
+    </div>
+  </template>
+
+  <script src="lights.js"></script>
+</body>
+</html>

@@ -15,6 +15,7 @@ the top of every page shows which tools are running, how much memory each uses, 
 | Code AI | `apps/code` | Ask the local language models; bulk runs, pipelines; an MCP connector for Claude |
 | Movie AI | `apps/movie` | Short videos with sound (LTX-2.5 on the Mac; Wan), from a prompt or a start picture |
 | Talk | `apps/talk` | Talk with your local AI: it hears (Whisper), thinks (Code AI's model), does things and answers out loud; Always listening for a wake word on the Mac. Also the 🎤 buttons' hearing |
+| Lights AI | `apps/lights` | The HALO Home lights over Bluetooth: on, off, brightness, warm/cool, per light, group or all; Talk uses it |
 
 Each tool came from its own repo, history and all (`git subtree`), and keeps its own `AGENTS.md` and `README.md`.
 
